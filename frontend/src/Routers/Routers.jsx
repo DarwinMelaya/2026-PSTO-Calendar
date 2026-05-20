@@ -1,7 +1,12 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
 import ProtectedRoutes from "../components/Security/ProtectedRoutes";
 import {
-  LandingPage,
+  // LandingPage,
   Login,
   SignUp,
   Dashboard,
@@ -16,9 +21,8 @@ export const Routers = () => {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<LandingPage />} />
-        {/* Auth */}
-        <Route path="/login" element={<Login />} />
+        <Route path="/" element={<Login />} />
+        <Route path="/login" element={<Navigate to="/" replace />} />
         <Route path="/signup" element={<SignUp />} />
         {/* Admin Page */}
         <Route

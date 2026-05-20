@@ -145,7 +145,7 @@ const Sidebar = () => {
   const handleLogout = () => {
     clearSession();
     toast.success("Logged out successfully.");
-    navigate("/login", { replace: true });
+    navigate("/", { replace: true });
   };
 
   const navFilter = (label) =>

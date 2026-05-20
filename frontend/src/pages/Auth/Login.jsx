@@ -42,23 +42,45 @@ const LockIcon = (props) => (
   </svg>
 );
 
-const SparkleMark = () => (
-  <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-600/20">
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="h-5 w-5"
-      aria-hidden="true"
-    >
-      <path d="M12 2l1.6 6.2L20 10l-6.4 1.8L12 18l-1.6-6.2L4 10l6.4-1.8z" />
-    </svg>
-  </div>
+const DOST_LOGO_SRC = "/Assets/dostlogo.png";
+
+const DobstLogo = ({ className = "h-10 w-10" }) => (
+  <img
+    src={DOST_LOGO_SRC}
+    alt="Department of Science and Technology logo"
+    className={`shrink-0 object-contain ${className}`}
+  />
 );
+
+const REMEMBER_LOGIN_KEY = "dost_remember_login";
+
+const loadRememberedLogin = () => {
+  try {
+    const raw = localStorage.getItem(REMEMBER_LOGIN_KEY);
+    if (!raw) {
+      return { email: "", password: "", rememberMe: false };
+    }
+    const parsed = JSON.parse(raw);
+    return {
+      email: typeof parsed.email === "string" ? parsed.email : "",
+      password: typeof parsed.password === "string" ? parsed.password : "",
+      rememberMe: true,
+    };
+  } catch {
+    return { email: "", password: "", rememberMe: false };
+  }
+};
+
+const saveRememberedLogin = (email, password) => {
+  localStorage.setItem(
+    REMEMBER_LOGIN_KEY,
+    JSON.stringify({ email, password }),
+  );
+};
+
+const clearRememberedLogin = () => {
+  localStorage.removeItem(REMEMBER_LOGIN_KEY);
+};
 
 const Spinner = () => (
   <svg
@@ -86,9 +108,19 @@ const Spinner = () => (
 
 const Login = () => {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const initialRemembered = loadRememberedLogin();
+  const [email, setEmail] = useState(initialRemembered.email);
+  const [password, setPassword] = useState(initialRemembered.password);
+  const [rememberMe, setRememberMe] = useState(initialRemembered.rememberMe);
   const [loading, setLoading] = useState(false);
+
+  const handleRememberMeChange = (e) => {
+    const checked = e.target.checked;
+    setRememberMe(checked);
+    if (!checked) {
+      clearRememberedLogin();
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -119,6 +151,12 @@ const Login = () => {
       return;
     }
 
+    if (rememberMe) {
+      saveRememberedLogin(email.trim(), password);
+    } else {
+      clearRememberedLogin();
+    }
+
     setSession(data);
     toast.success("Logged in successfully!");
     navigate(data.role === "admin" ? "/admin-dashboard" : "/user-dashboard");
@@ -136,7 +174,7 @@ const Login = () => {
         <div className="grid w-full grid-cols-1 overflow-hidden rounded-3xl border border-white/10 bg-white/5 shadow-2xl shadow-black/40 backdrop-blur-xl md:grid-cols-2">
           <div className="hidden p-10 md:block">
             <div className="flex items-center gap-3">
-              <SparkleMark />
+              <DobstLogo className="h-12 w-12" />
               <div>
                 <div className="text-sm font-semibold tracking-wide text-white/90">
                   DOST MARINDUQUE TASK MANAGEMENT SYSTEM
@@ -167,15 +205,16 @@ const Login = () => {
               <div className="flex items-center justify-between">
                 <div className="md:hidden">
                   <div className="flex items-center gap-3">
-                    <SparkleMark />
+                    <DobstLogo className="h-10 w-10" />
                     <div className="text-sm font-semibold text-slate-900">
-                      DOST PSTO Calendar
+                      DOST Marinduque Task Management System
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="mt-8">
+              <div className="mt-8 flex flex-col items-center md:items-start">
+                <DobstLogo className="mb-6 h-16 w-16 sm:h-20 sm:w-20 md:hidden" />
                 <h1 className="text-3xl font-bold tracking-tight text-slate-900">
                   Log in
                 </h1>
@@ -235,6 +274,17 @@ const Login = () => {
                     />
                   </div>
                 </div>
+
+                <label className="flex cursor-pointer select-none items-center gap-2.5">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={handleRememberMeChange}
+                    disabled={loading}
+                    className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                  />
+                  <span className="text-sm text-slate-600">Remember me</span>
+                </label>
 
                 <button
                   type="submit"

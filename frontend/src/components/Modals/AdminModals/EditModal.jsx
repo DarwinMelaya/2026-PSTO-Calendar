@@ -52,7 +52,7 @@ const EditModal = ({ isOpen, user, onClose, onSuccess }) => {
     clearSession();
     toast.success("Logged out successfully.");
     onClose();
-    navigate("/login", { replace: true });
+    navigate("/", { replace: true });
   };
 
   const handleSubmit = async (e) => {

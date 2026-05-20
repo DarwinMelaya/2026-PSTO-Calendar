@@ -9,7 +9,7 @@ const ProtectedRoutes = ({
   const user = getSession();
 
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/" replace />;
   }
 
   if (adminOnly && user.role !== "admin") {
