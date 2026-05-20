@@ -24,6 +24,39 @@ export const listProfiles = async () => {
   return { data, error };
 };
 
+export const updateProfile = async ({
+  id,
+  email,
+  codeName,
+  role,
+  password,
+}) => {
+  const payload = {
+    email: email.trim(),
+    code_name: codeName.trim(),
+    role,
+  };
+
+  if (password) {
+    payload.password = password;
+  }
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .update(payload)
+    .eq("id", id)
+    .select("id, email, code_name, role")
+    .single();
+
+  return { data, error };
+};
+
+export const deleteProfile = async (id) => {
+  const { error } = await supabase.from("profiles").delete().eq("id", id);
+
+  return { error };
+};
+
 export const loginProfile = async ({ email, password }) => {
   const { data, error } = await supabase
     .from("profiles")
