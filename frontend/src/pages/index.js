@@ -8,3 +8,4 @@ export { default as SignUp } from "./Auth/SignUp";
 // Admin Page
 export { default as Dashboard } from "./Admin/Dashboard";
 export { default as AddTask } from "./Admin/AddTask";
+export { default as AddUsers } from "./Admin/AddUsers";

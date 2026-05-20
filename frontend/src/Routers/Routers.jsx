@@ -1,6 +1,13 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import ProtectedRoutes from "../components/Security/ProtectedRoutes";
-import { LandingPage, Login, SignUp, Dashboard, AddTask } from "../pages";
+import {
+  LandingPage,
+  Login,
+  SignUp,
+  Dashboard,
+  AddTask,
+  AddUsers,
+} from "../pages";
 
 export const Routers = () => {
   return (
@@ -24,6 +31,14 @@ export const Routers = () => {
           element={
             <ProtectedRoutes adminOnly>
               <AddTask />
+            </ProtectedRoutes>
+          }
+        />
+        <Route
+          path="/admin-add-users"
+          element={
+            <ProtectedRoutes adminOnly>
+              <AddUsers />
             </ProtectedRoutes>
           }
         />

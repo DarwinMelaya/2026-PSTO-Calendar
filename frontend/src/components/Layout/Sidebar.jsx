@@ -18,6 +18,9 @@ const Sidebar = () => {
         <NavLink to="/admin-add-task" className={navLinkClass}>
           Add Task
         </NavLink>
+        <NavLink to="/admin-add-users" className={navLinkClass}>
+          Add Users
+        </NavLink>
       </nav>
     </aside>
   );
