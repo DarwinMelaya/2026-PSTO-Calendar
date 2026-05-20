@@ -12,6 +12,8 @@ import {
   rejectTaskStatusRequest,
 } from "../../utils/task";
 
+const daysBetween = (a, b) => Math.floor((a - b) / (1000 * 60 * 60 * 24));
+
 const formatDate = (value) => {
   if (!value) return "—";
   return new Date(`${value}T00:00:00`).toLocaleDateString(undefined, {
@@ -175,6 +177,28 @@ const AddTask = () => {
     };
   }, [groupedTasks]);
 
+  const dueSoon = useMemo(() => {
+    const now = new Date();
+    const today = new Date(now);
+    today.setHours(0, 0, 0, 0);
+    const windowDays = 7;
+    const end = new Date(today);
+    end.setDate(end.getDate() + windowDays);
+
+    const list = groupedTasks
+      .filter((t) => t.status !== "completed" && t.deadline)
+      .map((t) => ({
+        ...t,
+        deadlineDate: new Date(`${t.deadline}T00:00:00`),
+      }))
+      .filter((t) => !Number.isNaN(t.deadlineDate.getTime()))
+      .filter((t) => t.deadlineDate <= end)
+      .sort((a, b) => a.deadlineDate - b.deadlineDate)
+      .slice(0, 8);
+
+    return { windowDays, items: list, today };
+  }, [groupedTasks]);
+
   const hasActiveFilters =
     filters.awaitingApproval ||
     filters.status !== "all" ||
@@ -289,6 +313,98 @@ const AddTask = () => {
             Add task
           </button>
         </div>
+
+        <section className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-xl shadow-slate-200/40 ring-1 ring-slate-900/[0.04]">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/90 to-white px-5 py-4 sm:px-6">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">
+                Near due deadlines
+              </h2>
+              <p className="mt-0.5 text-sm text-slate-500">
+                {loadingTasks
+                  ? "Loading…"
+                  : `Next ${dueSoon.windowDays} days · excludes completed`}
+              </p>
+            </div>
+            {!loadingTasks && dueSoon.items.length > 0 ? (
+              <span className="inline-flex items-center rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-900 ring-1 ring-inset ring-amber-600/15">
+                Monitor owners here
+              </span>
+            ) : null}
+          </div>
+          <div className="space-y-3 p-5 sm:p-6">
+            {loadingTasks ? (
+              <p className="text-sm text-slate-500">Loading…</p>
+            ) : dueSoon.items.length === 0 ? (
+              <p className="text-sm text-slate-500">
+                No upcoming deadlines in the next {dueSoon.windowDays} days.
+              </p>
+            ) : (
+              dueSoon.items.map((t) => {
+                const diffDays = daysBetween(t.deadlineDate, dueSoon.today);
+                const urgency =
+                  diffDays < 0
+                    ? {
+                        label: "Overdue",
+                        cls: "bg-rose-50 text-rose-800 ring-rose-600/15",
+                      }
+                    : diffDays === 0
+                      ? {
+                          label: "Due today",
+                          cls: "bg-amber-50 text-amber-900 ring-amber-600/15",
+                        }
+                      : diffDays === 1
+                        ? {
+                            label: "Due tomorrow",
+                            cls: "bg-amber-50 text-amber-900 ring-amber-600/15",
+                          }
+                        : {
+                            label: `Due in ${diffDays}d`,
+                            cls: "bg-slate-100 text-slate-700 ring-slate-600/10",
+                          };
+
+                return (
+                  <div
+                    key={t.groupKey || t.id}
+                    className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-sm"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold text-slate-900">
+                          {t.agenda}
+                        </p>
+                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                          <div className="flex flex-wrap gap-1.5">
+                            {(t.responsibleLabels ?? ["—"]).map((label, idx) => (
+                              <span
+                                key={`${label}-${idx}`}
+                                className="inline-flex items-center rounded-lg bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-800 ring-1 ring-inset ring-slate-900/5"
+                              >
+                                {label}
+                              </span>
+                            ))}
+                          </div>
+                          <span>•</span>
+                          <span className="font-medium">
+                            {formatDate(t.deadline)}
+                          </span>
+                        </div>
+                      </div>
+                      <span
+                        className={`inline-flex shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${urgency.cls}`}
+                      >
+                        {urgency.label}
+                      </span>
+                    </div>
+                    <p className="mt-3 line-clamp-2 text-sm text-slate-600">
+                      {t.activities}
+                    </p>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </section>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
