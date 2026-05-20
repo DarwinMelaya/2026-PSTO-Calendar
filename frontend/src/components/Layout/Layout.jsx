@@ -8,15 +8,15 @@ const Layout = ({ children }) => {
   const isAdmin = user?.role === "admin";
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 lg:flex">
       {isAdmin ? <Sidebar /> : <UserSidebar />}
-      <div className="flex min-h-screen flex-1 flex-col">
+      <div className="flex min-h-screen w-full flex-1 flex-col">
         {!isAdmin ? (
           <div className="hidden lg:block">
             <UserNavbar />
           </div>
         ) : null}
-        <main className="flex-1 p-4 pt-16 lg:p-6">{children}</main>
+        <main className="flex-1 p-4 pt-16 lg:p-6 lg:pt-6">{children}</main>
       </div>
     </div>
   );

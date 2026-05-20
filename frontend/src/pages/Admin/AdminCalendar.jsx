@@ -98,50 +98,53 @@ const Calendar = ({
         </div>
 
         <div className="flex items-center gap-2">
-        <button
-          onClick={() => onMonthChange(false)}
-          className="inline-flex items-center justify-center rounded-xl bg-[#0f172a] px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-600/40"
-          aria-label="Previous month"
-          type="button"
-        >
-          <span aria-hidden>‹</span>
-        </button>
-        <button
-          onClick={() => onMonthChange(true)}
-          className="inline-flex items-center justify-center rounded-xl bg-[#0f172a] px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-600/40"
-          aria-label="Next month"
-          type="button"
-        >
-          <span aria-hidden>›</span>
-        </button>
+          <button
+            onClick={() => onMonthChange(false)}
+            className="inline-flex items-center justify-center rounded-xl bg-[#0f172a] px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-600/40"
+            aria-label="Previous month"
+            type="button"
+          >
+            <span aria-hidden>‹</span>
+          </button>
+          <button
+            onClick={() => onMonthChange(true)}
+            className="inline-flex items-center justify-center rounded-xl bg-[#0f172a] px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-600/40"
+            aria-label="Next month"
+            type="button"
+          >
+            <span aria-hidden>›</span>
+          </button>
         </div>
       </div>
 
-      <div className="flex items-center justify-between overflow-hidden rounded-xl border border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-600">
-        {weekDays.map((day, index) => (
-          <div
-            key={index}
-            className="w-full border-r border-slate-200 py-2 text-center last:border-r-0"
-          >
-            {day}
+      <div className="overflow-x-auto rounded-2xl border border-slate-200">
+        <div className="min-w-0 sm:min-w-[720px]">
+          <div className="flex items-center justify-between overflow-hidden rounded-t-2xl bg-slate-50 text-[10px] font-semibold uppercase tracking-wider text-slate-600 sm:text-xs">
+            {weekDays.map((day, index) => (
+              <div
+                key={index}
+                className="w-full border-r border-slate-200 py-2 text-center last:border-r-0"
+              >
+                <span className="sm:hidden">{day.slice(0, 1)}</span>
+                <span className="hidden sm:inline">{day}</span>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
 
-      <div className="mt-2 grid grid-cols-7 gap-px overflow-hidden rounded-2xl border border-slate-200 bg-slate-200">
-        {getDatesInMonth(yearNow, monthNow).map((date, index) => (
-          // Empty filler cells are rendered as non-interactive placeholders
-          <div
-            key={index}
-            className={`relative min-h-[112px] bg-white p-2 transition ${
-              date ? "hover:bg-slate-50" : "bg-slate-50"
-            }`}
-          >
+          <div className="grid grid-cols-7 gap-px overflow-hidden rounded-b-2xl bg-slate-200">
+            {getDatesInMonth(yearNow, monthNow).map((date, index) => (
+              // Empty filler cells are rendered as non-interactive placeholders
+              <div
+                key={index}
+                className={`relative min-h-[64px] bg-white p-1.5 transition sm:min-h-[112px] sm:p-2 ${
+                  date ? "hover:bg-slate-50" : "bg-slate-50"
+                }`}
+              >
             {date ? (
               <button
                 type="button"
                 onClick={() => onDateClick(date)}
-                className={`absolute right-2 top-2 inline-flex h-7 min-w-7 items-center justify-center rounded-lg px-1 text-xs font-semibold tabular-nums transition ${
+                className={`absolute right-1.5 top-1.5 inline-flex h-6 min-w-6 items-center justify-center rounded-lg px-1 text-[11px] font-semibold tabular-nums transition sm:right-2 sm:top-2 sm:h-7 sm:min-w-7 sm:text-xs ${
                   isToday(date)
                     ? "bg-blue-600 text-white"
                     : "bg-slate-100 text-slate-700 hover:bg-slate-200"
@@ -153,7 +156,7 @@ const Calendar = ({
             ) : null}
 
             {date && schedules[date.toDateString()] ? (
-              <div className="mt-9 space-y-1">
+              <div className="mt-8 space-y-1 sm:mt-9">
                 {schedules[date.toDateString()]
                   .filter(
                     (schedule) =>
@@ -165,7 +168,7 @@ const Calendar = ({
                       key={schedule.id ?? idx}
                       type="button"
                       onClick={(e) => onScheduleClick(e, schedule)}
-                      className={`w-full rounded-lg px-2 py-1 text-left text-[11px] font-semibold transition ${
+                      className={`w-full rounded-lg px-1.5 py-1 text-left text-[10px] font-semibold transition sm:px-2 sm:text-[11px] ${
                         schedule.completed
                           ? "bg-slate-100 text-slate-500 hover:bg-slate-200"
                           : "bg-slate-800 text-white hover:bg-slate-700"
@@ -174,7 +177,7 @@ const Calendar = ({
                     >
                       <div className="flex items-center justify-between gap-2">
                         <span className="truncate">{schedule.event_name}</span>
-                        <span className="shrink-0 text-[10px] font-semibold opacity-80">
+                        <span className="hidden shrink-0 text-[10px] font-semibold opacity-80 sm:inline">
                           {formatTime(schedule.start_time)}
                         </span>
                       </div>
@@ -188,8 +191,10 @@ const Calendar = ({
                 ) : null}
               </div>
             ) : null}
+              </div>
+            ))}
           </div>
-        ))}
+        </div>
       </div>
     </>
   );
@@ -323,8 +328,8 @@ const AdminCalendar = () => {
 
   return (
     <Layout>
-      <div className="p-4 space-y-4">
-        <div className="flex items-center justify-between gap-3">
+      <div className="mx-auto max-w-7xl space-y-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">
               Calendar
@@ -336,7 +341,7 @@ const AdminCalendar = () => {
           <button
             type="button"
             onClick={load}
-            className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-60"
+            className="inline-flex w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-60 sm:w-auto"
             disabled={loading}
           >
             Refresh
@@ -416,7 +421,7 @@ const AdminCalendar = () => {
             onClick={() => setSelectedSchedule(null)}
           >
             <div
-              className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-2xl"
+              className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-2xl sm:p-6"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-start justify-between gap-3">

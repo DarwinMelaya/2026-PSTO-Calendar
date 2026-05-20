@@ -339,7 +339,7 @@ const Dashboard = () => {
             <button
               type="button"
               onClick={load}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 sm:w-auto"
             >
               <svg
                 className={`h-5 w-5 ${loading ? "animate-spin text-blue-600" : "text-slate-500"}`}
