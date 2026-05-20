@@ -81,9 +81,34 @@ const CollapsibleSection = ({ title, defaultOpen = true, children }) => {
   );
 };
 
+const BurgerIcon = () => (
+  <svg
+    className="h-6 w-6"
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={1.8}
+  >
+    <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+  </svg>
+);
+
+const CloseIcon = () => (
+  <svg
+    className="h-6 w-6"
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={1.8}
+  >
+    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+  </svg>
+);
+
 const UserSidebar = () => {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const handleLogout = () => {
     clearSession();
@@ -95,8 +120,50 @@ const UserSidebar = () => {
     label.toLowerCase().includes(query.trim().toLowerCase());
 
   return (
-    <aside className="flex min-h-screen w-64 shrink-0 flex-col bg-[#0f172a] px-4 py-5 shadow-[4px_0_24px_rgba(0,0,0,0.12)]">
-      <h2 className="text-xl font-bold tracking-tight text-white">Dashboard</h2>
+    <>
+      <div className="fixed left-0 right-0 top-0 z-40 flex items-center justify-between border-b border-slate-900/60 bg-[#0f172a]/95 px-4 py-3 backdrop-blur lg:hidden">
+        <button
+          type="button"
+          onClick={() => setMobileOpen((v) => !v)}
+          className="inline-flex items-center gap-2 rounded-xl border border-slate-700/60 bg-slate-900/30 px-3 py-2 text-sm font-medium text-slate-200 hover:bg-slate-900/50"
+          aria-label={mobileOpen ? "Close sidebar" : "Open sidebar"}
+          aria-controls="user-sidebar"
+          aria-expanded={mobileOpen}
+        >
+          {mobileOpen ? <CloseIcon /> : <BurgerIcon />}
+          Menu
+        </button>
+        <span className="text-sm font-semibold text-slate-200">User</span>
+      </div>
+
+      {mobileOpen ? (
+        <button
+          type="button"
+          className="fixed inset-0 z-40 cursor-default bg-black/50 lg:hidden"
+          onClick={() => setMobileOpen(false)}
+          aria-label="Close sidebar overlay"
+        />
+      ) : null}
+
+      <aside
+        id="user-sidebar"
+        className={`fixed inset-y-0 left-0 z-50 flex min-h-screen w-72 shrink-0 flex-col bg-[#0f172a] px-4 py-5 shadow-[4px_0_24px_rgba(0,0,0,0.12)] transition-transform duration-200 ease-out lg:static lg:w-64 lg:translate-x-0 ${
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
+        } lg:shadow-none`}
+      >
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold tracking-tight text-white">
+            Dashboard
+          </h2>
+          <button
+            type="button"
+            onClick={() => setMobileOpen(false)}
+            className="rounded-xl px-2 py-2 text-slate-200 hover:bg-slate-900/40 lg:hidden"
+            aria-label="Close sidebar"
+          >
+            <CloseIcon />
+          </button>
+        </div>
 
       <div className="relative mt-5">
         <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2">
@@ -118,13 +185,22 @@ const UserSidebar = () => {
       >
         <CollapsibleSection title="Dashboard" defaultOpen>
           {navFilter("Dashboard") ? (
-            <NavLink to="/user-dashboard" end className={panelLinkClass}>
+            <NavLink
+              to="/user-dashboard"
+              end
+              className={panelLinkClass}
+              onClick={() => setMobileOpen(false)}
+            >
               <HomeIcon />
               Dashboard
             </NavLink>
           ) : null}
           {navFilter("My tasks") ? (
-            <NavLink to="/user-task" className={panelLinkClass}>
+            <NavLink
+              to="/user-task"
+              className={panelLinkClass}
+              onClick={() => setMobileOpen(false)}
+            >
               <TaskIcon />
               My tasks
             </NavLink>
@@ -145,7 +221,8 @@ const UserSidebar = () => {
         </button>
         <p className="mt-3 px-1 text-xs text-slate-600">PSTO Calendar</p>
       </div>
-    </aside>
+      </aside>
+    </>
   );
 };
 

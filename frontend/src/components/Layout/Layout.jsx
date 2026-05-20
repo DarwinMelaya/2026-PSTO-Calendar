@@ -11,8 +11,12 @@ const Layout = ({ children }) => {
     <div className="flex min-h-screen bg-slate-50">
       {isAdmin ? <Sidebar /> : <UserSidebar />}
       <div className="flex min-h-screen flex-1 flex-col">
-        {!isAdmin && <UserNavbar />}
-        <main className="flex-1 p-6">{children}</main>
+        {!isAdmin ? (
+          <div className="hidden lg:block">
+            <UserNavbar />
+          </div>
+        ) : null}
+        <main className="flex-1 p-4 pt-16 lg:p-6">{children}</main>
       </div>
     </div>
   );

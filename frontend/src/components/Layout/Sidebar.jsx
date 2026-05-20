@@ -113,9 +113,34 @@ const CollapsibleSection = ({ title, defaultOpen = true, children }) => {
   );
 };
 
+const BurgerIcon = () => (
+  <svg
+    className="h-6 w-6"
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={1.8}
+  >
+    <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+  </svg>
+);
+
+const CloseIcon = () => (
+  <svg
+    className="h-6 w-6"
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={1.8}
+  >
+    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+  </svg>
+);
+
 const Sidebar = () => {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const handleLogout = () => {
     clearSession();
@@ -127,22 +152,65 @@ const Sidebar = () => {
     label.toLowerCase().includes(query.trim().toLowerCase());
 
   return (
-    <aside className="flex min-h-screen w-64 shrink-0 flex-col bg-[#0f172a] px-4 py-5 shadow-[4px_0_24px_rgba(0,0,0,0.12)]">
-      <h2 className="text-xl font-bold tracking-tight text-white">Dashboard</h2>
-
-      <div className="relative mt-5">
-        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2">
-          <SearchIcon />
-        </span>
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search"
-          className="w-full rounded-xl border border-slate-700/60 bg-slate-800/50 py-2.5 pl-10 pr-3 text-sm text-slate-200 placeholder:text-slate-500 focus:border-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-600/40"
-          aria-label="Search navigation"
-        />
+    <>
+      <div className="fixed left-0 right-0 top-0 z-40 flex items-center justify-between border-b border-slate-900/60 bg-[#0f172a]/95 px-4 py-3 backdrop-blur lg:hidden">
+        <button
+          type="button"
+          onClick={() => setMobileOpen((v) => !v)}
+          className="inline-flex items-center gap-2 rounded-xl border border-slate-700/60 bg-slate-900/30 px-3 py-2 text-sm font-medium text-slate-200 hover:bg-slate-900/50"
+          aria-label={mobileOpen ? "Close sidebar" : "Open sidebar"}
+          aria-controls="admin-sidebar"
+          aria-expanded={mobileOpen}
+        >
+          {mobileOpen ? <CloseIcon /> : <BurgerIcon />}
+          Menu
+        </button>
+        <span className="text-sm font-semibold text-slate-200">Admin</span>
       </div>
+
+      {mobileOpen ? (
+        <button
+          type="button"
+          className="fixed inset-0 z-40 cursor-default bg-black/50 lg:hidden"
+          onClick={() => setMobileOpen(false)}
+          aria-label="Close sidebar overlay"
+        />
+      ) : null}
+
+      <aside
+        id="admin-sidebar"
+        className={`fixed inset-y-0 left-0 z-50 flex min-h-screen w-72 shrink-0 flex-col bg-[#0f172a] px-4 py-5 shadow-[4px_0_24px_rgba(0,0,0,0.12)] transition-transform duration-200 ease-out lg:static lg:w-64 lg:translate-x-0 ${
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
+        } lg:shadow-none`}
+        aria-label="Admin sidebar"
+      >
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold tracking-tight text-white">
+            Dashboard
+          </h2>
+          <button
+            type="button"
+            onClick={() => setMobileOpen(false)}
+            className="rounded-xl px-2 py-2 text-slate-200 hover:bg-slate-900/40 lg:hidden"
+            aria-label="Close sidebar"
+          >
+            <CloseIcon />
+          </button>
+        </div>
+
+        <div className="relative mt-5">
+          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2">
+            <SearchIcon />
+          </span>
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search"
+            className="w-full rounded-xl border border-slate-700/60 bg-slate-800/50 py-2.5 pl-10 pr-3 text-sm text-slate-200 placeholder:text-slate-500 focus:border-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-600/40"
+            aria-label="Search navigation"
+          />
+        </div>
 
       <nav
         className="mt-6 flex flex-1 flex-col gap-1 overflow-y-auto pb-4"
@@ -150,25 +218,42 @@ const Sidebar = () => {
       >
         <CollapsibleSection title="Dashboard" defaultOpen>
           {navFilter("Overview") ? (
-            <NavLink to="/admin-dashboard" end className={panelLinkClass}>
+            <NavLink
+              to="/admin-dashboard"
+              end
+              className={panelLinkClass}
+              onClick={() => setMobileOpen(false)}
+            >
               <HomeIcon />
               Dashboard
             </NavLink>
           ) : null}
           {navFilter("Tasks") ? (
-            <NavLink to="/admin-add-task" className={panelLinkClass}>
+            <NavLink
+              to="/admin-add-task"
+              className={panelLinkClass}
+              onClick={() => setMobileOpen(false)}
+            >
               <TaskIcon />
               Tasks
             </NavLink>
           ) : null}
           {navFilter("Users") ? (
-            <NavLink to="/admin-add-users" className={panelLinkClass}>
+            <NavLink
+              to="/admin-add-users"
+              className={panelLinkClass}
+              onClick={() => setMobileOpen(false)}
+            >
               <UsersIcon />
               Users
             </NavLink>
           ) : null}
           {navFilter("Calendar") ? (
-            <NavLink to="/admin-calendar" className={panelLinkClass}>
+            <NavLink
+              to="/admin-calendar"
+              className={panelLinkClass}
+              onClick={() => setMobileOpen(false)}
+            >
               <CalendarIcon />
               Calendar
             </NavLink>
@@ -194,7 +279,8 @@ const Sidebar = () => {
           PSTO Calendar · Admin
         </p>
       </div>
-    </aside>
+      </aside>
+    </>
   );
 };
 
