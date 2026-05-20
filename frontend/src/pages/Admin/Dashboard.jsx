@@ -64,6 +64,15 @@ const startOfDayKey = (date) =>
     date.getDate(),
   ).padStart(2, "0")}`;
 
+const formatDate = (value) => {
+  if (!value) return "—";
+  return new Date(`${value}T00:00:00`).toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+};
+
 const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [tasks, setTasks] = useState([]);
@@ -289,6 +298,31 @@ const Dashboard = () => {
     return { w, h, padX, padY, createdPath, completedPath, areaPath };
   }, [trend]);
 
+  const dueSoon = useMemo(() => {
+    const now = new Date();
+    const today = new Date(now);
+    today.setHours(0, 0, 0, 0);
+    const windowDays = 7;
+    const end = new Date(today);
+    end.setDate(end.getDate() + windowDays);
+
+    const list = enrichedTasks
+      .filter((t) => t.status !== "completed" && t.deadline)
+      .map((t) => ({
+        ...t,
+        deadlineDate: new Date(`${t.deadline}T00:00:00`),
+      }))
+      .filter((t) => !Number.isNaN(t.deadlineDate.getTime()))
+      .filter((t) => t.deadlineDate <= end)
+      .sort((a, b) => a.deadlineDate - b.deadlineDate)
+      .slice(0, 8);
+
+    return {
+      windowDays,
+      items: list,
+    };
+  }, [enrichedTasks]);
+
   return (
     <Layout>
       <div className="mx-auto max-w-7xl space-y-8">
@@ -439,6 +473,84 @@ const Dashboard = () => {
                   </span>
                 </div>
               </div>
+            </div>
+          </section>
+
+          <section className="lg:col-span-1 overflow-hidden rounded-3xl border border-slate-200/90 bg-white shadow-xl shadow-slate-200/40 ring-1 ring-slate-900/[0.04]">
+            <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50/90 to-white px-5 py-4">
+              <h2 className="text-lg font-semibold text-slate-900">Due soon</h2>
+              <p className="mt-0.5 text-sm text-slate-500">
+                {loading
+                  ? "Loading…"
+                  : `Next ${dueSoon.windowDays} days · excludes completed`}
+              </p>
+            </div>
+            <div className="space-y-3 p-5">
+              {loading ? (
+                <p className="text-sm text-slate-500">Loading…</p>
+              ) : dueSoon.items.length === 0 ? (
+                <p className="text-sm text-slate-500">
+                  No upcoming deadlines in the next {dueSoon.windowDays} days.
+                </p>
+              ) : (
+                dueSoon.items.map((t) => {
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  const diffDays = daysBetween(t.deadlineDate, today);
+                  const urgency =
+                    diffDays < 0
+                      ? {
+                          label: "Overdue",
+                          cls: "bg-rose-50 text-rose-800 ring-rose-600/15",
+                        }
+                      : diffDays === 0
+                        ? {
+                            label: "Due today",
+                            cls: "bg-amber-50 text-amber-900 ring-amber-600/15",
+                          }
+                        : diffDays === 1
+                          ? {
+                              label: "Due tomorrow",
+                              cls: "bg-amber-50 text-amber-900 ring-amber-600/15",
+                            }
+                          : {
+                              label: `Due in ${diffDays}d`,
+                              cls: "bg-slate-100 text-slate-700 ring-slate-600/10",
+                            };
+
+                  return (
+                    <div
+                      key={t.id}
+                      className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-sm"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold text-slate-900">
+                            {t.agenda}
+                          </p>
+                          <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                            <span className="inline-flex items-center rounded-lg bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-800 ring-1 ring-inset ring-slate-900/5">
+                              {t.profile?.code_name ?? t.profiles?.code_name ?? "—"}
+                            </span>
+                            <span>•</span>
+                            <span className="font-medium">
+                              {formatDate(t.deadline)}
+                            </span>
+                          </p>
+                        </div>
+                        <span
+                          className={`inline-flex shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${urgency.cls}`}
+                        >
+                          {urgency.label}
+                        </span>
+                      </div>
+                      <p className="mt-3 line-clamp-2 text-sm text-slate-600">
+                        {t.activities}
+                      </p>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </section>
 
