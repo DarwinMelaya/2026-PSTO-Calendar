@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import { LandingPage, Login, SignUp, Dashboard } from "../pages";
+import { LandingPage, Login, SignUp, Dashboard, AddTask } from "../pages";
 
 export const Routers = () => {
   return (
@@ -11,6 +11,7 @@ export const Routers = () => {
         <Route path="/signup" element={<SignUp />} />
         {/* Admin Page */}
         <Route path="/admin-dashboard" element={<Dashboard />} />
+        <Route path="/admin-add-task" element={<AddTask />} />
       </Routes>
     </Router>
   );
