@@ -11,7 +11,7 @@ const initialForm = {
   agenda: "",
   activities: "",
   deadline: "",
-  responsibleId: "",
+  responsibleId: [],
   status: "pending",
   remarks: "",
 };
@@ -26,8 +26,11 @@ function taskToForm(task) {
     agenda: task.agenda ?? "",
     activities: task.activities ?? "",
     deadline: task.deadline ?? "",
-    responsibleId:
-      task.responsible_id != null ? String(task.responsible_id) : "",
+    responsibleId: Array.isArray(task.responsible_ids)
+      ? task.responsible_ids.map((id) => String(id))
+      : task.responsible_id != null
+        ? [String(task.responsible_id)]
+        : [],
     status: task.status ?? "pending",
     remarks: task.remarks ?? "",
   };
@@ -61,13 +64,18 @@ const EditTaskModal = ({ isOpen, onClose, onSuccess, task }) => {
 
   const assigneeOptions = useMemo(() => {
     const list = [...assignees];
-    const rid = task?.responsible_id;
-    if (rid != null && !list.some((p) => Number(p.id) === Number(rid))) {
-      list.unshift({
-        id: rid,
-        code_name:
-          task.profiles?.code_name ?? `(profile #${rid})`,
-      });
+    const rids = Array.isArray(task?.responsible_ids)
+      ? task.responsible_ids
+      : task?.responsible_id != null
+        ? [task.responsible_id]
+        : [];
+    for (const rid of rids) {
+      if (!list.some((p) => Number(p.id) === Number(rid))) {
+        list.unshift({
+          id: rid,
+          code_name: `(profile #${rid})`,
+        });
+      }
     }
     return list;
   }, [assignees, task]);
@@ -76,6 +84,14 @@ const EditTaskModal = ({ isOpen, onClose, onSuccess, task }) => {
 
   const setField = (field) => (e) =>
     setForm((prev) => ({ ...prev, [field]: e.target.value }));
+
+  const toggleResponsibleId = (id) => {
+    const value = String(id);
+    const values = form.responsibleId.includes(value)
+      ? form.responsibleId.filter((item) => item !== value)
+      : [...form.responsibleId, value];
+    setForm((prev) => ({ ...prev, responsibleId: values }));
+  };
 
   const handleClose = () => {
     if (submitting) return;
@@ -108,8 +124,8 @@ const EditTaskModal = ({ isOpen, onClose, onSuccess, task }) => {
       return;
     }
 
-    if (!responsibleId) {
-      toast.error("Person responsible is required.");
+    if (!responsibleId.length) {
+      toast.error("At least one person responsible is required.");
       return;
     }
 
@@ -128,6 +144,8 @@ const EditTaskModal = ({ isOpen, onClose, onSuccess, task }) => {
       responsibleId,
       status,
       remarks,
+      taskIds: task.task_ids,
+      groupKey: task.group_key,
     });
 
     setSubmitting(false);
@@ -141,7 +159,11 @@ const EditTaskModal = ({ isOpen, onClose, onSuccess, task }) => {
       return;
     }
 
-    toast.success("Task updated successfully.");
+    toast.success(
+      responsibleId.length > 1
+        ? `Task saved and assigned to ${responsibleId.length} users.`
+        : "Task updated successfully.",
+    );
     setForm(initialForm);
     onSuccess();
     onClose();
@@ -263,29 +285,36 @@ const EditTaskModal = ({ isOpen, onClose, onSuccess, task }) => {
                 htmlFor="edit-modal-task-responsible"
                 className="mb-1.5 block text-sm font-medium text-slate-700"
               >
-                Person responsible
+                Persons responsible
               </label>
-              <select
+              <div
                 id="edit-modal-task-responsible"
-                required
-                value={form.responsibleId}
-                onChange={setField("responsibleId")}
-                disabled={loadingAssignees || assigneeOptions.length === 0}
-                className={inputClass}
+                className="max-h-40 space-y-2 overflow-y-auto rounded-lg border border-slate-300 p-3"
               >
-                <option value="">
-                  {loadingAssignees
-                    ? "Loading code names..."
-                    : assigneeOptions.length === 0
-                      ? "No users with code name"
-                      : "Select code name"}
-                </option>
-                {assigneeOptions.map((profile) => (
-                  <option key={profile.id} value={profile.id}>
-                    {profile.code_name}
-                  </option>
-                ))}
-              </select>
+                {loadingAssignees ? (
+                  <p className="text-sm text-slate-500">Loading code names...</p>
+                ) : assigneeOptions.length === 0 ? (
+                  <p className="text-sm text-slate-500">No users with code name</p>
+                ) : (
+                  assigneeOptions.map((profile) => (
+                    <label
+                      key={profile.id}
+                      className="flex items-center gap-2 text-sm text-slate-700"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={form.responsibleId.includes(String(profile.id))}
+                        onChange={() => toggleResponsibleId(profile.id)}
+                        className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span>{profile.code_name}</span>
+                    </label>
+                  ))
+                )}
+              </div>
+              <p className="mt-1 text-xs text-slate-500">
+                Select one or more users.
+              </p>
             </div>
 
             <div>

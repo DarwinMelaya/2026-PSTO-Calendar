@@ -2,7 +2,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import Layout from "../../components/Layout/Layout";
 import { getSession } from "../../utils/session";
-import { TASK_STATUSES, listTasksForUser } from "../../utils/task";
+import {
+  TASK_STATUSES,
+  listTasksForUser,
+  parseTaskRemarks,
+  requestTaskStatusChange,
+} from "../../utils/task";
 
 const formatDate = (value) => {
   if (!value) return "—";
@@ -54,6 +59,8 @@ const UserTask = () => {
   const session = getSession();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [requestDrafts, setRequestDrafts] = useState({});
+  const [requestingId, setRequestingId] = useState(null);
 
   const loadTasks = useCallback(async () => {
     if (!session?.id) {
@@ -90,6 +97,41 @@ const UserTask = () => {
   }, [tasks]);
 
   const codeName = session?.code_name?.trim();
+
+  const handleRequestStatus = async (task) => {
+    const { requestedStatus: pendingRequest } = parseTaskRemarks(task.remarks);
+    const selectedStatus =
+      requestDrafts[task.id] ?? pendingRequest ?? task.status;
+
+    if (!selectedStatus) {
+      toast.error("Please choose a status.");
+      return;
+    }
+
+    if (selectedStatus === task.status && !pendingRequest) {
+      toast.error("Selected status is the same as current status.");
+      return;
+    }
+
+    setRequestingId(task.id);
+    const { error } = await requestTaskStatusChange(task.id, {
+      requestedStatus: selectedStatus,
+      remarks: task.remarks,
+    });
+    setRequestingId(null);
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    toast.success(
+      pendingRequest
+        ? "Status request updated. Awaiting admin approval."
+        : "Status change request sent for admin approval.",
+    );
+    loadTasks();
+  };
 
   return (
     <Layout>
@@ -175,12 +217,15 @@ const UserTask = () => {
                   <th className="whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500 sm:px-6">
                     Remarks
                   </th>
+                  <th className="w-[1%] whitespace-nowrap px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-slate-500 sm:px-6">
+                    Request status
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {loading ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-16">
+                    <td colSpan={7} className="px-6 py-16">
                       <div className="flex flex-col items-center justify-center gap-3 text-center">
                         <div
                           className="h-10 w-10 animate-spin rounded-full border-2 border-slate-200 border-t-blue-600"
@@ -194,7 +239,7 @@ const UserTask = () => {
                   </tr>
                 ) : tasks.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-16">
+                    <td colSpan={7} className="px-6 py-16">
                       <div className="mx-auto flex max-w-md flex-col items-center text-center">
                         <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 ring-1 ring-blue-100">
                           <svg
@@ -251,9 +296,48 @@ const UserTask = () => {
                         </span>
                       </td>
                       <td className="max-w-[220px] px-5 py-4 text-slate-600 sm:px-6">
-                        <span className="line-clamp-2" title={task.remarks}>
-                          {task.remarks || "—"}
+                        <span className="line-clamp-2" title={parseTaskRemarks(task.remarks).cleanRemarks}>
+                          {parseTaskRemarks(task.remarks).cleanRemarks || "—"}
                         </span>
+                      </td>
+                      <td className="whitespace-nowrap px-5 py-4 text-right sm:px-6">
+                        <div className="flex items-center justify-end gap-2">
+                          <select
+                            value={
+                              requestDrafts[task.id] ??
+                              parseTaskRemarks(task.remarks).requestedStatus ??
+                              task.status
+                            }
+                            onChange={(e) =>
+                              setRequestDrafts((prev) => ({
+                                ...prev,
+                                [task.id]: e.target.value,
+                              }))
+                            }
+                            disabled={requestingId === task.id}
+                            className="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                          >
+                            {TASK_STATUSES.map(({ value, label }) => (
+                              <option key={value} value={value}>
+                                {label}
+                              </option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            onClick={() => handleRequestStatus(task)}
+                            disabled={requestingId === task.id}
+                            className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {requestingId === task.id ? "Sending..." : "Request"}
+                          </button>
+                        </div>
+                        {parseTaskRemarks(task.remarks).requestedStatus ? (
+                          <p className="mt-1 text-xs text-amber-600">
+                            Pending admin approval:{" "}
+                            {statusLabel(parseTaskRemarks(task.remarks).requestedStatus)}
+                          </p>
+                        ) : null}
                       </td>
                     </tr>
                   ))

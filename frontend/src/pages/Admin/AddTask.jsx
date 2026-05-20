@@ -3,7 +3,14 @@ import toast from "react-hot-toast";
 import AddTaskModal from "../../components/Modals/AdminModals/AddTaskModal";
 import EditTaskModal from "../../components/Modals/AdminModals/EditTaskModal";
 import Layout from "../../components/Layout/Layout";
-import { TASK_STATUSES, deleteTask, listTasks } from "../../utils/task";
+import {
+  TASK_STATUSES,
+  approveTaskStatusRequest,
+  deleteTasks,
+  listTasks,
+  parseTaskRemarks,
+  rejectTaskStatusRequest,
+} from "../../utils/task";
 
 const formatDate = (value) => {
   if (!value) return "—";
@@ -58,6 +65,7 @@ const AddTask = () => {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [taskToEdit, setTaskToEdit] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+  const [resolvingRequestId, setResolvingRequestId] = useState(null);
 
   const loadTasks = useCallback(async () => {
     setLoadingTasks(true);
@@ -76,19 +84,58 @@ const AddTask = () => {
     loadTasks();
   }, [loadTasks]);
 
+  const groupedTasks = useMemo(() => {
+    const groups = new Map();
+    for (const task of tasks) {
+      const { cleanRemarks, requestedStatus, groupKey } = parseTaskRemarks(
+        task.remarks,
+      );
+      const key = groupKey || `single-${task.id}`;
+      const current = groups.get(key);
+      const normalizedTask = {
+        ...task,
+        cleanRemarks,
+        requestedStatus,
+        groupKey,
+      };
+      if (!current) {
+        groups.set(key, {
+          ...normalizedTask,
+          taskIds: [task.id],
+          responsibleIds: [task.responsible_id],
+          responsibleLabels: [task.profiles?.code_name ?? "—"],
+          members: [normalizedTask],
+        });
+      } else {
+        current.taskIds.push(task.id);
+        current.responsibleIds.push(task.responsible_id);
+        current.responsibleLabels.push(task.profiles?.code_name ?? "—");
+        current.members.push(normalizedTask);
+      }
+    }
+    return Array.from(groups.values());
+  }, [tasks]);
+
   const stats = useMemo(() => {
-    const list = tasks;
+    const list = groupedTasks;
     return {
       total: list.length,
       pending: list.filter((t) => t.status === "pending").length,
       ongoing: list.filter((t) => t.status === "ongoing").length,
       completed: list.filter((t) => t.status === "completed").length,
       onHold: list.filter((t) => t.status === "on_hold").length,
+      awaitingApproval: list.filter((t) => !!t.requestedStatus).length,
     };
-  }, [tasks]);
+  }, [groupedTasks]);
 
   const openEdit = (task) => {
-    setTaskToEdit(task);
+    setTaskToEdit({
+      ...task,
+      remarks: task.cleanRemarks,
+      group_key: task.groupKey,
+      task_ids: task.taskIds,
+      responsible_ids: task.responsibleIds,
+    });
     setEditModalOpen(true);
   };
 
@@ -104,7 +151,7 @@ const AddTask = () => {
     if (!ok) return;
 
     setDeletingId(task.id);
-    const { error } = await deleteTask(task.id);
+    const { error } = await deleteTasks(task.taskIds ?? [task.id]);
     setDeletingId(null);
 
     if (error) {
@@ -113,6 +160,44 @@ const AddTask = () => {
     }
 
     toast.success("Task deleted.");
+    loadTasks();
+  };
+
+  const handleApproveRequest = async (task) => {
+    const requestStatus = task.requestedStatus;
+    if (!requestStatus) return;
+
+    setResolvingRequestId(task.id);
+    for (const member of task.members ?? []) {
+      const { error } = await approveTaskStatusRequest(member);
+      if (error) {
+        setResolvingRequestId(null);
+        toast.error(error.message);
+        return;
+      }
+    }
+    setResolvingRequestId(null);
+
+    toast.success(`Status request approved (${statusLabel(requestStatus)}).`);
+    loadTasks();
+  };
+
+  const handleRejectRequest = async (task) => {
+    const requestStatus = task.requestedStatus;
+    if (!requestStatus) return;
+
+    setResolvingRequestId(task.id);
+    for (const member of task.members ?? []) {
+      const { error } = await rejectTaskStatusRequest(member);
+      if (error) {
+        setResolvingRequestId(null);
+        toast.error(error.message);
+        return;
+      }
+    }
+    setResolvingRequestId(null);
+
+    toast.success("Status request rejected.");
     loadTasks();
   };
 
@@ -183,10 +268,10 @@ const AddTask = () => {
               <p className="mt-0.5 text-sm text-slate-500">
                 {loadingTasks
                   ? "Loading your workspace…"
-                  : `${tasks.length} record${tasks.length === 1 ? "" : "s"} · ${stats.onHold} on hold`}
+                  : `${groupedTasks.length} record${groupedTasks.length === 1 ? "" : "s"} · ${stats.onHold} on hold · ${stats.awaitingApproval} awaiting approval`}
               </p>
             </div>
-            {!loadingTasks && tasks.length > 0 ? (
+            {!loadingTasks && groupedTasks.length > 0 ? (
               <span className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-800 ring-1 ring-inset ring-blue-600/15">
                 Latest first
               </span>
@@ -238,7 +323,7 @@ const AddTask = () => {
                       </div>
                     </td>
                   </tr>
-                ) : tasks.length === 0 ? (
+                ) : groupedTasks.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="px-6 py-16">
                       <div className="mx-auto flex max-w-md flex-col items-center text-center">
@@ -275,9 +360,9 @@ const AddTask = () => {
                     </td>
                   </tr>
                 ) : (
-                  tasks.map((task) => (
+                  groupedTasks.map((task) => (
                     <tr
-                      key={task.id}
+                      key={task.groupKey || task.id}
                       className="transition-colors hover:bg-slate-50/90"
                     >
                       <td className="whitespace-nowrap px-5 py-4 font-medium text-slate-900 sm:px-6">
@@ -297,35 +382,79 @@ const AddTask = () => {
                         {formatDate(task.deadline)}
                       </td>
                       <td className="whitespace-nowrap px-5 py-4 sm:px-6">
-                        <span className="inline-flex items-center rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-800 ring-1 ring-inset ring-slate-900/5">
-                          {task.profiles?.code_name ?? "—"}
-                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {task.responsibleLabels.map((label, idx) => (
+                            <span
+                              key={`${label}-${idx}`}
+                              className="inline-flex items-center rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-800 ring-1 ring-inset ring-slate-900/5"
+                            >
+                              {label}
+                            </span>
+                          ))}
+                        </div>
                       </td>
                       <td className="whitespace-nowrap px-5 py-4 sm:px-6">
-                        <span
-                          className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${statusBadgeClass(task.status)}`}
-                        >
-                          {statusLabel(task.status)}
-                        </span>
+                        <div className="flex flex-col items-start gap-1">
+                          <span
+                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${statusBadgeClass(task.status)}`}
+                          >
+                            {statusLabel(task.status)}
+                          </span>
+                          {task.requestedStatus ? (
+                            <span className="inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 ring-1 ring-inset ring-amber-600/15">
+                              Requested:{" "}
+                              {statusLabel(task.requestedStatus)}
+                            </span>
+                          ) : null}
+                        </div>
                       </td>
                       <td className="max-w-[200px] px-5 py-4 text-slate-600 sm:px-6">
-                        <span className="line-clamp-2" title={task.remarks}>
-                          {task.remarks || "—"}
+                        <span
+                          className="line-clamp-2"
+                          title={task.cleanRemarks}
+                        >
+                          {task.cleanRemarks || "—"}
                         </span>
                       </td>
                       <td className="whitespace-nowrap px-5 py-4 text-right sm:px-6">
                         <div className="flex justify-end gap-2">
+                          {task.requestedStatus ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => handleApproveRequest(task)}
+                                disabled={resolvingRequestId === task.id}
+                                className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 shadow-sm transition hover:border-emerald-200 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                {resolvingRequestId === task.id
+                                  ? "Saving..."
+                                  : "Approve"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleRejectRequest(task)}
+                                disabled={resolvingRequestId === task.id}
+                                className="rounded-lg border border-amber-100 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 shadow-sm transition hover:border-amber-200 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                Reject
+                              </button>
+                            </>
+                          ) : null}
                           <button
                             type="button"
                             onClick={() => openEdit(task)}
-                            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+                            disabled={resolvingRequestId === task.id}
+                            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             Edit
                           </button>
                           <button
                             type="button"
                             onClick={() => handleDelete(task)}
-                            disabled={deletingId === task.id}
+                            disabled={
+                              deletingId === task.id ||
+                              resolvingRequestId === task.id
+                            }
                             className="rounded-lg border border-red-100 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 shadow-sm transition hover:border-red-200 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             {deletingId === task.id ? "Deleting…" : "Delete"}

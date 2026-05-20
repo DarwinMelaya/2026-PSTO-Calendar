@@ -11,7 +11,7 @@ const initialForm = {
   agenda: "",
   activities: "",
   deadline: "",
-  responsibleId: "",
+  responsibleId: [],
   status: "pending",
   remarks: "",
 };
@@ -49,6 +49,14 @@ const AddTaskModal = ({ isOpen, onClose, onSuccess }) => {
   const setField = (field) => (e) =>
     setForm((prev) => ({ ...prev, [field]: e.target.value }));
 
+  const toggleResponsibleId = (id) => {
+    const value = String(id);
+    const values = form.responsibleId.includes(value)
+      ? form.responsibleId.filter((item) => item !== value)
+      : [...form.responsibleId, value];
+    setForm((prev) => ({ ...prev, responsibleId: values }));
+  };
+
   const handleClose = () => {
     if (submitting) return;
     setForm(initialForm);
@@ -80,8 +88,8 @@ const AddTaskModal = ({ isOpen, onClose, onSuccess }) => {
       return;
     }
 
-    if (!responsibleId) {
-      toast.error("Person responsible is required.");
+    if (!responsibleId.length) {
+      toast.error("At least one person responsible is required.");
       return;
     }
 
@@ -113,7 +121,11 @@ const AddTaskModal = ({ isOpen, onClose, onSuccess }) => {
       return;
     }
 
-    toast.success("Task created successfully.");
+    toast.success(
+      responsibleId.length > 1
+        ? `Tasks created for ${responsibleId.length} assignees.`
+        : "Task created successfully.",
+    );
     setForm(initialForm);
     onSuccess();
     onClose();
@@ -235,29 +247,36 @@ const AddTaskModal = ({ isOpen, onClose, onSuccess }) => {
                 htmlFor="modal-task-responsible"
                 className="mb-1.5 block text-sm font-medium text-slate-700"
               >
-                Person responsible
+                Persons responsible
               </label>
-              <select
+              <div
                 id="modal-task-responsible"
-                required
-                value={form.responsibleId}
-                onChange={setField("responsibleId")}
-                disabled={loadingAssignees || assignees.length === 0}
-                className={inputClass}
+                className="max-h-40 space-y-2 overflow-y-auto rounded-lg border border-slate-300 p-3"
               >
-                <option value="">
-                  {loadingAssignees
-                    ? "Loading code names..."
-                    : assignees.length === 0
-                      ? "No users with code name"
-                      : "Select code name"}
-                </option>
-                {assignees.map((profile) => (
-                  <option key={profile.id} value={profile.id}>
-                    {profile.code_name}
-                  </option>
-                ))}
-              </select>
+                {loadingAssignees ? (
+                  <p className="text-sm text-slate-500">Loading code names...</p>
+                ) : assignees.length === 0 ? (
+                  <p className="text-sm text-slate-500">No users with code name</p>
+                ) : (
+                  assignees.map((profile) => (
+                    <label
+                      key={profile.id}
+                      className="flex items-center gap-2 text-sm text-slate-700"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={form.responsibleId.includes(String(profile.id))}
+                        onChange={() => toggleResponsibleId(profile.id)}
+                        className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span>{profile.code_name}</span>
+                    </label>
+                  ))
+                )}
+              </div>
+              <p className="mt-1 text-xs text-slate-500">
+                Select one or more users.
+              </p>
             </div>
 
             <div>
