@@ -35,6 +35,44 @@ export const createTask = async ({
   return { data, error };
 };
 
+export const updateTask = async (
+  id,
+  {
+    taskDate,
+    agenda,
+    activities,
+    deadline,
+    responsibleId,
+    status,
+    remarks,
+  },
+) => {
+  const { data, error } = await supabase
+    .from("tasks")
+    .update({
+      task_date: taskDate,
+      agenda: agenda.trim(),
+      activities: activities.trim(),
+      deadline,
+      responsible_id: Number(responsibleId),
+      status,
+      remarks: remarks?.trim() || null,
+    })
+    .eq("id", id)
+    .select(
+      "id, task_date, agenda, activities, deadline, status, remarks, created_at, responsible_id",
+    )
+    .single();
+
+  return { data, error };
+};
+
+export const deleteTask = async (id) => {
+  const { error } = await supabase.from("tasks").delete().eq("id", id);
+
+  return { error };
+};
+
 export const listTasks = async () => {
   const { data, error } = await supabase
     .from("tasks")

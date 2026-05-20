@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import AddTaskModal from "../../components/Modals/AdminModals/AddTaskModal";
+import EditTaskModal from "../../components/Modals/AdminModals/EditTaskModal";
 import Layout from "../../components/Layout/Layout";
-import { TASK_STATUSES, listTasks } from "../../utils/task";
+import { TASK_STATUSES, deleteTask, listTasks } from "../../utils/task";
 
 const formatDate = (value) => {
   if (!value) return "—";
@@ -33,6 +34,9 @@ const AddTask = () => {
   const [tasks, setTasks] = useState([]);
   const [loadingTasks, setLoadingTasks] = useState(true);
   const [addModalOpen, setAddModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [taskToEdit, setTaskToEdit] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
   const loadTasks = useCallback(async () => {
     setLoadingTasks(true);
@@ -50,6 +54,35 @@ const AddTask = () => {
   useEffect(() => {
     loadTasks();
   }, [loadTasks]);
+
+  const openEdit = (task) => {
+    setTaskToEdit(task);
+    setEditModalOpen(true);
+  };
+
+  const closeEdit = () => {
+    setEditModalOpen(false);
+    setTaskToEdit(null);
+  };
+
+  const handleDelete = async (task) => {
+    const ok = window.confirm(
+      `Delete this task?\n\n${task.agenda?.slice(0, 120) || "Untitled"}${task.agenda?.length > 120 ? "…" : ""}`,
+    );
+    if (!ok) return;
+
+    setDeletingId(task.id);
+    const { error } = await deleteTask(task.id);
+    setDeletingId(null);
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    toast.success("Task deleted.");
+    loadTasks();
+  };
 
   return (
     <Layout>
@@ -101,13 +134,16 @@ const AddTask = () => {
                   <th className="px-4 py-3 font-semibold text-slate-700">
                     Remarks
                   </th>
+                  <th className="px-4 py-3 font-semibold text-slate-700 w-[1%] whitespace-nowrap">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {loadingTasks ? (
                   <tr>
                     <td
-                      colSpan={7}
+                      colSpan={8}
                       className="px-4 py-8 text-center text-slate-500"
                     >
                       Loading tasks...
@@ -116,7 +152,7 @@ const AddTask = () => {
                 ) : tasks.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={7}
+                      colSpan={8}
                       className="px-4 py-8 text-center text-slate-500"
                     >
                       No tasks yet. Click &quot;Add task&quot; to create one.
@@ -150,6 +186,25 @@ const AddTask = () => {
                       <td className="max-w-[180px] truncate px-4 py-3 text-slate-600">
                         {task.remarks || "—"}
                       </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => openEdit(task)}
+                            className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(task)}
+                            disabled={deletingId === task.id}
+                            className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {deletingId === task.id ? "Deleting..." : "Delete"}
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   ))
                 )}
@@ -162,6 +217,13 @@ const AddTask = () => {
       <AddTaskModal
         isOpen={addModalOpen}
         onClose={() => setAddModalOpen(false)}
+        onSuccess={loadTasks}
+      />
+
+      <EditTaskModal
+        isOpen={editModalOpen}
+        task={taskToEdit}
+        onClose={closeEdit}
         onSuccess={loadTasks}
       />
     </Layout>
