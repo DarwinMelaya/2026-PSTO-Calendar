@@ -188,6 +188,7 @@ const AddTask = () => {
       group_key: task.groupKey,
       task_ids: task.taskIds,
       responsible_ids: task.responsibleIds,
+      existing_remarks: task.remarks,
     });
     setEditModalOpen(true);
   };

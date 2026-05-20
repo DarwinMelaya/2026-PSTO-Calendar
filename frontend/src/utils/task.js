@@ -11,10 +11,18 @@ const STATUS_REQUEST_PREFIX = "[[STATUS_REQUEST:";
 const STATUS_REQUEST_SUFFIX = "]]";
 const TASK_GROUP_PREFIX = "[[TASK_GROUP:";
 const TASK_GROUP_SUFFIX = "]]";
+const COMPLETED_AT_PREFIX = "[[COMPLETED_AT:";
+const COMPLETED_AT_SUFFIX = "]]";
 
 export const parseTaskRemarks = (remarks) => {
   const raw = (remarks ?? "").trim();
-  if (!raw) return { cleanRemarks: "", requestedStatus: null, groupKey: null };
+  if (!raw)
+    return {
+      cleanRemarks: "",
+      requestedStatus: null,
+      groupKey: null,
+      completedAt: null,
+    };
 
   const lines = raw
     .split("\n")
@@ -23,6 +31,7 @@ export const parseTaskRemarks = (remarks) => {
 
   let requestedStatus = null;
   let groupKey = null;
+  let completedAt = null;
   const cleanLines = [];
 
   for (const line of lines) {
@@ -45,6 +54,17 @@ export const parseTaskRemarks = (remarks) => {
       groupKey = value || null;
       continue;
     }
+    if (
+      line.startsWith(COMPLETED_AT_PREFIX) &&
+      line.endsWith(COMPLETED_AT_SUFFIX)
+    ) {
+      const value = line.slice(
+        COMPLETED_AT_PREFIX.length,
+        line.length - COMPLETED_AT_SUFFIX.length,
+      );
+      completedAt = value || null;
+      continue;
+    }
     cleanLines.push(line);
   }
 
@@ -52,10 +72,11 @@ export const parseTaskRemarks = (remarks) => {
     cleanRemarks: cleanLines.join("\n"),
     requestedStatus,
     groupKey,
+    completedAt,
   };
 };
 
-const composeTaskRemarks = ({ remarks, requestedStatus, groupKey }) => {
+const composeTaskRemarks = ({ remarks, requestedStatus, groupKey, completedAt }) => {
   const { cleanRemarks } = parseTaskRemarks(remarks);
   const marker = requestedStatus
     ? `${STATUS_REQUEST_PREFIX}${requestedStatus}${STATUS_REQUEST_SUFFIX}`
@@ -63,8 +84,13 @@ const composeTaskRemarks = ({ remarks, requestedStatus, groupKey }) => {
   const groupMarker = groupKey
     ? `${TASK_GROUP_PREFIX}${groupKey}${TASK_GROUP_SUFFIX}`
     : "";
+  const completedMarker = completedAt
+    ? `${COMPLETED_AT_PREFIX}${completedAt}${COMPLETED_AT_SUFFIX}`
+    : "";
 
-  const parts = [cleanRemarks.trim(), marker, groupMarker].filter(Boolean);
+  const parts = [cleanRemarks.trim(), marker, groupMarker, completedMarker].filter(
+    Boolean,
+  );
   return parts.length > 0 ? parts.join("\n") : null;
 };
 
@@ -103,6 +129,7 @@ export const createTask = async ({
     remarks,
     requestedStatus: null,
     groupKey,
+    completedAt: status === "completed" ? new Date().toISOString() : null,
   });
 
   const { data, error } = await supabase
@@ -137,6 +164,7 @@ export const updateTask = async (
     remarks,
     taskIds,
     groupKey,
+    existingRemarks,
   },
 ) => {
   const responsibleIds = normalizeResponsibleIds(responsibleId);
@@ -146,11 +174,18 @@ export const updateTask = async (
       error: { message: "At least one person responsible is required." },
     };
   }
-  const effectiveGroupKey = groupKey || parseTaskRemarks(remarks).groupKey || createGroupKey();
+  const existingMeta = parseTaskRemarks(existingRemarks ?? null);
+  const effectiveGroupKey =
+    groupKey || existingMeta.groupKey || parseTaskRemarks(remarks).groupKey || createGroupKey();
+  const effectiveCompletedAt =
+    status === "completed"
+      ? existingMeta.completedAt || new Date().toISOString()
+      : null;
   const composedRemarks = composeTaskRemarks({
     remarks,
     requestedStatus: null,
     groupKey: effectiveGroupKey,
+    completedAt: effectiveCompletedAt,
   });
 
   const basePayload = {
@@ -241,6 +276,7 @@ export const requestTaskStatusChange = async (
         remarks,
         requestedStatus,
         groupKey,
+        completedAt: parseTaskRemarks(remarks).completedAt,
       }),
     })
     .eq("id", id)
@@ -253,7 +289,8 @@ export const requestTaskStatusChange = async (
 };
 
 export const approveTaskStatusRequest = async ({ id, remarks }) => {
-  const { requestedStatus, cleanRemarks, groupKey } = parseTaskRemarks(remarks);
+  const { requestedStatus, cleanRemarks, groupKey, completedAt } =
+    parseTaskRemarks(remarks);
   if (!requestedStatus) {
     return {
       data: null,
@@ -269,6 +306,10 @@ export const approveTaskStatusRequest = async ({ id, remarks }) => {
         remarks: cleanRemarks,
         requestedStatus: null,
         groupKey,
+        completedAt:
+          requestedStatus === "completed"
+            ? completedAt || new Date().toISOString()
+            : null,
       }),
     })
     .eq("id", id)
@@ -281,7 +322,7 @@ export const approveTaskStatusRequest = async ({ id, remarks }) => {
 };
 
 export const rejectTaskStatusRequest = async ({ id, remarks }) => {
-  const { cleanRemarks, groupKey } = parseTaskRemarks(remarks);
+  const { cleanRemarks, groupKey, completedAt } = parseTaskRemarks(remarks);
   const { data, error } = await supabase
     .from("tasks")
     .update({
@@ -289,6 +330,7 @@ export const rejectTaskStatusRequest = async ({ id, remarks }) => {
         remarks: cleanRemarks,
         requestedStatus: null,
         groupKey,
+        completedAt,
       }),
     })
     .eq("id", id)

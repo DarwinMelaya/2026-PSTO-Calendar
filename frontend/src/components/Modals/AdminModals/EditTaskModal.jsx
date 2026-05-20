@@ -146,6 +146,7 @@ const EditTaskModal = ({ isOpen, onClose, onSuccess, task }) => {
       remarks,
       taskIds: task.task_ids,
       groupKey: task.group_key,
+      existingRemarks: task.existing_remarks,
     });
 
     setSubmitting(false);
