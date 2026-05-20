@@ -1,25 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import AddTaskModal from "../../components/Modals/AdminModals/AddTaskModal";
 import Layout from "../../components/Layout/Layout";
-import {
-  TASK_STATUSES,
-  createTask,
-  listAssignableProfiles,
-  listTasks,
-} from "../../utils/task";
-
-const initialForm = {
-  taskDate: "",
-  agenda: "",
-  activities: "",
-  deadline: "",
-  responsibleId: "",
-  status: "pending",
-  remarks: "",
-};
-
-const inputClass =
-  "w-full rounded-lg border border-slate-300 px-4 py-2.5 text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20";
+import { TASK_STATUSES, listTasks } from "../../utils/task";
 
 const formatDate = (value) => {
   if (!value) return "—";
@@ -47,25 +30,9 @@ const statusLabel = (status) =>
   TASK_STATUSES.find((s) => s.value === status)?.label ?? status;
 
 const AddTask = () => {
-  const [form, setForm] = useState(initialForm);
-  const [assignees, setAssignees] = useState([]);
   const [tasks, setTasks] = useState([]);
-  const [loadingAssignees, setLoadingAssignees] = useState(true);
   const [loadingTasks, setLoadingTasks] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-
-  const loadAssignees = useCallback(async () => {
-    setLoadingAssignees(true);
-    const { data, error } = await listAssignableProfiles();
-    setLoadingAssignees(false);
-
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-
-    setAssignees(data ?? []);
-  }, []);
+  const [addModalOpen, setAddModalOpen] = useState(false);
 
   const loadTasks = useCallback(async () => {
     setLoadingTasks(true);
@@ -81,254 +48,27 @@ const AddTask = () => {
   }, []);
 
   useEffect(() => {
-    loadAssignees();
     loadTasks();
-  }, [loadAssignees, loadTasks]);
-
-  const setField = (field) => (e) =>
-    setForm((prev) => ({ ...prev, [field]: e.target.value }));
-
-  const resetForm = () => setForm(initialForm);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    if (submitting) return;
-
-    const {
-      taskDate,
-      agenda,
-      activities,
-      deadline,
-      responsibleId,
-      status,
-      remarks,
-    } = form;
-
-    if (!agenda.trim()) {
-      toast.error("Agenda is required.");
-      return;
-    }
-
-    if (!activities.trim()) {
-      toast.error("Activities is required.");
-      return;
-    }
-
-    if (!responsibleId) {
-      toast.error("Person responsible is required.");
-      return;
-    }
-
-    if (deadline < taskDate) {
-      toast.error("Deadline cannot be before the task date.");
-      return;
-    }
-
-    setSubmitting(true);
-
-    const { error } = await createTask({
-      taskDate,
-      agenda,
-      activities,
-      deadline,
-      responsibleId,
-      status,
-      remarks,
-    });
-
-    setSubmitting(false);
-
-    if (error) {
-      if (error.code === "23503") {
-        toast.error("Selected person responsible is no longer valid.");
-        return;
-      }
-      toast.error(error.message);
-      return;
-    }
-
-    toast.success("Task created successfully.");
-    resetForm();
-    loadTasks();
-  };
+  }, [loadTasks]);
 
   return (
     <Layout>
       <div className="flex flex-col gap-6">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Add Task</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Create a new task and assign it to a user by code name
-          </p>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold text-slate-900">Tasks</h1>
+            <p className="mt-1 text-sm text-slate-500">
+              Create and manage tasks assigned to users by code name
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setAddModalOpen(true)}
+            className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
+          >
+            Add task
+          </button>
         </div>
-
-        <form
-          onSubmit={handleSubmit}
-          className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
-        >
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label
-                htmlFor="task-date"
-                className="mb-1.5 block text-sm font-medium text-slate-700"
-              >
-                Date
-              </label>
-              <input
-                id="task-date"
-                type="date"
-                required
-                value={form.taskDate}
-                onChange={setField("taskDate")}
-                className={inputClass}
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="task-deadline"
-                className="mb-1.5 block text-sm font-medium text-slate-700"
-              >
-                Deadline
-              </label>
-              <input
-                id="task-deadline"
-                type="date"
-                required
-                min={form.taskDate || undefined}
-                value={form.deadline}
-                onChange={setField("deadline")}
-                className={inputClass}
-              />
-            </div>
-
-            <div className="sm:col-span-2">
-              <label
-                htmlFor="task-agenda"
-                className="mb-1.5 block text-sm font-medium text-slate-700"
-              >
-                Agenda
-              </label>
-              <input
-                id="task-agenda"
-                type="text"
-                required
-                value={form.agenda}
-                onChange={setField("agenda")}
-                placeholder="Task agenda"
-                className={inputClass}
-              />
-            </div>
-
-            <div className="sm:col-span-2">
-              <label
-                htmlFor="task-activities"
-                className="mb-1.5 block text-sm font-medium text-slate-700"
-              >
-                Activities
-              </label>
-              <textarea
-                id="task-activities"
-                required
-                rows={3}
-                value={form.activities}
-                onChange={setField("activities")}
-                placeholder="Describe the activities"
-                className={inputClass}
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="task-responsible"
-                className="mb-1.5 block text-sm font-medium text-slate-700"
-              >
-                Person responsible
-              </label>
-              <select
-                id="task-responsible"
-                required
-                value={form.responsibleId}
-                onChange={setField("responsibleId")}
-                disabled={loadingAssignees || assignees.length === 0}
-                className={inputClass}
-              >
-                <option value="">
-                  {loadingAssignees
-                    ? "Loading code names..."
-                    : assignees.length === 0
-                      ? "No users with code name"
-                      : "Select code name"}
-                </option>
-                {assignees.map((profile) => (
-                  <option key={profile.id} value={profile.id}>
-                    {profile.code_name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label
-                htmlFor="task-status"
-                className="mb-1.5 block text-sm font-medium text-slate-700"
-              >
-                Status
-              </label>
-              <select
-                id="task-status"
-                required
-                value={form.status}
-                onChange={setField("status")}
-                className={inputClass}
-              >
-                {TASK_STATUSES.map(({ value, label }) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="sm:col-span-2">
-              <label
-                htmlFor="task-remarks"
-                className="mb-1.5 block text-sm font-medium text-slate-700"
-              >
-                Remarks
-              </label>
-              <textarea
-                id="task-remarks"
-                rows={2}
-                value={form.remarks}
-                onChange={setField("remarks")}
-                placeholder="Optional remarks"
-                className={inputClass}
-              />
-            </div>
-          </div>
-
-          <div className="mt-6 flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={resetForm}
-              disabled={submitting}
-              className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-            >
-              Clear
-            </button>
-            <button
-              type="submit"
-              disabled={
-                submitting || loadingAssignees || assignees.length === 0
-              }
-              className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {submitting ? "Creating..." : "Create task"}
-            </button>
-          </div>
-        </form>
 
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-200 px-4 py-3">
@@ -379,7 +119,7 @@ const AddTask = () => {
                       colSpan={7}
                       className="px-4 py-8 text-center text-slate-500"
                     >
-                      No tasks yet. Create one using the form above.
+                      No tasks yet. Click &quot;Add task&quot; to create one.
                     </td>
                   </tr>
                 ) : (
@@ -418,6 +158,12 @@ const AddTask = () => {
           </div>
         </div>
       </div>
+
+      <AddTaskModal
+        isOpen={addModalOpen}
+        onClose={() => setAddModalOpen(false)}
+        onSuccess={loadTasks}
+      />
     </Layout>
   );
 };
