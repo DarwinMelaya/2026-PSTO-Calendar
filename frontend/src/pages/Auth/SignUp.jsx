@@ -11,7 +11,7 @@ const ROLES = [
 ];
 
 const getPostSignupPath = (role) =>
-  role === "admin" ? "/admin-dashboard" : "/";
+  role === "admin" ? "/admin-dashboard" : "/user-dashboard";
 
 const SignUp = () => {
   const navigate = useNavigate();

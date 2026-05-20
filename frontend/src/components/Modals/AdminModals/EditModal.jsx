@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import PasswordInput from "../../Auth/PasswordInput";
 import { updateProfile } from "../../../utils/profile";
+import { clearSession } from "../../../utils/session";
 
 const ROLES = [
   { value: "user", label: "User" },
@@ -12,6 +14,7 @@ const inputClass =
   "w-full rounded-lg border border-slate-300 px-4 py-2.5 text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20";
 
 const EditModal = ({ isOpen, user, onClose, onSuccess }) => {
+  const navigate = useNavigate();
   const [form, setForm] = useState({
     email: "",
     codeName: "",
@@ -40,6 +43,14 @@ const EditModal = ({ isOpen, user, onClose, onSuccess }) => {
   const handleClose = () => {
     if (loading) return;
     onClose();
+  };
+
+  const handleLogout = () => {
+    if (loading) return;
+    clearSession();
+    toast.success("Logged out successfully.");
+    onClose();
+    navigate("/login", { replace: true });
   };
 
   const handleSubmit = async (e) => {
@@ -234,6 +245,14 @@ const EditModal = ({ isOpen, user, onClose, onSuccess }) => {
           </div>
 
           <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={handleLogout}
+              disabled={loading}
+              className="rounded-lg border border-red-200 px-4 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
+            >
+              Log out
+            </button>
             <button
               type="button"
               onClick={handleClose}

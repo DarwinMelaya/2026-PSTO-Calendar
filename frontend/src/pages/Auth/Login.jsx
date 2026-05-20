@@ -42,7 +42,7 @@ const Login = () => {
 
     setSession(data);
     toast.success("Logged in successfully!");
-    navigate(data.role === "admin" ? "/admin-dashboard" : "/");
+    navigate(data.role === "admin" ? "/admin-dashboard" : "/user-dashboard");
   };
 
   return (

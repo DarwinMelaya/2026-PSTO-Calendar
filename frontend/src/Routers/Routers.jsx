@@ -7,6 +7,8 @@ import {
   Dashboard,
   AddTask,
   AddUsers,
+  UserDashboard,
+  UserTask,
 } from "../pages";
 
 export const Routers = () => {
@@ -39,6 +41,23 @@ export const Routers = () => {
           element={
             <ProtectedRoutes adminOnly>
               <AddUsers />
+            </ProtectedRoutes>
+          }
+        />
+        {/* User Page */}
+        <Route
+          path="/user-dashboard"
+          element={
+            <ProtectedRoutes userOnly>
+              <UserDashboard />
+            </ProtectedRoutes>
+          }
+        />
+        <Route
+          path="/user-task"
+          element={
+            <ProtectedRoutes userOnly>
+              <UserTask />
             </ProtectedRoutes>
           }
         />

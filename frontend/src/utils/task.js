@@ -57,6 +57,18 @@ export const listTasks = async () => {
   return { data, error };
 };
 
+export const listTasksForUser = async (responsibleId) => {
+  const { data, error } = await supabase
+    .from("tasks")
+    .select(
+      "id, task_date, agenda, activities, deadline, status, remarks, created_at, responsible_id",
+    )
+    .eq("responsible_id", Number(responsibleId))
+    .order("created_at", { ascending: false });
+
+  return { data, error };
+};
+
 export const listAssignableProfiles = async () => {
   const { data, error } = await supabase
     .from("profiles")

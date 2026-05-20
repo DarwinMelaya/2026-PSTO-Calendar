@@ -1,7 +1,11 @@
 import { Navigate } from "react-router-dom";
 import { getSession } from "../../utils/session";
 
-const ProtectedRoutes = ({ children, adminOnly = false }) => {
+const ProtectedRoutes = ({
+  children,
+  adminOnly = false,
+  userOnly = false,
+}) => {
   const user = getSession();
 
   if (!user) {
@@ -9,7 +13,11 @@ const ProtectedRoutes = ({ children, adminOnly = false }) => {
   }
 
   if (adminOnly && user.role !== "admin") {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/user-dashboard" replace />;
+  }
+
+  if (userOnly && user.role === "admin") {
+    return <Navigate to="/admin-dashboard" replace />;
   }
 
   return children;
