@@ -66,6 +66,12 @@ const AddTask = () => {
   const [taskToEdit, setTaskToEdit] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [resolvingRequestId, setResolvingRequestId] = useState(null);
+  const [filters, setFilters] = useState({
+    q: "",
+    status: "all",
+    assignee: "all",
+    awaitingApproval: false,
+  });
 
   const loadTasks = useCallback(async () => {
     setLoadingTasks(true);
@@ -116,6 +122,47 @@ const AddTask = () => {
     return Array.from(groups.values());
   }, [tasks]);
 
+  const assigneeOptions = useMemo(() => {
+    const labels = new Set();
+    for (const task of groupedTasks) {
+      for (const label of task.responsibleLabels ?? []) {
+        if (label && label !== "—") labels.add(label);
+      }
+    }
+    return Array.from(labels).sort((a, b) => a.localeCompare(b));
+  }, [groupedTasks]);
+
+  const filteredGroupedTasks = useMemo(() => {
+    const q = filters.q.trim().toLowerCase();
+    const status = filters.status;
+    const assignee = filters.assignee;
+    const awaitingApproval = filters.awaitingApproval;
+
+    return groupedTasks.filter((task) => {
+      if (awaitingApproval && !task.requestedStatus) return false;
+      if (status !== "all" && task.status !== status) return false;
+      if (
+        assignee !== "all" &&
+        !(task.responsibleLabels ?? []).some((label) => label === assignee)
+      ) {
+        return false;
+      }
+      if (!q) return true;
+
+      const haystack = [
+        task.agenda,
+        task.activities,
+        task.cleanRemarks,
+        ...(task.responsibleLabels ?? []),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return haystack.includes(q);
+    });
+  }, [filters, groupedTasks]);
+
   const stats = useMemo(() => {
     const list = groupedTasks;
     return {
@@ -127,6 +174,12 @@ const AddTask = () => {
       awaitingApproval: list.filter((t) => !!t.requestedStatus).length,
     };
   }, [groupedTasks]);
+
+  const hasActiveFilters =
+    filters.awaitingApproval ||
+    filters.status !== "all" ||
+    filters.assignee !== "all" ||
+    !!filters.q.trim();
 
   const openEdit = (task) => {
     setTaskToEdit({
@@ -268,7 +321,7 @@ const AddTask = () => {
               <p className="mt-0.5 text-sm text-slate-500">
                 {loadingTasks
                   ? "Loading your workspace…"
-                  : `${groupedTasks.length} record${groupedTasks.length === 1 ? "" : "s"} · ${stats.onHold} on hold · ${stats.awaitingApproval} awaiting approval`}
+                  : `${filteredGroupedTasks.length} shown · ${groupedTasks.length} total · ${stats.onHold} on hold · ${stats.awaitingApproval} awaiting approval`}
               </p>
             </div>
             {!loadingTasks && groupedTasks.length > 0 ? (
@@ -276,6 +329,117 @@ const AddTask = () => {
                 Latest first
               </span>
             ) : null}
+          </div>
+
+          <div className="border-b border-slate-100 bg-white px-5 py-4 sm:px-6">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
+                <div className="relative flex-1">
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                    <svg
+                      className="h-4 w-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      strokeWidth={2}
+                      stroke="currentColor"
+                      aria-hidden
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
+                      />
+                    </svg>
+                  </span>
+                  <input
+                    type="search"
+                    value={filters.q}
+                    onChange={(e) =>
+                      setFilters((prev) => ({ ...prev, q: e.target.value }))
+                    }
+                    placeholder="Search agenda, activities, remarks, assignees…"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-10 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  />
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <select
+                    value={filters.status}
+                    onChange={(e) =>
+                      setFilters((prev) => ({ ...prev, status: e.target.value }))
+                    }
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                    aria-label="Filter by status"
+                  >
+                    <option value="all">All statuses</option>
+                    {TASK_STATUSES.map(({ value, label }) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+
+                  <select
+                    value={filters.assignee}
+                    onChange={(e) =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        assignee: e.target.value,
+                      }))
+                    }
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                    aria-label="Filter by assignee"
+                  >
+                    <option value="all">All assignees</option>
+                    {assigneeOptions.map((label) => (
+                      <option key={label} value={label}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        awaitingApproval: !prev.awaitingApproval,
+                      }))
+                    }
+                    className={`rounded-xl border px-3 py-2.5 text-sm font-semibold shadow-sm transition focus:outline-none focus:ring-2 focus:ring-blue-500/20 ${
+                      filters.awaitingApproval
+                        ? "border-amber-200 bg-amber-50 text-amber-900"
+                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    Awaiting approval
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-3 lg:justify-end">
+                {hasActiveFilters ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFilters({
+                        q: "",
+                        status: "all",
+                        assignee: "all",
+                        awaitingApproval: false,
+                      })
+                    }
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+                  >
+                    Clear filters
+                  </button>
+                ) : (
+                  <span className="text-sm text-slate-500">
+                    Tip: use search + status + assignee together.
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
 
           <div className="overflow-x-auto">
@@ -359,8 +523,53 @@ const AddTask = () => {
                       </div>
                     </td>
                   </tr>
+                ) : filteredGroupedTasks.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="px-6 py-16">
+                      <div className="mx-auto flex max-w-md flex-col items-center text-center">
+                        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-50 text-slate-500 ring-1 ring-slate-200">
+                          <svg
+                            className="h-7 w-7"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            strokeWidth={1.5}
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M12 6v12m6-6H6"
+                            />
+                          </svg>
+                        </div>
+                        <p className="mt-4 text-base font-semibold text-slate-900">
+                          No matches
+                        </p>
+                        <p className="mt-2 text-sm text-slate-500 leading-relaxed">
+                          Try adjusting your filters or clearing them to see all
+                          tasks.
+                        </p>
+                        {hasActiveFilters ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setFilters({
+                                q: "",
+                                status: "all",
+                                assignee: "all",
+                                awaitingApproval: false,
+                              })
+                            }
+                            className="mt-6 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-blue-600/20 hover:bg-blue-700"
+                          >
+                            Clear filters
+                          </button>
+                        ) : null}
+                      </div>
+                    </td>
+                  </tr>
                 ) : (
-                  groupedTasks.map((task) => (
+                  filteredGroupedTasks.map((task) => (
                     <tr
                       key={task.groupKey || task.id}
                       className="transition-colors hover:bg-slate-50/90"
