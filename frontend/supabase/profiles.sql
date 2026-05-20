@@ -22,6 +22,9 @@ alter table public.profiles
 alter table public.profiles
   add column if not exists code_name text;
 
+alter table public.profiles
+  add column if not exists name text;
+
 -- If old rows exist without password, set a placeholder before making NOT NULL:
 -- update public.profiles set password = 'changeme' where password is null;
 -- alter table public.profiles alter column password set not null;

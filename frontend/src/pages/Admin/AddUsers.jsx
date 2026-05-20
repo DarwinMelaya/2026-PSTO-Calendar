@@ -96,11 +96,14 @@ const AddUsers = () => {
 
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-left text-sm">
+            <table className="w-full min-w-[860px] text-left text-sm">
               <thead className="border-b border-slate-200 bg-slate-50">
                 <tr>
                   <th className="px-4 py-3 font-semibold text-slate-700">
                     Email
+                  </th>
+                  <th className="px-4 py-3 font-semibold text-slate-700">
+                    Name
                   </th>
                   <th className="px-4 py-3 font-semibold text-slate-700">
                     Code name
@@ -120,7 +123,7 @@ const AddUsers = () => {
                 {loading ? (
                   <tr>
                     <td
-                      colSpan={5}
+                      colSpan={6}
                       className="px-4 py-8 text-center text-slate-500"
                     >
                       Loading users...
@@ -129,7 +132,7 @@ const AddUsers = () => {
                 ) : users.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={5}
+                      colSpan={6}
                       className="px-4 py-8 text-center text-slate-500"
                     >
                       No users yet. Click &quot;Add user&quot; to create one.
@@ -139,6 +142,9 @@ const AddUsers = () => {
                   users.map((user) => (
                     <tr key={user.id} className="hover:bg-slate-50/80">
                       <td className="px-4 py-3 text-slate-800">{user.email}</td>
+                      <td className="px-4 py-3 text-slate-800">
+                        {user.name || "—"}
+                      </td>
                       <td className="px-4 py-3 text-slate-800">
                         {user.code_name}
                       </td>

@@ -10,6 +10,7 @@ const ROLES = [
 
 const initialForm = {
   email: "",
+  name: "",
   codeName: "",
   password: "",
   confirmPassword: "",
@@ -39,7 +40,12 @@ const AddUserModal = ({ isOpen, onClose, onSuccess }) => {
 
     if (loading) return;
 
-    const { email, codeName, password, confirmPassword, role } = form;
+    const { email, name, codeName, password, confirmPassword, role } = form;
+
+    if (!name.trim()) {
+      toast.error("Name is required.");
+      return;
+    }
 
     if (password !== confirmPassword) {
       toast.error("Passwords do not match.");
@@ -60,6 +66,7 @@ const AddUserModal = ({ isOpen, onClose, onSuccess }) => {
 
     const { error } = await createProfile({
       email: email.trim(),
+      name: name.trim(),
       codeName: codeName.trim(),
       password,
       role,
@@ -135,6 +142,24 @@ const AddUserModal = ({ isOpen, onClose, onSuccess }) => {
               value={form.email}
               onChange={setField("email")}
               placeholder="user@example.com"
+              className={inputClass}
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="modal-user-name"
+              className="block text-sm font-medium text-slate-700 mb-1.5"
+            >
+              Name
+            </label>
+            <input
+              id="modal-user-name"
+              type="text"
+              required
+              value={form.name}
+              onChange={setField("name")}
+              placeholder="Full name"
               className={inputClass}
             />
           </div>

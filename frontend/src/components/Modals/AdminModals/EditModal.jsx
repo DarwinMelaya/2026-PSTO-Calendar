@@ -17,6 +17,7 @@ const EditModal = ({ isOpen, user, onClose, onSuccess }) => {
   const navigate = useNavigate();
   const [form, setForm] = useState({
     email: "",
+    name: "",
     codeName: "",
     password: "",
     confirmPassword: "",
@@ -28,6 +29,7 @@ const EditModal = ({ isOpen, user, onClose, onSuccess }) => {
     if (!user) return;
     setForm({
       email: user.email ?? "",
+      name: user.name ?? "",
       codeName: user.code_name ?? "",
       password: "",
       confirmPassword: "",
@@ -58,7 +60,12 @@ const EditModal = ({ isOpen, user, onClose, onSuccess }) => {
 
     if (loading) return;
 
-    const { email, codeName, password, confirmPassword, role } = form;
+    const { email, name, codeName, password, confirmPassword, role } = form;
+
+    if (!name.trim()) {
+      toast.error("Name is required.");
+      return;
+    }
 
     if (!codeName.trim()) {
       toast.error("Code name is required.");
@@ -84,6 +91,7 @@ const EditModal = ({ isOpen, user, onClose, onSuccess }) => {
     const { error } = await updateProfile({
       id: user.id,
       email: email.trim(),
+      name: name.trim(),
       codeName: codeName.trim(),
       role,
       password: password.trim() || undefined,
@@ -158,6 +166,24 @@ const EditModal = ({ isOpen, user, onClose, onSuccess }) => {
               value={form.email}
               onChange={setField("email")}
               placeholder="user@example.com"
+              className={inputClass}
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="edit-user-name"
+              className="block text-sm font-medium text-slate-700 mb-1.5"
+            >
+              Name
+            </label>
+            <input
+              id="edit-user-name"
+              type="text"
+              required
+              value={form.name}
+              onChange={setField("name")}
+              placeholder="Full name"
               className={inputClass}
             />
           </div>
