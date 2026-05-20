@@ -30,6 +30,36 @@ const isToday = (date) => {
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
+const addDays = (date, days) => {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+};
+
+const startOfWeek = (date) => {
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const day = d.getDay(); // 0=Sun
+  d.setDate(d.getDate() - day);
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+
+const formatRangeLabel = (start, end) => {
+  const sameMonth = start.getMonth() === end.getMonth();
+  const sameYear = start.getFullYear() === end.getFullYear();
+  const startFmt = start.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: sameYear ? undefined : "numeric",
+  });
+  const endFmt = end.toLocaleDateString(undefined, {
+    month: sameMonth ? undefined : "short",
+    day: "numeric",
+    year: "numeric",
+  });
+  return `${startFmt} – ${endFmt}`;
+};
+
 const Calendar = ({
   monthNow,
   yearNow,
@@ -218,6 +248,163 @@ const formatDateLabel = (date) =>
     day: "numeric",
   });
 
+const ViewToggle = ({ value, onChange }) => (
+  <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+    {["month", "week", "day"].map((v) => (
+      <button
+        key={v}
+        type="button"
+        onClick={() => onChange(v)}
+        className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
+          value === v
+            ? "bg-slate-900 text-white"
+            : "text-slate-700 hover:bg-slate-50"
+        }`}
+      >
+        {v[0].toUpperCase() + v.slice(1)}
+      </button>
+    ))}
+  </div>
+);
+
+const SchedulePill = ({ schedule, onClick }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={`w-full rounded-xl border px-3 py-2 text-left text-sm transition ${
+      schedule.completed
+        ? "border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100"
+        : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
+    }`}
+    title={schedule.department}
+  >
+    <p className="truncate font-semibold">{schedule.event_name || "Untitled"}</p>
+    <p className="mt-0.5 truncate text-xs text-slate-500">
+      {schedule.venues?.name ?? "—"}
+    </p>
+  </button>
+);
+
+const WeekView = ({ anchorDate, schedules, onDateClick, onScheduleClick }) => {
+  const start = startOfWeek(anchorDate);
+  const days = Array.from({ length: 7 }, (_, i) => addDays(start, i));
+  const end = addDays(start, 6);
+  const monthBoundary = start.getMonth() !== end.getMonth();
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">
+            Week
+          </p>
+          <h2 className="truncate text-lg font-bold text-slate-900">
+            {formatRangeLabel(start, end)}
+          </h2>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto rounded-2xl border border-slate-200">
+        <div className="min-w-[720px]">
+          <div className="grid grid-cols-7 gap-px bg-slate-200">
+            {days.map((d) => {
+              const key = startOfDayKey(d);
+              const items = schedules[key] ?? [];
+              const dateLabel = d.toLocaleDateString(undefined, {
+                month: monthBoundary || d.getDate() === 1 ? "short" : undefined,
+                day: "numeric",
+              });
+              return (
+                <div key={key} className="bg-white p-2 sm:p-3">
+                  <button
+                    type="button"
+                    onClick={() => onDateClick(d)}
+                    className={`flex w-full items-center justify-between rounded-xl px-2 py-1.5 text-left text-xs font-semibold transition ${
+                      isToday(d)
+                        ? "bg-blue-600 text-white"
+                        : "bg-slate-50 text-slate-700 hover:bg-slate-100"
+                    }`}
+                  >
+                    <span className="min-w-0">
+                      <span className="block uppercase tracking-wider">
+                        {weekDays[d.getDay()]}
+                      </span>
+                      <span className="block text-[11px] font-medium opacity-80">
+                        {dateLabel}
+                      </span>
+                    </span>
+                    <span className="shrink-0 tabular-nums text-base font-bold leading-none">
+                      {d.getDate()}
+                    </span>
+                  </button>
+
+                  <div className="mt-2 space-y-2">
+                    {items.length === 0 ? (
+                      <p className="px-1 text-xs text-slate-400">No tasks</p>
+                    ) : (
+                      items.slice(0, 6).map((s) => (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onClick={(e) => onScheduleClick(e, s)}
+                          className={`w-full rounded-lg px-2 py-1 text-left text-[11px] font-semibold transition ${
+                            s.completed
+                              ? "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                              : "bg-slate-800 text-white hover:bg-slate-700"
+                          }`}
+                          title={s.department}
+                        >
+                          <span className="line-clamp-2">{s.event_name}</span>
+                        </button>
+                      ))
+                    )}
+                    {items.length > 6 ? (
+                      <p className="px-1 text-xs font-medium text-slate-500">
+                        +{items.length - 6} more
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const DayView = ({ date, schedules, onScheduleClick }) => {
+  const key = startOfDayKey(date);
+  const items = schedules[key] ?? [];
+  return (
+    <div className="space-y-3">
+      <div className="min-w-0">
+        <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">
+          Day
+        </p>
+        <h2 className="truncate text-lg font-bold text-slate-900">
+          {formatDateLabel(date)}
+        </h2>
+      </div>
+
+      <div className="space-y-2">
+        {items.length === 0 ? (
+          <p className="text-sm text-slate-500">No tasks for this date.</p>
+        ) : (
+          items.map((s) => (
+            <SchedulePill
+              key={s.id}
+              schedule={s}
+              onClick={(e) => onScheduleClick(e, s)}
+            />
+          ))
+        )}
+      </div>
+    </div>
+  );
+};
+
 const AdminCalendar = () => {
   const [loading, setLoading] = useState(true);
   const [tasks, setTasks] = useState([]);
@@ -227,6 +414,7 @@ const AdminCalendar = () => {
 
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedSchedule, setSelectedSchedule] = useState(null);
+  const [viewMode, setViewMode] = useState("month");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -300,6 +488,29 @@ const AdminCalendar = () => {
     });
   }, []);
 
+  const ensureAnchorDate = useCallback((fallback) => {
+    // We keep selectedDate optional (month view can have no selection),
+    // but week/day views need an anchor date.
+    return selectedDate ?? fallback ?? TODAY;
+  }, [selectedDate]);
+
+  const navigateByView = useCallback(
+    (next) => {
+      const dir = next ? 1 : -1;
+      if (viewMode === "month") {
+        onMonthChange(next);
+        return;
+      }
+
+      const anchor = ensureAnchorDate(TODAY);
+      const delta = viewMode === "week" ? 7 : 1;
+      const moved = addDays(anchor, dir * delta);
+      setSelectedSchedule(null);
+      setSelectedDate(moved);
+    },
+    [ensureAnchorDate, onMonthChange, viewMode],
+  );
+
   const onDateClick = useCallback((date) => {
     setSelectedSchedule(null);
     setSelectedDate((prev) => (isSameDay(prev, date) ? null : date));
@@ -338,27 +549,70 @@ const AdminCalendar = () => {
               {loading ? "Loading tasks…" : `${tasks.length} task(s) loaded`}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={load}
-            className="inline-flex w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-60 sm:w-auto"
-            disabled={loading}
-          >
-            Refresh
-          </button>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+            <ViewToggle
+              value={viewMode}
+              onChange={(mode) => {
+                setViewMode(mode);
+                if (mode !== "month" && !selectedDate) setSelectedDate(TODAY);
+                setSelectedSchedule(null);
+              }}
+            />
+            <div className="flex w-full items-center gap-2 sm:w-auto">
+              <button
+                type="button"
+                onClick={() => navigateByView(false)}
+                className="inline-flex flex-1 items-center justify-center rounded-xl bg-[#0f172a] px-3 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-600/40 sm:flex-none"
+                aria-label="Previous"
+              >
+                ‹
+              </button>
+              <button
+                type="button"
+                onClick={() => navigateByView(true)}
+                className="inline-flex flex-1 items-center justify-center rounded-xl bg-[#0f172a] px-3 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-600/40 sm:flex-none"
+                aria-label="Next"
+              >
+                ›
+              </button>
+              <button
+                type="button"
+                onClick={load}
+                className="inline-flex flex-[2] items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-60 sm:flex-none"
+                disabled={loading}
+              >
+                Refresh
+              </button>
+            </div>
+          </div>
         </div>
 
         <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
           <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <Calendar
-              monthNow={monthNow}
-              yearNow={yearNow}
-              schedules={schedules}
-              selectedVenue={null}
-              onDateClick={onDateClick}
-              onScheduleClick={onScheduleClick}
-              onMonthChange={onMonthChange}
-            />
+            {viewMode === "month" ? (
+              <Calendar
+                monthNow={monthNow}
+                yearNow={yearNow}
+                schedules={schedules}
+                selectedVenue={null}
+                onDateClick={onDateClick}
+                onScheduleClick={onScheduleClick}
+                onMonthChange={onMonthChange}
+              />
+            ) : viewMode === "week" ? (
+              <WeekView
+                anchorDate={ensureAnchorDate(TODAY)}
+                schedules={schedules}
+                onDateClick={onDateClick}
+                onScheduleClick={onScheduleClick}
+              />
+            ) : (
+              <DayView
+                date={ensureAnchorDate(TODAY)}
+                schedules={schedules}
+                onScheduleClick={onScheduleClick}
+              />
+            )}
           </div>
 
           <aside className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -392,21 +646,11 @@ const AdminCalendar = () => {
                 <p className="text-sm text-slate-500">No tasks for this date.</p>
               ) : (
                 selectedDaySchedules.map((s) => (
-                  <button
+                  <SchedulePill
                     key={s.id}
-                    type="button"
+                    schedule={s}
                     onClick={(e) => onScheduleClick(e, s)}
-                    className={`w-full rounded-xl border px-3 py-2 text-left text-sm transition ${
-                      s.completed
-                        ? "border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100"
-                        : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
-                    }`}
-                  >
-                    <p className="font-semibold truncate">{s.event_name || "Untitled"}</p>
-                    <p className="mt-0.5 text-xs text-slate-500 truncate">
-                      {s.venues?.name ?? "—"}
-                    </p>
-                  </button>
+                  />
                 ))
               )}
             </div>

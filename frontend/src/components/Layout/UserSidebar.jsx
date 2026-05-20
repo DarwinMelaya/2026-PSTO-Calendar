@@ -147,7 +147,7 @@ const UserSidebar = () => {
 
       <aside
         id="user-sidebar"
-        className={`fixed inset-y-0 left-0 z-50 flex min-h-screen w-72 shrink-0 flex-col bg-[#0f172a] px-4 py-5 shadow-[4px_0_24px_rgba(0,0,0,0.12)] transition-transform duration-200 ease-out lg:static lg:w-64 lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex min-h-screen w-72 shrink-0 flex-col bg-[#0f172a] px-4 py-5 shadow-[4px_0_24px_rgba(0,0,0,0.12)] transition-transform duration-200 ease-out lg:sticky lg:top-0 lg:h-screen lg:min-h-0 lg:w-64 lg:translate-x-0 lg:overflow-y-auto ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         } lg:shadow-none`}
       >

@@ -59,10 +59,7 @@ function RankRow({ rank, title, meta, value, badge }) {
 }
 
 const daysBetween = (a, b) => Math.floor((a - b) / (1000 * 60 * 60 * 24));
-const startOfDayKey = (date) =>
-  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
-    date.getDate(),
-  ).padStart(2, "0")}`;
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 const formatDate = (value) => {
   if (!value) return "—";
@@ -72,6 +69,40 @@ const formatDate = (value) => {
     day: "numeric",
   });
 };
+
+function OwnerProgressCard({ label, completed, total }) {
+  const safeTotal = Math.max(0, Number(total) || 0);
+  const safeCompleted = clamp(Number(completed) || 0, 0, safeTotal || 0);
+  const pct = safeTotal > 0 ? Math.round((safeCompleted / safeTotal) * 100) : 0;
+
+  return (
+    <div className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-slate-900">
+            {label}
+          </p>
+          <p className="mt-1 text-xs text-slate-500">
+            Completed{" "}
+            <span className="font-semibold text-slate-700">
+              {safeCompleted}/{safeTotal || 0}
+            </span>
+          </p>
+        </div>
+        <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800 ring-1 ring-inset ring-emerald-600/15">
+          {pct}%
+        </span>
+      </div>
+
+      <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-100">
+        <div
+          className="h-full rounded-full bg-emerald-600/80"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
 
 const Dashboard = () => {
   const [loading, setLoading] = useState(true);
@@ -210,93 +241,28 @@ const Dashboard = () => {
     }));
   }, [enrichedTasks]);
 
-  const trend = useMemo(() => {
-    // last 14 days including today
-    const days = 14;
-    const today = new Date();
-    const keys = [];
-    const createdCounts = new Map();
-    const completedCounts = new Map();
-
-    for (let i = days - 1; i >= 0; i -= 1) {
-      const d = new Date(today);
-      d.setHours(0, 0, 0, 0);
-      d.setDate(d.getDate() - i);
-      const key = startOfDayKey(d);
-      keys.push(key);
-      createdCounts.set(key, 0);
-      completedCounts.set(key, 0);
+  const ownerProgress = useMemo(() => {
+    const map = new Map();
+    for (const t of enrichedTasks ?? []) {
+      const id = Number(t?.responsible_id);
+      if (!id) continue;
+      const label = t?.profile?.code_name || t?.profile?.email || `profile #${id}`;
+      const current = map.get(id) ?? { id, label, total: 0, completed: 0 };
+      current.total += 1;
+      if (t?.status === "completed") current.completed += 1;
+      map.set(id, current);
     }
 
-    for (const t of enrichedTasks) {
-      // created_at is a timestamp with timezone in DB
-      if (t.created_at) {
-        const created = new Date(t.created_at);
-        if (!Number.isNaN(created.getTime())) {
-          const key = startOfDayKey(created);
-          if (createdCounts.has(key)) {
-            createdCounts.set(key, (createdCounts.get(key) ?? 0) + 1);
-          }
-        }
-      }
-
-      if (t.status === "completed" && t.completedAt) {
-        const completed = new Date(t.completedAt);
-        if (!Number.isNaN(completed.getTime())) {
-          const key = startOfDayKey(completed);
-          if (completedCounts.has(key)) {
-            completedCounts.set(key, (completedCounts.get(key) ?? 0) + 1);
-          }
-        }
-      }
-    }
-
-    const createdSeries = keys.map((k) => createdCounts.get(k) ?? 0);
-    const completedSeries = keys.map((k) => completedCounts.get(k) ?? 0);
-    const max = Math.max(1, ...createdSeries, ...completedSeries);
-
-    return { keys, createdSeries, completedSeries, max };
+    return Array.from(map.values())
+      .filter((x) => x.total > 0)
+      .sort((a, b) => {
+        const aPct = a.total > 0 ? a.completed / a.total : 0;
+        const bPct = b.total > 0 ? b.completed / b.total : 0;
+        if (bPct !== aPct) return bPct - aPct;
+        return b.total - a.total;
+      })
+      .slice(0, 12);
   }, [enrichedTasks]);
-
-  const trendSvg = useMemo(() => {
-    const w = 640;
-    const h = 220;
-    const padX = 16;
-    const padY = 18;
-    const innerW = w - padX * 2;
-    const innerH = h - padY * 2;
-
-    const toPoint = (idx, value) => {
-      const x =
-        trend.keys.length <= 1
-          ? padX
-          : padX + (idx / (trend.keys.length - 1)) * innerW;
-      const y = padY + (1 - value / trend.max) * innerH;
-      return { x, y };
-    };
-
-    const toPath = (series) =>
-      series
-        .map((v, i) => {
-          const p = toPoint(i, v);
-          return `${i === 0 ? "M" : "L"} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`;
-        })
-        .join(" ");
-
-    const createdPath = toPath(trend.createdSeries);
-    const completedPath = toPath(trend.completedSeries);
-
-    // fill under completed line (subtle)
-    const areaPoints = trend.completedSeries.map((v, i) => toPoint(i, v));
-    const areaPath = [
-      `M ${areaPoints[0].x.toFixed(2)} ${h - padY}`,
-      ...areaPoints.map((p) => `L ${p.x.toFixed(2)} ${p.y.toFixed(2)}`),
-      `L ${areaPoints[areaPoints.length - 1].x.toFixed(2)} ${h - padY}`,
-      "Z",
-    ].join(" ");
-
-    return { w, h, padX, padY, createdPath, completedPath, areaPath };
-  }, [trend]);
 
   const dueSoon = useMemo(() => {
     const now = new Date();
@@ -391,88 +357,40 @@ const Dashboard = () => {
             <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/90 to-white px-5 py-4">
               <div>
                 <h2 className="text-lg font-semibold text-slate-900">
-                  Activity trend
+                  Owner progress
                 </h2>
                 <p className="mt-0.5 text-sm text-slate-500">
-                  {loading
-                    ? "Loading…"
-                    : "Tasks created vs tasks completed (last 14 days)"}
+                  {loading ? "Loading…" : "Completed tasks per owner"}
                 </p>
               </div>
-              <div className="flex flex-wrap items-center gap-3 text-xs font-semibold">
-                <span className="inline-flex items-center gap-2 text-slate-600">
-                  <span className="h-2.5 w-2.5 rounded-full bg-blue-600" />
-                  Created
+              {!loading && ownerProgress.length > 0 ? (
+                <span className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800 ring-1 ring-inset ring-emerald-600/15">
+                  Top {Math.min(ownerProgress.length, 12)}
                 </span>
-                <span className="inline-flex items-center gap-2 text-slate-600">
-                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-600" />
-                  Completed
-                </span>
-              </div>
+              ) : null}
             </div>
 
             <div className="p-5">
-              <div className="rounded-3xl border border-slate-200 bg-gradient-to-b from-white to-slate-50 p-4">
-                <svg
-                  viewBox={`0 0 ${trendSvg.w} ${trendSvg.h}`}
-                  className="h-[240px] w-full"
-                  role="img"
-                  aria-label="Activity trend chart"
-                >
-                  {/* grid */}
-                  {[0, 1, 2, 3].map((i) => {
-                    const y =
-                      trendSvg.padY +
-                      (i / 3) * (trendSvg.h - trendSvg.padY * 2);
-                    return (
-                      <line
-                        key={i}
-                        x1={trendSvg.padX}
-                        x2={trendSvg.w - trendSvg.padX}
-                        y1={y}
-                        y2={y}
-                        stroke="rgb(226 232 240)"
-                        strokeWidth="1"
+              {loading ? (
+                <p className="text-sm text-slate-500">Loading…</p>
+              ) : ownerProgress.length === 0 ? (
+                <p className="text-sm text-slate-500">
+                  No owner progress yet. Add tasks first.
+                </p>
+              ) : (
+                <div className="-mx-5 overflow-x-auto px-5">
+                  <div className="grid min-w-[720px] grid-cols-3 gap-3 sm:min-w-0 sm:grid-cols-2 lg:grid-cols-4">
+                    {ownerProgress.map((o) => (
+                      <OwnerProgressCard
+                        key={o.id}
+                        label={o.label}
+                        completed={o.completed}
+                        total={o.total}
                       />
-                    );
-                  })}
-
-                  {/* area under completed */}
-                  <path d={trendSvg.areaPath} fill="rgb(16 185 129 / 0.08)" />
-
-                  {/* created line */}
-                  <path
-                    d={trendSvg.createdPath}
-                    fill="none"
-                    stroke="rgb(37 99 235)"
-                    strokeWidth="2.5"
-                    strokeLinejoin="round"
-                    strokeLinecap="round"
-                  />
-
-                  {/* completed line */}
-                  <path
-                    d={trendSvg.completedPath}
-                    fill="none"
-                    stroke="rgb(5 150 105)"
-                    strokeWidth="2.5"
-                    strokeLinejoin="round"
-                    strokeLinecap="round"
-                  />
-                </svg>
-
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
-                  <span>
-                    Max/day: <span className="font-semibold">{trend.max}</span>
-                  </span>
-                  <span>
-                    Range:{" "}
-                    <span className="font-semibold">
-                      {trend.keys[0]} → {trend.keys[trend.keys.length - 1]}
-                    </span>
-                  </span>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </section>
 

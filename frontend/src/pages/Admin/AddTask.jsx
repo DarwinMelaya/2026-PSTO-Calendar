@@ -14,6 +14,8 @@ import {
 
 const daysBetween = (a, b) => Math.floor((a - b) / (1000 * 60 * 60 * 24));
 
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
 const formatDate = (value) => {
   if (!value) return "—";
   return new Date(`${value}T00:00:00`).toLocaleDateString(undefined, {
@@ -56,6 +58,40 @@ function StatCard({ label, value, accent }) {
       <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-slate-900">
         {value}
       </p>
+    </div>
+  );
+}
+
+function OwnerProgressCard({ label, completed, total }) {
+  const safeTotal = Math.max(0, Number(total) || 0);
+  const safeCompleted = clamp(Number(completed) || 0, 0, safeTotal || 0);
+  const pct = safeTotal > 0 ? Math.round((safeCompleted / safeTotal) * 100) : 0;
+
+  return (
+    <div className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-slate-900">
+            {label}
+          </p>
+          <p className="mt-1 text-xs text-slate-500">
+            Completed{" "}
+            <span className="font-semibold text-slate-700">
+              {safeCompleted}/{safeTotal || 0}
+            </span>
+          </p>
+        </div>
+        <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800 ring-1 ring-inset ring-emerald-600/15">
+          {pct}%
+        </span>
+      </div>
+
+      <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-100">
+        <div
+          className="h-full rounded-full bg-emerald-600/80"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
     </div>
   );
 }
@@ -122,6 +158,29 @@ const AddTask = () => {
       }
     }
     return Array.from(groups.values());
+  }, [tasks]);
+
+  const ownerProgress = useMemo(() => {
+    const map = new Map();
+    for (const t of tasks ?? []) {
+      const id = t?.responsible_id ?? "unknown";
+      const label = t?.profiles?.code_name ?? t?.profiles?.email ?? "—";
+      const current = map.get(id) ?? { id, label, total: 0, completed: 0 };
+      current.total += 1;
+      if (t?.status === "completed") current.completed += 1;
+      if (!current.label || current.label === "—") current.label = label;
+      map.set(id, current);
+    }
+
+    return Array.from(map.values())
+      .filter((x) => x.total > 0)
+      .sort((a, b) => {
+        const aPct = a.total > 0 ? a.completed / a.total : 0;
+        const bPct = b.total > 0 ? b.completed / b.total : 0;
+        if (bPct !== aPct) return bPct - aPct;
+        return b.total - a.total;
+      })
+      .slice(0, 12);
   }, [tasks]);
 
   const assigneeOptions = useMemo(() => {
@@ -313,6 +372,49 @@ const AddTask = () => {
             Add task
           </button>
         </div>
+
+        <section className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-xl shadow-slate-200/40 ring-1 ring-slate-900/[0.04]">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/90 to-white px-5 py-4 sm:px-6">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">
+                Owner progress
+              </h2>
+              <p className="mt-0.5 text-sm text-slate-500">
+                {loadingTasks
+                  ? "Loading…"
+                  : "Completed tasks per owner (deadline-based list)"}
+              </p>
+            </div>
+            {!loadingTasks && ownerProgress.length > 0 ? (
+              <span className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800 ring-1 ring-inset ring-emerald-600/15">
+                Top {Math.min(ownerProgress.length, 12)}
+              </span>
+            ) : null}
+          </div>
+
+          <div className="p-5 sm:p-6">
+            {loadingTasks ? (
+              <p className="text-sm text-slate-500">Loading…</p>
+            ) : ownerProgress.length === 0 ? (
+              <p className="text-sm text-slate-500">
+                No owner progress yet. Add tasks first.
+              </p>
+            ) : (
+              <div className="-mx-5 overflow-x-auto px-5 sm:-mx-6 sm:px-6">
+                <div className="grid min-w-[720px] grid-cols-3 gap-3 sm:min-w-0 sm:grid-cols-2 lg:grid-cols-4">
+                  {ownerProgress.map((o) => (
+                    <OwnerProgressCard
+                      key={o.id}
+                      label={o.label}
+                      completed={o.completed}
+                      total={o.total}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
 
         <section className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-xl shadow-slate-200/40 ring-1 ring-slate-900/[0.04]">
           <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/90 to-white px-5 py-4 sm:px-6">
