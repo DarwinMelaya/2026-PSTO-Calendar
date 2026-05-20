@@ -1,17 +1,30 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import supabase from "../../utils/supabaseClient";
+import PasswordInput from "../../components/Auth/PasswordInput";
+import { createProfile } from "../../utils/profile";
+import { setSession } from "../../utils/session";
+
+const ROLES = [
+  { value: "user", label: "User" },
+  { value: "admin", label: "Admin" },
+];
+
+const getPostSignupPath = (role) =>
+  role === "admin" ? "/admin-dashboard" : "/";
 
 const SignUp = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [role, setRole] = useState("user");
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (loading) return;
 
     if (password !== confirmPassword) {
       toast.error("Passwords do not match.");
@@ -25,31 +38,26 @@ const SignUp = () => {
 
     setLoading(true);
 
-    const { data, error } = await supabase.auth.signUp({
+    const { data, error } = await createProfile({
       email: email.trim(),
       password,
+      role,
     });
 
     setLoading(false);
 
     if (error) {
+      if (error.code === "23505") {
+        toast.error("This email is already registered.");
+        return;
+      }
       toast.error(error.message);
       return;
     }
 
-    if (data.user?.identities?.length === 0) {
-      toast.error("This email is already registered.");
-      return;
-    }
-
-    if (data.session) {
-      toast.success("Account created successfully!");
-      navigate("/admin-dashboard");
-      return;
-    }
-
-    toast.success("Check your email to confirm your account, then log in.");
-    navigate("/login");
+    setSession(data);
+    toast.success("Account created successfully!");
+    navigate(getPostSignupPath(role));
   };
 
   return (
@@ -82,21 +90,45 @@ const SignUp = () => {
           </div>
 
           <div>
+            <span className="block text-sm font-medium text-slate-700 mb-2">
+              Role
+            </span>
+            <div className="grid grid-cols-2 gap-3">
+              {ROLES.map(({ value, label }) => (
+                <label
+                  key={value}
+                  className={`flex cursor-pointer items-center justify-center rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors ${
+                    role === value
+                      ? "border-blue-600 bg-blue-50 text-blue-700"
+                      : "border-slate-300 text-slate-700 hover:border-slate-400"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="role"
+                    value={value}
+                    checked={role === value}
+                    onChange={(e) => setRole(e.target.value)}
+                    className="sr-only"
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div>
             <label
               htmlFor="password"
               className="block text-sm font-medium text-slate-700 mb-1.5"
             >
               Password
             </label>
-            <input
+            <PasswordInput
               id="password"
-              type="password"
-              required
-              minLength={6}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="At least 6 characters"
-              className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             />
           </div>
 
@@ -107,15 +139,11 @@ const SignUp = () => {
             >
               Confirm password
             </label>
-            <input
+            <PasswordInput
               id="confirmPassword"
-              type="password"
-              required
-              minLength={6}
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Re-enter your password"
-              className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             />
           </div>
 

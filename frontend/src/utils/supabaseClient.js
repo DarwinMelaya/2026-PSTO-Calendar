@@ -9,11 +9,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
-const supabase = createClient(supabaseUrl ?? "", supabaseAnonKey ?? "", {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-  },
-});
+// Database only — login/signup use the profiles table, not Supabase Auth
+const supabase = createClient(supabaseUrl ?? "", supabaseAnonKey ?? "");
 
 export default supabase;

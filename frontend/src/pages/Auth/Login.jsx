@@ -1,41 +1,20 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import supabase from "../../utils/supabaseClient";
-import { getAuthErrorMessage } from "../../utils/authErrors";
+import PasswordInput from "../../components/Auth/PasswordInput";
+import { loginProfile } from "../../utils/profile";
+import { setSession } from "../../utils/session";
 
 const Login = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [resending, setResending] = useState(false);
-  const [needsConfirmation, setNeedsConfirmation] = useState(false);
-
-  const handleResendConfirmation = async () => {
-    if (!email.trim()) {
-      toast.error("Enter your email address first.");
-      return;
-    }
-
-    setResending(true);
-    const { error } = await supabase.auth.resend({
-      type: "signup",
-      email: email.trim(),
-    });
-    setResending(false);
-
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-
-    toast.success("Confirmation email sent. Check your inbox.");
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setNeedsConfirmation(false);
+
+    if (loading) return;
 
     if (password.length < 6) {
       toast.error("Password must be at least 6 characters.");
@@ -44,7 +23,7 @@ const Login = () => {
 
     setLoading(true);
 
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await loginProfile({
       email: email.trim(),
       password,
     });
@@ -52,19 +31,18 @@ const Login = () => {
     setLoading(false);
 
     if (error) {
-      const { type, message } = getAuthErrorMessage(error);
-      toast.error(message);
-      setNeedsConfirmation(type === "email_not_confirmed");
+      toast.error(error.message);
       return;
     }
 
-    if (!data.session) {
-      toast.error("Could not start a session. Please try again.");
+    if (!data) {
+      toast.error("Invalid email or password.");
       return;
     }
 
+    setSession(data);
     toast.success("Logged in successfully!");
-    navigate("/admin-dashboard");
+    navigate(data.role === "admin" ? "/admin-dashboard" : "/");
   };
 
   return (
@@ -104,32 +82,14 @@ const Login = () => {
             >
               Password
             </label>
-            <input
+            <PasswordInput
               id="password"
-              type="password"
-              required
-              minLength={6}
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="At least 6 characters"
-              className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             />
           </div>
-
-          {needsConfirmation && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-              <p>Your account needs email confirmation before you can log in.</p>
-              <button
-                type="button"
-                onClick={handleResendConfirmation}
-                disabled={resending}
-                className="mt-2 font-medium text-amber-800 underline hover:text-amber-950 disabled:opacity-60"
-              >
-                {resending ? "Sending..." : "Resend confirmation email"}
-              </button>
-            </div>
-          )}
 
           <button
             type="submit"
