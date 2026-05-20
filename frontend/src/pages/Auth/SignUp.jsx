@@ -42,11 +42,13 @@ const SignUp = () => {
       return;
     }
 
-    toast.success(
-      data.session
-        ? "Account created successfully!"
-        : "Check your email to confirm your account."
-    );
+    if (data.session) {
+      toast.success("Account created successfully!");
+      navigate("/admin-dashboard");
+      return;
+    }
+
+    toast.success("Check your email to confirm your account, then log in.");
     navigate("/login");
   };
 
