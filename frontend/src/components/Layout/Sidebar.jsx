@@ -53,6 +53,22 @@ const HomeIcon = () => (
   </svg>
 );
 
+const CalendarIcon = () => (
+  <svg
+    className={iconClass}
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={1.5}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M6.75 2.25v1.5M17.25 2.25v1.5M3 8.25h18M4.5 4.5h15A1.5 1.5 0 0121 6v14.25A1.5 1.5 0 0119.5 21h-15A1.5 1.5 0 013 20.25V6a1.5 1.5 0 011.5-1.5zm3 7.5h.008v.008H7.5V12zm3.75 0h.008v.008H11.25V12zm3.75 0h.008v.008H15V12zM7.5 15.75h.008v.008H7.5v-.008zm3.75 0h.008v.008H11.25v-.008zm3.75 0h.008v.008H15v-.008z"
+    />
+  </svg>
+);
+
 const SearchIcon = () => (
   <svg
     className="h-4 w-4 text-slate-500"
@@ -149,6 +165,12 @@ const Sidebar = () => {
             <NavLink to="/admin-add-users" className={panelLinkClass}>
               <UsersIcon />
               Users
+            </NavLink>
+          ) : null}
+          {navFilter("Calendar") ? (
+            <NavLink to="/admin-calendar" className={panelLinkClass}>
+              <CalendarIcon />
+              Calendar
             </NavLink>
           ) : null}
           {query.trim() &&

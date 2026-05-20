@@ -9,6 +9,7 @@ import {
   AddUsers,
   UserDashboard,
   UserTask,
+  AdminCalendar,
 } from "../pages";
 
 export const Routers = () => {
@@ -44,6 +45,15 @@ export const Routers = () => {
             </ProtectedRoutes>
           }
         />
+        <Route
+          path="/admin-calendar"
+          element={
+            <ProtectedRoutes adminOnly>
+              <AdminCalendar />
+            </ProtectedRoutes>
+          }
+        />
+
         {/* User Page */}
         <Route
           path="/user-dashboard"
