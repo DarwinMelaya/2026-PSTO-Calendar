@@ -25,6 +25,96 @@ const formatDate = (value) => {
   });
 };
 
+const toIsoDate = (date) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+};
+
+const parseDateOnly = (value) => {
+  if (!value) return null;
+  const d = new Date(`${value}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? null : d;
+};
+
+const startOfDay = (date) => {
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+
+const addDays = (date, days) => {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return startOfDay(d);
+};
+
+const startOfWeek = (date) => {
+  const d = startOfDay(date);
+  d.setDate(d.getDate() - d.getDay());
+  return d;
+};
+
+const formatRangeLabel = (start, end) => {
+  const sameMonth = start.getMonth() === end.getMonth();
+  const sameYear = start.getFullYear() === end.getFullYear();
+  const startFmt = start.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: sameYear ? undefined : "numeric",
+  });
+  const endFmt = end.toLocaleDateString(undefined, {
+    month: sameMonth ? undefined : "short",
+    day: "numeric",
+    year: "numeric",
+  });
+  return `${startFmt} – ${endFmt}`;
+};
+
+const getDateRange = (period, anchorDate) => {
+  if (period === "all") return null;
+  const anchor = startOfDay(parseDateOnly(anchorDate) ?? new Date());
+
+  if (period === "day") {
+    return { start: anchor, end: anchor };
+  }
+
+  if (period === "week") {
+    const start = startOfWeek(anchor);
+    return { start, end: addDays(start, 6) };
+  }
+
+  const start = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+  const end = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0);
+  return { start: startOfDay(start), end: startOfDay(end) };
+};
+
+const isDateInRange = (value, range) => {
+  if (!range) return true;
+  const d = parseDateOnly(value);
+  if (!d) return false;
+  const t = startOfDay(d).getTime();
+  return t >= range.start.getTime() && t <= range.end.getTime();
+};
+
+const DEFAULT_FILTERS = {
+  q: "",
+  status: "all",
+  assignee: "all",
+  awaitingApproval: false,
+  datePeriod: "all",
+  dateBasis: "task_date",
+  anchorDate: toIsoDate(new Date()),
+};
+
+const DATE_PERIODS = [
+  { value: "all", label: "All" },
+  { value: "day", label: "Day" },
+  { value: "week", label: "Week" },
+  { value: "month", label: "Month" },
+];
+
 const statusBadgeClass = (status) => {
   switch (status) {
     case "completed":
@@ -104,12 +194,7 @@ const AddTask = () => {
   const [taskToEdit, setTaskToEdit] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [resolvingRequestId, setResolvingRequestId] = useState(null);
-  const [filters, setFilters] = useState({
-    q: "",
-    status: "all",
-    assignee: "all",
-    awaitingApproval: false,
-  });
+  const [filters, setFilters] = useState(DEFAULT_FILTERS);
 
   const loadTasks = useCallback(async () => {
     setLoadingTasks(true);
@@ -193,11 +278,32 @@ const AddTask = () => {
     return Array.from(labels).sort((a, b) => a.localeCompare(b));
   }, [groupedTasks]);
 
+  const dateRange = useMemo(
+    () => getDateRange(filters.datePeriod, filters.anchorDate),
+    [filters.datePeriod, filters.anchorDate],
+  );
+
+  const dateFilterLabel = useMemo(() => {
+    if (!dateRange) return null;
+    if (filters.datePeriod === "day") {
+      return formatDate(filters.anchorDate);
+    }
+    if (filters.datePeriod === "week") {
+      return formatRangeLabel(dateRange.start, dateRange.end);
+    }
+    return dateRange.start.toLocaleDateString(undefined, {
+      month: "long",
+      year: "numeric",
+    });
+  }, [dateRange, filters.anchorDate, filters.datePeriod]);
+
   const filteredGroupedTasks = useMemo(() => {
     const q = filters.q.trim().toLowerCase();
     const status = filters.status;
     const assignee = filters.assignee;
     const awaitingApproval = filters.awaitingApproval;
+    const dateField =
+      filters.dateBasis === "deadline" ? "deadline" : "task_date";
 
     return groupedTasks.filter((task) => {
       if (awaitingApproval && !task.requestedStatus) return false;
@@ -208,6 +314,7 @@ const AddTask = () => {
       ) {
         return false;
       }
+      if (!isDateInRange(task[dateField], dateRange)) return false;
       if (!q) return true;
 
       const haystack = [
@@ -222,7 +329,30 @@ const AddTask = () => {
 
       return haystack.includes(q);
     });
-  }, [filters, groupedTasks]);
+  }, [filters, groupedTasks, dateRange]);
+
+  const shiftAnchorDate = (direction) => {
+    const anchor = parseDateOnly(filters.anchorDate) ?? new Date();
+    let next = anchor;
+
+    if (filters.datePeriod === "day") {
+      next = addDays(anchor, direction);
+    } else if (filters.datePeriod === "week") {
+      next = addDays(anchor, direction * 7);
+    } else if (filters.datePeriod === "month") {
+      next = new Date(anchor.getFullYear(), anchor.getMonth() + direction, 1);
+    }
+
+    setFilters((prev) => ({ ...prev, anchorDate: toIsoDate(next) }));
+  };
+
+  const setDatePeriod = (datePeriod) => {
+    setFilters((prev) => ({
+      ...prev,
+      datePeriod,
+      anchorDate: prev.anchorDate || toIsoDate(new Date()),
+    }));
+  };
 
   const stats = useMemo(() => {
     const list = groupedTasks;
@@ -262,6 +392,7 @@ const AddTask = () => {
     filters.awaitingApproval ||
     filters.status !== "all" ||
     filters.assignee !== "all" ||
+    filters.datePeriod !== "all" ||
     !!filters.q.trim();
 
   const openEdit = (task) => {
@@ -551,6 +682,100 @@ const AddTask = () => {
           </div>
 
           <div className="border-b border-slate-100 bg-white px-5 py-4 sm:px-6">
+            <div className="mb-4 flex flex-col gap-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Date range
+                </p>
+                <div className="inline-flex w-full rounded-xl border border-slate-200 bg-white p-1 shadow-sm sm:w-auto">
+                  {DATE_PERIODS.map(({ value, label }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setDatePeriod(value)}
+                      className={`flex-1 rounded-lg px-3 py-1.5 text-sm font-semibold transition sm:flex-none ${
+                        filters.datePeriod === value
+                          ? "bg-slate-900 text-white"
+                          : "text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {filters.datePeriod !== "all" ? (
+                <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50/80 p-3 sm:flex-row sm:flex-wrap sm:items-center">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => shiftAnchorDate(-1)}
+                      className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-lg font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                      aria-label={`Previous ${filters.datePeriod}`}
+                    >
+                      ‹
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => shiftAnchorDate(1)}
+                      className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-lg font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                      aria-label={`Next ${filters.datePeriod}`}
+                    >
+                      ›
+                    </button>
+                    <input
+                      type="date"
+                      value={filters.anchorDate}
+                      onChange={(e) =>
+                        setFilters((prev) => ({
+                          ...prev,
+                          anchorDate: e.target.value,
+                        }))
+                      }
+                      className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 sm:flex-none"
+                      aria-label="Anchor date"
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFilters((prev) => ({
+                          ...prev,
+                          anchorDate: toIsoDate(new Date()),
+                        }))
+                      }
+                      className="shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                    >
+                      Today
+                    </button>
+                  </div>
+
+                  <p className="min-w-0 flex-1 text-sm font-medium text-slate-700 sm:text-center">
+                    {dateFilterLabel}
+                    <span className="mt-0.5 block text-xs font-normal text-slate-500">
+                      Filtering by{" "}
+                      {filters.dateBasis === "deadline" ? "deadline" : "task date"}
+                    </span>
+                  </p>
+
+                  <select
+                    value={filters.dateBasis}
+                    onChange={(e) =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        dateBasis: e.target.value,
+                      }))
+                    }
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 sm:w-auto"
+                    aria-label="Date field to filter"
+                  >
+                    <option value="task_date">Task date</option>
+                    <option value="deadline">Deadline</option>
+                  </select>
+                </div>
+              ) : null}
+            </div>
+
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
                 <div className="relative flex-1">
@@ -640,14 +865,7 @@ const AddTask = () => {
                 {hasActiveFilters ? (
                   <button
                     type="button"
-                    onClick={() =>
-                      setFilters({
-                        q: "",
-                        status: "all",
-                        assignee: "all",
-                        awaitingApproval: false,
-                      })
-                    }
+                    onClick={() => setFilters(DEFAULT_FILTERS)}
                     className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 sm:w-auto"
                   >
                     Clear filters
@@ -771,14 +989,7 @@ const AddTask = () => {
                         {hasActiveFilters ? (
                           <button
                             type="button"
-                            onClick={() =>
-                              setFilters({
-                                q: "",
-                                status: "all",
-                                assignee: "all",
-                                awaitingApproval: false,
-                              })
-                            }
+                            onClick={() => setFilters(DEFAULT_FILTERS)}
                             className="mt-6 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-blue-600/20 hover:bg-blue-700"
                           >
                             Clear filters
