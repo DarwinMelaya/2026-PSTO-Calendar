@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { NavLink } from "react-router-dom";
 import Layout from "../../components/Layout/Layout";
+import OwnerOpenTasksModal from "../../components/Modals/AdminModals/OwnerOpenTasksModal";
 import { listProfiles } from "../../utils/profile";
 import { listTasks, parseTaskRemarks, TASK_STATUSES } from "../../utils/task";
 
@@ -70,13 +71,28 @@ const formatDate = (value) => {
   });
 };
 
-function OwnerProgressCard({ label, completed, total }) {
+function OwnerProgressCard({
+  label,
+  completed,
+  total,
+  selected,
+  onClick,
+}) {
   const safeTotal = Math.max(0, Number(total) || 0);
   const safeCompleted = clamp(Number(completed) || 0, 0, safeTotal || 0);
+  const incomplete = safeTotal - safeCompleted;
   const pct = safeTotal > 0 ? Math.round((safeCompleted / safeTotal) * 100) : 0;
 
   return (
-    <div className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-sm">
+    <button
+      type="button"
+      onClick={onClick}
+      className={`w-full rounded-2xl border p-4 text-left shadow-sm transition hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 ${
+        selected
+          ? "border-blue-300 bg-blue-50/50 ring-2 ring-blue-500/20"
+          : "border-slate-200/90 bg-white hover:border-slate-300"
+      }`}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-slate-900">
@@ -87,6 +103,15 @@ function OwnerProgressCard({ label, completed, total }) {
             <span className="font-semibold text-slate-700">
               {safeCompleted}/{safeTotal || 0}
             </span>
+            {incomplete > 0 ? (
+              <>
+                {" "}
+                ·{" "}
+                <span className="font-semibold text-amber-700">
+                  {incomplete} open
+                </span>
+              </>
+            ) : null}
           </p>
         </div>
         <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800 ring-1 ring-inset ring-emerald-600/15">
@@ -100,7 +125,7 @@ function OwnerProgressCard({ label, completed, total }) {
           style={{ width: `${pct}%` }}
         />
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -108,6 +133,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [tasks, setTasks] = useState([]);
   const [profiles, setProfiles] = useState([]);
+  const [selectedOwnerId, setSelectedOwnerId] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -264,6 +290,30 @@ const Dashboard = () => {
       .slice(0, 12);
   }, [enrichedTasks]);
 
+  const selectedOwner = useMemo(
+    () => ownerProgress.find((o) => o.id === selectedOwnerId) ?? null,
+    [ownerProgress, selectedOwnerId],
+  );
+
+  const incompleteTasksForOwner = useMemo(() => {
+    if (!selectedOwnerId) return [];
+    return enrichedTasks
+      .filter(
+        (t) =>
+          Number(t.responsible_id) === selectedOwnerId &&
+          t.status !== "completed",
+      )
+      .sort((a, b) => {
+        const aDate = a.deadline
+          ? new Date(`${a.deadline}T00:00:00`).getTime()
+          : Infinity;
+        const bDate = b.deadline
+          ? new Date(`${b.deadline}T00:00:00`).getTime()
+          : Infinity;
+        return aDate - bDate;
+      });
+  }, [enrichedTasks, selectedOwnerId]);
+
   const dueSoon = useMemo(() => {
     const now = new Date();
     const today = new Date(now);
@@ -360,7 +410,9 @@ const Dashboard = () => {
                   Owner progress
                 </h2>
                 <p className="mt-0.5 text-sm text-slate-500">
-                  {loading ? "Loading…" : "Completed tasks per owner"}
+                  {loading
+                    ? "Loading…"
+                    : "Click an owner to view open (not completed) tasks"}
                 </p>
               </div>
               {!loading && ownerProgress.length > 0 ? (
@@ -386,6 +438,8 @@ const Dashboard = () => {
                         label={o.label}
                         completed={o.completed}
                         total={o.total}
+                        selected={selectedOwnerId === o.id}
+                        onClick={() => setSelectedOwnerId(o.id)}
                       />
                     ))}
                   </div>
@@ -574,6 +628,13 @@ const Dashboard = () => {
           </section>
         </div>
       </div>
+
+      <OwnerOpenTasksModal
+        isOpen={!!selectedOwnerId}
+        onClose={() => setSelectedOwnerId(null)}
+        ownerLabel={selectedOwner?.label}
+        tasks={incompleteTasksForOwner}
+      />
     </Layout>
   );
 };

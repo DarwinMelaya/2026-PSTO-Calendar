@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import AddTaskModal from "../../components/Modals/AdminModals/AddTaskModal";
 import EditTaskModal from "../../components/Modals/AdminModals/EditTaskModal";
+import ViewTaskModal from "../../components/Modals/AdminModals/ViewTaskModal";
 import Layout from "../../components/Layout/Layout";
 import {
   TASK_STATUSES,
@@ -226,6 +227,7 @@ const AddTask = () => {
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [taskToEdit, setTaskToEdit] = useState(null);
+  const [taskToView, setTaskToView] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [resolvingRequestId, setResolvingRequestId] = useState(null);
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
@@ -348,7 +350,11 @@ const AddTask = () => {
       ) {
         return false;
       }
-      if (dateRange && dateField === "deadline" && !hasDeadline(task.deadline)) {
+      if (
+        dateRange &&
+        dateField === "deadline" &&
+        !hasDeadline(task.deadline)
+      ) {
         return false;
       }
       if (!isDateInRange(task[dateField], dateRange)) return false;
@@ -510,36 +516,17 @@ const AddTask = () => {
   return (
     <Layout>
       <div className="mx-auto max-w-7xl space-y-8">
-        <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
-          <div className="space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-widest text-blue-600">
-              Admin
-            </p>
-            <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-              Tasks
-            </h1>
-            <p className="max-w-xl text-base text-slate-600 leading-relaxed">
-              Create assignments, track deadlines, and keep responsibility clear
-              with code-name owners.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setAddModalOpen(true)}
-            className="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 hover:shadow-xl hover:shadow-blue-600/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 sm:w-auto"
-          >
-            <svg
-              className="h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={2}
-              stroke="currentColor"
-              aria-hidden
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-            </svg>
-            Add task
-          </button>
+        <div className="space-y-3">
+          <p className="text-xs font-semibold uppercase tracking-widest text-blue-600">
+            Admin
+          </p>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+            Tasks
+          </h1>
+          <p className="max-w-xl text-base text-slate-600 leading-relaxed">
+            Create assignments, track deadlines, and keep responsibility clear
+            with code-name owners.
+          </p>
         </div>
 
         <section className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-xl shadow-slate-200/40 ring-1 ring-slate-900/[0.04]">
@@ -646,14 +633,16 @@ const AddTask = () => {
                         </p>
                         <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
                           <div className="flex flex-wrap gap-1.5">
-                            {(t.responsibleLabels ?? ["—"]).map((label, idx) => (
-                              <span
-                                key={`${label}-${idx}`}
-                                className="inline-flex items-center rounded-lg bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-800 ring-1 ring-inset ring-slate-900/5"
-                              >
-                                {label}
-                              </span>
-                            ))}
+                            {(t.responsibleLabels ?? ["—"]).map(
+                              (label, idx) => (
+                                <span
+                                  key={`${label}-${idx}`}
+                                  className="inline-flex items-center rounded-lg bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-800 ring-1 ring-inset ring-slate-900/5"
+                                >
+                                  {label}
+                                </span>
+                              ),
+                            )}
                           </div>
                           <span>•</span>
                           <span className="font-medium">
@@ -712,11 +701,34 @@ const AddTask = () => {
                   : `${filteredGroupedTasks.length} shown · ${groupedTasks.length} total · ${stats.onHold} on hold · ${stats.awaitingApproval} awaiting approval`}
               </p>
             </div>
-            {!loadingTasks && groupedTasks.length > 0 ? (
-              <span className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-800 ring-1 ring-inset ring-blue-600/15">
-                Latest first
-              </span>
-            ) : null}
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              {!loadingTasks && groupedTasks.length > 0 ? (
+                <span className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-800 ring-1 ring-inset ring-blue-600/15">
+                  Latest first
+                </span>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => setAddModalOpen(true)}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-blue-600/25 transition hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-600/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+              >
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={2}
+                  stroke="currentColor"
+                  aria-hidden
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 4.5v15m7.5-7.5h-15"
+                  />
+                </svg>
+                Add task
+              </button>
+            </div>
           </div>
 
           <div className="border-b border-slate-100 bg-white px-5 py-4 sm:px-6">
@@ -792,7 +804,9 @@ const AddTask = () => {
                     {dateFilterLabel}
                     <span className="mt-0.5 block text-xs font-normal text-slate-500">
                       Filtering by{" "}
-                      {filters.dateBasis === "deadline" ? "deadline" : "task date"}
+                      {filters.dateBasis === "deadline"
+                        ? "deadline"
+                        : "task date"}
                     </span>
                   </p>
 
@@ -848,7 +862,10 @@ const AddTask = () => {
                   <select
                     value={filters.status}
                     onChange={(e) =>
-                      setFilters((prev) => ({ ...prev, status: e.target.value }))
+                      setFilters((prev) => ({
+                        ...prev,
+                        status: e.target.value,
+                      }))
                     }
                     className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                     aria-label="Filter by status"
@@ -934,7 +951,7 @@ const AddTask = () => {
                     Deadline
                   </th>
                   <th className="whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500 sm:px-6">
-                    Owner
+                    Person responsible
                   </th>
                   <th className="whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500 sm:px-6">
                     Status
@@ -1051,9 +1068,21 @@ const AddTask = () => {
                         </span>
                       </td>
                       <td className="max-w-[240px] px-5 py-4 text-slate-600 sm:px-6">
-                        <span className="line-clamp-2" title={task.activities}>
-                          {task.activities || "—"}
-                        </span>
+                        <div className="flex flex-col gap-2">
+                          <span
+                            className="line-clamp-2"
+                            title={task.activities}
+                          >
+                            {task.activities || "—"}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setTaskToView(task)}
+                            className="w-fit rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-blue-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+                          >
+                            View
+                          </button>
+                        </div>
                       </td>
                       <td className="whitespace-nowrap px-5 py-4 text-slate-800 sm:px-6">
                         {formatTaskDeadline(task.deadline)}
@@ -1079,8 +1108,7 @@ const AddTask = () => {
                           </span>
                           {task.requestedStatus ? (
                             <span className="inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 ring-1 ring-inset ring-amber-600/15">
-                              Requested:{" "}
-                              {statusLabel(task.requestedStatus)}
+                              Requested: {statusLabel(task.requestedStatus)}
                             </span>
                           ) : null}
                         </div>
@@ -1158,6 +1186,12 @@ const AddTask = () => {
         task={taskToEdit}
         onClose={closeEdit}
         onSuccess={loadTasks}
+      />
+
+      <ViewTaskModal
+        isOpen={!!taskToView}
+        task={taskToView}
+        onClose={() => setTaskToView(null)}
       />
     </Layout>
   );
