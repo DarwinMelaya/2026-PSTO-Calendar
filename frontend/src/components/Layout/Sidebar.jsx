@@ -110,6 +110,8 @@ const SearchIcon = () => (
   </svg>
 );
 
+const DOST_LOGO_SRC = "/Assets/dostlogo.png";
+
 const panelLinkClass = ({ isActive }) =>
   `flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-colors ${
     isActive
@@ -240,14 +242,26 @@ const Sidebar = () => {
         } lg:shadow-none`}
         aria-label="Admin sidebar"
       >
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold tracking-tight text-white">
-            Dashboard
-          </h2>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <img
+              src={DOST_LOGO_SRC}
+              alt="Department of Science and Technology logo"
+              className="h-11 w-11 shrink-0 rounded-lg bg-white/95 object-contain p-1"
+            />
+            <div className="min-w-0">
+              <h2 className="truncate text-xl font-bold tracking-tight text-white">
+                Dashboard
+              </h2>
+              <p className="truncate text-xs font-medium text-slate-400">
+                PSTO Calendar
+              </p>
+            </div>
+          </div>
           <button
             type="button"
             onClick={() => setMobileOpen(false)}
-            className="rounded-xl px-2 py-2 text-slate-200 hover:bg-slate-900/40 lg:hidden"
+            className="shrink-0 rounded-xl px-2 py-2 text-slate-200 hover:bg-slate-900/40 lg:hidden"
             aria-label="Close sidebar"
           >
             <CloseIcon />

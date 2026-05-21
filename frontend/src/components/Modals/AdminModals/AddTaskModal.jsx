@@ -83,11 +83,6 @@ const AddTaskModal = ({ isOpen, onClose, onSuccess }) => {
       return;
     }
 
-    if (!activities.trim()) {
-      toast.error("Activities is required.");
-      return;
-    }
-
     if (!responsibleId.length) {
       toast.error("At least one person responsible is required.");
       return;
@@ -229,11 +224,11 @@ const AddTaskModal = ({ isOpen, onClose, onSuccess }) => {
                 htmlFor="modal-task-activities"
                 className="mb-1.5 block text-sm font-medium text-slate-700"
               >
-                Activities
+                Activities{" "}
+                <span className="font-normal text-slate-400">(optional)</span>
               </label>
               <textarea
                 id="modal-task-activities"
-                required
                 rows={3}
                 value={form.activities}
                 onChange={setField("activities")}

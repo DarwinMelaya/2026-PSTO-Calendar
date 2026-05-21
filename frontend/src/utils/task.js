@@ -116,12 +116,14 @@ export const hasDeadline = (value) => {
   return String(value).slice(0, 10) !== NO_DEADLINE;
 };
 
-export const resolveDeadlineForDb = (deadline, taskDate) => {
+export const resolveDeadlineForDb = (deadline) => {
   const trimmed = typeof deadline === "string" ? deadline.trim() : deadline;
   if (trimmed) return trimmed;
-  const fallback = typeof taskDate === "string" ? taskDate.trim() : taskDate;
-  return fallback || NO_DEADLINE;
+  return NO_DEADLINE;
 };
+
+export const normalizeActivities = (activities) =>
+  typeof activities === "string" ? activities.trim() : "";
 
 export const deadlineForForm = (value) => (hasDeadline(value) ? value : "");
 
@@ -143,7 +145,7 @@ export const createTask = async ({
   status,
   remarks,
 }) => {
-  const resolvedDeadline = resolveDeadlineForDb(deadline, taskDate);
+  const resolvedDeadline = resolveDeadlineForDb(deadline);
   const responsibleIds = normalizeResponsibleIds(responsibleId);
   if (responsibleIds.length === 0) {
     return {
@@ -165,7 +167,7 @@ export const createTask = async ({
       responsibleIds.map((id) => ({
         task_date: taskDate,
         agenda: agenda.trim(),
-        activities: activities.trim(),
+        activities: normalizeActivities(activities),
         deadline: resolvedDeadline,
         responsible_id: id,
         status,
@@ -201,7 +203,7 @@ export const updateTask = async (
       error: { message: "At least one person responsible is required." },
     };
   }
-  const resolvedDeadline = resolveDeadlineForDb(deadline, taskDate);
+  const resolvedDeadline = resolveDeadlineForDb(deadline);
   const existingMeta = parseTaskRemarks(existingRemarks ?? null);
   const effectiveGroupKey =
     groupKey || existingMeta.groupKey || parseTaskRemarks(remarks).groupKey || createGroupKey();
@@ -219,7 +221,7 @@ export const updateTask = async (
   const basePayload = {
     task_date: taskDate,
     agenda: agenda.trim(),
-    activities: activities.trim(),
+    activities: normalizeActivities(activities),
     deadline: resolvedDeadline,
     status,
     remarks: composedRemarks,
@@ -387,6 +389,7 @@ export const listTasks = async () => {
       profiles ( code_name )
     `,
     )
+    .order("task_date", { ascending: false })
     .order("created_at", { ascending: false });
 
   return { data, error };

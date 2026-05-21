@@ -100,6 +100,38 @@ const isDateInRange = (value, range) => {
   return t >= range.start.getTime() && t <= range.end.getTime();
 };
 
+const taskDateSortTime = (task) => {
+  if (task?.task_date) {
+    const t = new Date(`${task.task_date}T00:00:00`).getTime();
+    if (!Number.isNaN(t)) return t;
+  }
+  return 0;
+};
+
+const taskCreatedSortTime = (task) => {
+  if (task?.created_at) {
+    const t = new Date(task.created_at).getTime();
+    if (!Number.isNaN(t)) return t;
+  }
+  return 0;
+};
+
+const groupMembers = (group) => [group, ...(group.members ?? [])];
+
+const compareGroupsNewestFirst = (a, b) => {
+  const membersA = groupMembers(a);
+  const membersB = groupMembers(b);
+  const maxDateA = Math.max(...membersA.map(taskDateSortTime), 0);
+  const maxDateB = Math.max(...membersB.map(taskDateSortTime), 0);
+  if (maxDateB !== maxDateA) return maxDateB - maxDateA;
+
+  const maxCreatedA = Math.max(...membersA.map(taskCreatedSortTime), 0);
+  const maxCreatedB = Math.max(...membersB.map(taskCreatedSortTime), 0);
+  if (maxCreatedB !== maxCreatedA) return maxCreatedB - maxCreatedA;
+
+  return (Number(b.id) || 0) - (Number(a.id) || 0);
+};
+
 const DEFAULT_FILTERS = {
   q: "",
   status: "all",
@@ -244,7 +276,7 @@ const AddTask = () => {
         current.members.push(normalizedTask);
       }
     }
-    return Array.from(groups.values());
+    return Array.from(groups.values()).sort(compareGroupsNewestFirst);
   }, [tasks]);
 
   const ownerProgress = useMemo(() => {
@@ -307,7 +339,7 @@ const AddTask = () => {
     const dateField =
       filters.dateBasis === "deadline" ? "deadline" : "task_date";
 
-    return groupedTasks.filter((task) => {
+    const filtered = groupedTasks.filter((task) => {
       if (awaitingApproval && !task.requestedStatus) return false;
       if (status !== "all" && task.status !== status) return false;
       if (
@@ -334,6 +366,7 @@ const AddTask = () => {
 
       return haystack.includes(q);
     });
+    return filtered.sort(compareGroupsNewestFirst);
   }, [filters, groupedTasks, dateRange]);
 
   const shiftAnchorDate = (direction) => {
@@ -635,7 +668,7 @@ const AddTask = () => {
                       </span>
                     </div>
                     <p className="mt-3 line-clamp-2 text-sm text-slate-600">
-                      {t.activities}
+                      {t.activities || "—"}
                     </p>
                   </div>
                 );
@@ -1019,7 +1052,7 @@ const AddTask = () => {
                       </td>
                       <td className="max-w-[240px] px-5 py-4 text-slate-600 sm:px-6">
                         <span className="line-clamp-2" title={task.activities}>
-                          {task.activities}
+                          {task.activities || "—"}
                         </span>
                       </td>
                       <td className="whitespace-nowrap px-5 py-4 text-slate-800 sm:px-6">
