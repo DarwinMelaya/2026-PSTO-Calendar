@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import Layout from "../../components/Layout/Layout";
 import PasswordInput from "../../components/Auth/PasswordInput";
 import { getProfileById, updateProfile } from "../../utils/profile";
-import { getSession, setSession } from "../../utils/session";
+import { clearSession, getSession, setSession } from "../../utils/session";
 
 const inputClass =
   "w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-slate-900 placeholder:text-slate-400 shadow-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500";
 
 const UserProfile = () => {
+  const navigate = useNavigate();
   const session = getSession();
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -120,6 +122,12 @@ const UserProfile = () => {
     }));
 
     toast.success("Profile updated successfully.");
+  };
+
+  const handleLogout = () => {
+    clearSession();
+    toast.success("Logged out successfully.");
+    navigate("/", { replace: true });
   };
 
   if (!session?.id) {
@@ -277,6 +285,20 @@ const UserProfile = () => {
               </div>
             </form>
           )}
+        </div>
+
+        <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="text-sm font-semibold text-slate-900">Account</h2>
+          <p className="mt-1 text-xs text-slate-500">
+            Sign out of PSTO Calendar on this device.
+          </p>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="mt-4 w-full rounded-xl border border-rose-200 px-5 py-2.5 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 sm:w-auto"
+          >
+            Log out
+          </button>
         </div>
       </div>
     </Layout>

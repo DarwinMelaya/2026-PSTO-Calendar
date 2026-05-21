@@ -1,16 +1,7 @@
 import { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { clearSession, getSession } from "../../utils/session";
-
-const userInitials = (user) => {
-  const base = user?.name?.trim() || user?.code_name?.trim() || user?.email?.trim() || "?";
-  const parts = base.split(/\s+/).filter(Boolean);
-  if (parts.length >= 2) {
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  }
-  return base.slice(0, 2).toUpperCase();
-};
+import { clearSession } from "../../utils/session";
 
 const iconClass = "h-5 w-5 shrink-0";
 
@@ -87,6 +78,11 @@ const panelLinkClass = ({ isActive }) =>
       : "text-slate-300 hover:bg-slate-800/80 hover:text-white"
   }`;
 
+const mobileNavLinkClass = ({ isActive }) =>
+  `flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 text-xs font-medium transition-colors ${
+    isActive ? "text-white" : "text-slate-400 active:text-slate-200"
+  }`;
+
 const CollapsibleSection = ({ title, defaultOpen = true, children }) => {
   const [open, setOpen] = useState(defaultOpen);
   return (
@@ -108,36 +104,9 @@ const CollapsibleSection = ({ title, defaultOpen = true, children }) => {
   );
 };
 
-const BurgerIcon = () => (
-  <svg
-    className="h-6 w-6"
-    fill="none"
-    viewBox="0 0 24 24"
-    stroke="currentColor"
-    strokeWidth={1.8}
-  >
-    <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-  </svg>
-);
-
-const CloseIcon = () => (
-  <svg
-    className="h-6 w-6"
-    fill="none"
-    viewBox="0 0 24 24"
-    stroke="currentColor"
-    strokeWidth={1.8}
-  >
-    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-  </svg>
-);
-
 const UserSidebar = () => {
   const navigate = useNavigate();
-  const user = getSession();
-  const displayName = user?.code_name || user?.name || user?.email || "User";
   const [query, setQuery] = useState("");
-  const [mobileOpen, setMobileOpen] = useState(false);
 
   const handleLogout = () => {
     clearSession();
@@ -150,86 +119,43 @@ const UserSidebar = () => {
 
   return (
     <>
-      <header className="fixed inset-x-0 top-0 z-40 lg:hidden">
-        <div
-          className="pointer-events-none absolute inset-0 border-b border-slate-200/50 bg-gradient-to-b from-white/85 via-white/70 to-white/55 shadow-[0_8px_32px_-12px_rgba(15,23,42,0.18)] backdrop-blur-2xl backdrop-saturate-150 [-webkit-backdrop-filter:blur(20px)_saturate(1.8)]"
-          aria-hidden
-        />
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-400/50 to-transparent" aria-hidden />
-
-        <div className="relative flex h-[3.75rem] items-center justify-between gap-3 px-4 pt-[max(0px,env(safe-area-inset-top))]">
-          <button
-            type="button"
-            onClick={() => setMobileOpen((v) => !v)}
-            className="inline-flex h-11 items-center gap-2.5 rounded-2xl bg-white/50 px-3.5 text-sm font-semibold text-slate-800 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.9),0_2px_8px_-2px_rgba(15,23,42,0.15)] ring-1 ring-slate-900/[0.06] backdrop-blur-md transition active:scale-[0.98] hover:bg-white/70"
-            aria-label={mobileOpen ? "Close sidebar" : "Open sidebar"}
-            aria-controls="user-sidebar"
-            aria-expanded={mobileOpen}
-          >
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-slate-800 to-slate-950 text-white shadow-sm">
-              {mobileOpen ? <CloseIcon /> : <BurgerIcon />}
-            </span>
-            <span className="tracking-tight">{mobileOpen ? "Close" : "Menu"}</span>
-          </button>
-
-          <div className="flex min-w-0 max-w-[58%] items-center gap-2.5 rounded-2xl bg-white/45 py-1.5 pl-1.5 pr-3 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.85)] ring-1 ring-slate-900/[0.05] backdrop-blur-md">
-            <div
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-xs font-bold text-white shadow-md shadow-blue-500/25 ring-2 ring-white/90"
-              aria-hidden
-            >
-              {userInitials(user)}
-            </div>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold leading-tight tracking-tight text-slate-900">
-                {displayName}
-              </p>
-              <p className="truncate text-[11px] font-medium text-slate-500">
-                PSTO Calendar
-              </p>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {mobileOpen ? (
-        <button
-          type="button"
-          className="fixed inset-0 z-40 cursor-default bg-black/50 lg:hidden"
-          onClick={() => setMobileOpen(false)}
-          aria-label="Close sidebar overlay"
-        />
-      ) : null}
+      <nav
+        className="fixed inset-x-0 bottom-0 z-40 flex border-t border-slate-800/80 bg-[#0f172a] px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-4px_24px_rgba(0,0,0,0.15)] lg:hidden"
+        aria-label="User mobile navigation"
+      >
+        <NavLink to="/user-dashboard" end className={mobileNavLinkClass}>
+          <HomeIcon />
+          <span>Dashboard</span>
+        </NavLink>
+        <NavLink to="/user-task" className={mobileNavLinkClass}>
+          <TaskIcon />
+          <span>My tasks</span>
+        </NavLink>
+        <NavLink to="/user-profile" className={mobileNavLinkClass}>
+          <ProfileIcon />
+          <span>Profile</span>
+        </NavLink>
+      </nav>
 
       <aside
         id="user-sidebar"
-        className={`fixed inset-y-0 left-0 z-50 flex min-h-screen w-72 shrink-0 flex-col bg-[#0f172a] px-4 py-5 shadow-[4px_0_24px_rgba(0,0,0,0.12)] transition-transform duration-200 ease-out lg:sticky lg:top-0 lg:h-screen lg:min-h-0 lg:w-64 lg:translate-x-0 lg:overflow-y-auto ${
-          mobileOpen ? "translate-x-0" : "-translate-x-full"
-        } lg:shadow-none`}
+        className="hidden min-h-screen w-64 shrink-0 flex-col bg-[#0f172a] px-4 py-5 lg:sticky lg:top-0 lg:flex lg:h-screen lg:overflow-y-auto"
+        aria-label="User sidebar"
       >
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex min-w-0 flex-1 items-center gap-3">
-            <img
-              src={DOST_LOGO_SRC}
-              alt="Department of Science and Technology logo"
-              className="h-11 w-11 shrink-0 rounded-lg bg-white/95 object-contain p-1"
-            />
-            <div className="min-w-0">
-              <h2 className="truncate text-xl font-bold tracking-tight text-white">
-                Dashboard
-              </h2>
-              <p className="truncate text-xs font-medium text-slate-400">
-                PSTO Calendar
-              </p>
-            </div>
+        <div className="flex items-center gap-3">
+          <img
+            src={DOST_LOGO_SRC}
+            alt="Department of Science and Technology logo"
+            className="h-11 w-11 shrink-0 rounded-lg bg-white/95 object-contain p-1"
+          />
+          <div className="min-w-0">
+            <h2 className="truncate text-xl font-bold tracking-tight text-white">
+              Dashboard
+            </h2>
+            <p className="truncate text-xs font-medium text-slate-400">
+              PSTO Calendar
+            </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setMobileOpen(false)}
-            className="shrink-0 rounded-xl px-2 py-2 text-slate-200 hover:bg-slate-900/40 lg:hidden"
-            aria-label="Close sidebar"
-          >
-            <CloseIcon />
-          </button>
         </div>
 
       <div className="relative mt-5">
@@ -256,7 +182,6 @@ const UserSidebar = () => {
               to="/user-dashboard"
               end
               className={panelLinkClass}
-              onClick={() => setMobileOpen(false)}
             >
               <HomeIcon />
               Dashboard
@@ -266,7 +191,6 @@ const UserSidebar = () => {
             <NavLink
               to="/user-task"
               className={panelLinkClass}
-              onClick={() => setMobileOpen(false)}
             >
               <TaskIcon />
               My tasks
@@ -276,7 +200,6 @@ const UserSidebar = () => {
             <NavLink
               to="/user-profile"
               className={panelLinkClass}
-              onClick={() => setMobileOpen(false)}
             >
               <ProfileIcon />
               Profile
