@@ -108,9 +108,30 @@ const normalizeResponsibleIds = (responsibleId) => {
   );
 };
 
-const normalizeDeadline = (value) => {
-  const trimmed = typeof value === "string" ? value.trim() : value;
-  return trimmed ? trimmed : null;
+/** Stored in DB when the user leaves deadline empty (column stays NOT NULL). */
+export const NO_DEADLINE = "9999-12-31";
+
+export const hasDeadline = (value) => {
+  if (!value) return false;
+  return String(value).slice(0, 10) !== NO_DEADLINE;
+};
+
+export const resolveDeadlineForDb = (deadline, taskDate) => {
+  const trimmed = typeof deadline === "string" ? deadline.trim() : deadline;
+  if (trimmed) return trimmed;
+  const fallback = typeof taskDate === "string" ? taskDate.trim() : taskDate;
+  return fallback || NO_DEADLINE;
+};
+
+export const deadlineForForm = (value) => (hasDeadline(value) ? value : "");
+
+export const formatTaskDeadline = (value) => {
+  if (!hasDeadline(value)) return "—";
+  return new Date(`${value}T00:00:00`).toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
 };
 
 export const createTask = async ({
@@ -122,7 +143,7 @@ export const createTask = async ({
   status,
   remarks,
 }) => {
-  const normalizedDeadline = normalizeDeadline(deadline);
+  const resolvedDeadline = resolveDeadlineForDb(deadline, taskDate);
   const responsibleIds = normalizeResponsibleIds(responsibleId);
   if (responsibleIds.length === 0) {
     return {
@@ -145,7 +166,7 @@ export const createTask = async ({
         task_date: taskDate,
         agenda: agenda.trim(),
         activities: activities.trim(),
-        deadline: normalizedDeadline,
+        deadline: resolvedDeadline,
         responsible_id: id,
         status,
         remarks: composedRemarks,
@@ -180,7 +201,7 @@ export const updateTask = async (
       error: { message: "At least one person responsible is required." },
     };
   }
-  const normalizedDeadline = normalizeDeadline(deadline);
+  const resolvedDeadline = resolveDeadlineForDb(deadline, taskDate);
   const existingMeta = parseTaskRemarks(existingRemarks ?? null);
   const effectiveGroupKey =
     groupKey || existingMeta.groupKey || parseTaskRemarks(remarks).groupKey || createGroupKey();
@@ -199,7 +220,7 @@ export const updateTask = async (
     task_date: taskDate,
     agenda: agenda.trim(),
     activities: activities.trim(),
-    deadline: normalizedDeadline,
+    deadline: resolvedDeadline,
     status,
     remarks: composedRemarks,
   };

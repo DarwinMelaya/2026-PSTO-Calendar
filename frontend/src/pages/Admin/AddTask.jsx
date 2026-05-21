@@ -7,6 +7,8 @@ import {
   TASK_STATUSES,
   approveTaskStatusRequest,
   deleteTasks,
+  formatTaskDeadline,
+  hasDeadline,
   listTasks,
   parseTaskRemarks,
   rejectTaskStatusRequest,
@@ -314,6 +316,9 @@ const AddTask = () => {
       ) {
         return false;
       }
+      if (dateRange && dateField === "deadline" && !hasDeadline(task.deadline)) {
+        return false;
+      }
       if (!isDateInRange(task[dateField], dateRange)) return false;
       if (!q) return true;
 
@@ -375,7 +380,7 @@ const AddTask = () => {
     end.setDate(end.getDate() + windowDays);
 
     const list = groupedTasks
-      .filter((t) => t.status !== "completed" && t.deadline)
+      .filter((t) => t.status !== "completed" && hasDeadline(t.deadline))
       .map((t) => ({
         ...t,
         deadlineDate: new Date(`${t.deadline}T00:00:00`),
@@ -619,7 +624,7 @@ const AddTask = () => {
                           </div>
                           <span>•</span>
                           <span className="font-medium">
-                            {formatDate(t.deadline)}
+                            {formatTaskDeadline(t.deadline)}
                           </span>
                         </div>
                       </div>
@@ -1018,7 +1023,7 @@ const AddTask = () => {
                         </span>
                       </td>
                       <td className="whitespace-nowrap px-5 py-4 text-slate-800 sm:px-6">
-                        {formatDate(task.deadline)}
+                        {formatTaskDeadline(task.deadline)}
                       </td>
                       <td className="whitespace-nowrap px-5 py-4 sm:px-6">
                         <div className="flex flex-wrap gap-1.5">

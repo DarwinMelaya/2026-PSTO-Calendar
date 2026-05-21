@@ -104,7 +104,7 @@ const AddTaskModal = ({ isOpen, onClose, onSuccess }) => {
       taskDate,
       agenda,
       activities,
-      deadline: deadline || null,
+      deadline,
       responsibleId,
       status,
       remarks,

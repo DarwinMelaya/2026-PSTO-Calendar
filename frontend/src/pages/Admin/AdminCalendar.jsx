@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import Layout from "../../components/Layout/Layout";
-import { listTasks } from "../../utils/task";
+import { hasDeadline, listTasks } from "../../utils/task";
 
 const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const monthNames = [
@@ -440,7 +440,7 @@ const AdminCalendar = () => {
 
     for (const task of tasks ?? []) {
       // Display tasks on their DUE DATE (deadline).
-      if (!task?.deadline) continue;
+      if (!hasDeadline(task?.deadline)) continue;
       const d = new Date(`${task.deadline}T00:00:00`);
       if (Number.isNaN(d.getTime())) continue;
 

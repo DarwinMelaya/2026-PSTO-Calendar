@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import {
   TASK_STATUSES,
+  deadlineForForm,
   listAssignableProfiles,
   updateTask,
 } from "../../../utils/task";
@@ -25,7 +26,7 @@ function taskToForm(task) {
     taskDate: task.task_date ?? "",
     agenda: task.agenda ?? "",
     activities: task.activities ?? "",
-    deadline: task.deadline ?? "",
+    deadline: deadlineForForm(task.deadline),
     responsibleId: Array.isArray(task.responsible_ids)
       ? task.responsible_ids.map((id) => String(id))
       : task.responsible_id != null
@@ -140,7 +141,7 @@ const EditTaskModal = ({ isOpen, onClose, onSuccess, task }) => {
       taskDate,
       agenda,
       activities,
-      deadline: deadline || null,
+      deadline,
       responsibleId,
       status,
       remarks,
