@@ -1,7 +1,16 @@
 import { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { clearSession } from "../../utils/session";
+import { clearSession, getSession } from "../../utils/session";
+
+const userInitials = (user) => {
+  const base = user?.name?.trim() || user?.code_name?.trim() || user?.email?.trim() || "?";
+  const parts = base.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+  return base.slice(0, 2).toUpperCase();
+};
 
 const iconClass = "h-5 w-5 shrink-0";
 
@@ -123,6 +132,8 @@ const CloseIcon = () => (
 
 const UserSidebar = () => {
   const navigate = useNavigate();
+  const user = getSession();
+  const displayName = user?.code_name || user?.name || user?.email || "User";
   const [query, setQuery] = useState("");
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -137,20 +148,46 @@ const UserSidebar = () => {
 
   return (
     <>
-      <div className="fixed left-0 right-0 top-0 z-40 flex items-center justify-between border-b border-slate-900/60 bg-[#0f172a]/95 px-4 py-3 backdrop-blur lg:hidden">
-        <button
-          type="button"
-          onClick={() => setMobileOpen((v) => !v)}
-          className="inline-flex items-center gap-2 rounded-xl border border-slate-700/60 bg-slate-900/30 px-3 py-2 text-sm font-medium text-slate-200 hover:bg-slate-900/50"
-          aria-label={mobileOpen ? "Close sidebar" : "Open sidebar"}
-          aria-controls="user-sidebar"
-          aria-expanded={mobileOpen}
-        >
-          {mobileOpen ? <CloseIcon /> : <BurgerIcon />}
-          Menu
-        </button>
-        <span className="text-sm font-semibold text-slate-200">User</span>
-      </div>
+      <header className="fixed inset-x-0 top-0 z-40 lg:hidden">
+        <div
+          className="pointer-events-none absolute inset-0 border-b border-slate-200/50 bg-gradient-to-b from-white/85 via-white/70 to-white/55 shadow-[0_8px_32px_-12px_rgba(15,23,42,0.18)] backdrop-blur-2xl backdrop-saturate-150 [-webkit-backdrop-filter:blur(20px)_saturate(1.8)]"
+          aria-hidden
+        />
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-400/50 to-transparent" aria-hidden />
+
+        <div className="relative flex h-[3.75rem] items-center justify-between gap-3 px-4 pt-[max(0px,env(safe-area-inset-top))]">
+          <button
+            type="button"
+            onClick={() => setMobileOpen((v) => !v)}
+            className="inline-flex h-11 items-center gap-2.5 rounded-2xl bg-white/50 px-3.5 text-sm font-semibold text-slate-800 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.9),0_2px_8px_-2px_rgba(15,23,42,0.15)] ring-1 ring-slate-900/[0.06] backdrop-blur-md transition active:scale-[0.98] hover:bg-white/70"
+            aria-label={mobileOpen ? "Close sidebar" : "Open sidebar"}
+            aria-controls="user-sidebar"
+            aria-expanded={mobileOpen}
+          >
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-slate-800 to-slate-950 text-white shadow-sm">
+              {mobileOpen ? <CloseIcon /> : <BurgerIcon />}
+            </span>
+            <span className="tracking-tight">{mobileOpen ? "Close" : "Menu"}</span>
+          </button>
+
+          <div className="flex min-w-0 max-w-[58%] items-center gap-2.5 rounded-2xl bg-white/45 py-1.5 pl-1.5 pr-3 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.85)] ring-1 ring-slate-900/[0.05] backdrop-blur-md">
+            <div
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-xs font-bold text-white shadow-md shadow-blue-500/25 ring-2 ring-white/90"
+              aria-hidden
+            >
+              {userInitials(user)}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold leading-tight tracking-tight text-slate-900">
+                {displayName}
+              </p>
+              <p className="truncate text-[11px] font-medium text-slate-500">
+                PSTO Calendar
+              </p>
+            </div>
+          </div>
+        </div>
+      </header>
 
       {mobileOpen ? (
         <button
