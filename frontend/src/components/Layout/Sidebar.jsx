@@ -4,7 +4,8 @@ import toast from "react-hot-toast";
 import { clearSession, getSession } from "../../utils/session";
 
 const userInitials = (user) => {
-  const base = user?.name?.trim() || user?.code_name?.trim() || user?.email?.trim() || "?";
+  const base =
+    user?.name?.trim() || user?.code_name?.trim() || user?.email?.trim() || "?";
   const parts = base.split(/\s+/).filter(Boolean);
   if (parts.length >= 2) {
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
@@ -148,7 +149,11 @@ const BurgerIcon = () => (
     stroke="currentColor"
     strokeWidth={1.8}
   >
-    <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M4 6h16M4 12h16M4 18h16"
+    />
   </svg>
 );
 
@@ -160,7 +165,11 @@ const CloseIcon = () => (
     stroke="currentColor"
     strokeWidth={1.8}
   >
-    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M6 18L18 6M6 6l12 12"
+    />
   </svg>
 );
 
@@ -204,7 +213,9 @@ const Sidebar = () => {
             <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-slate-800 to-slate-950 text-white shadow-sm">
               {mobileOpen ? <CloseIcon /> : <BurgerIcon />}
             </span>
-            <span className="tracking-tight">{mobileOpen ? "Close" : "Menu"}</span>
+            <span className="tracking-tight">
+              {mobileOpen ? "Close" : "Menu"}
+            </span>
           </button>
 
           <div className="flex min-w-0 max-w-[58%] items-center gap-2.5 rounded-2xl bg-white/45 py-1.5 pl-1.5 pr-3 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.85)] ring-1 ring-slate-900/[0.05] backdrop-blur-md">
@@ -251,7 +262,7 @@ const Sidebar = () => {
             />
             <div className="min-w-0">
               <h2 className="truncate text-xl font-bold tracking-tight text-white">
-                Dashboard
+                MARINDUQUE
               </h2>
               <p className="truncate text-xs font-medium text-slate-400">
                 PSTO Calendar
@@ -282,85 +293,85 @@ const Sidebar = () => {
           />
         </div>
 
-      <nav
-        className="mt-6 flex flex-1 flex-col gap-1 overflow-y-auto pb-4"
-        aria-label="Admin navigation"
-      >
-        <CollapsibleSection title="Dashboard" defaultOpen>
-          {navFilter("Overview") ? (
-            <NavLink
-              to="/admin-dashboard"
-              end
-              className={panelLinkClass}
-              onClick={() => setMobileOpen(false)}
-            >
-              <HomeIcon />
-              Dashboard
-            </NavLink>
-          ) : null}
-          {navFilter("Tasks") ? (
-            <NavLink
-              to="/admin-add-task"
-              className={panelLinkClass}
-              onClick={() => setMobileOpen(false)}
-            >
-              <TaskIcon />
-              Tasks
-            </NavLink>
-          ) : null}
-          {navFilter("Users") ? (
-            <NavLink
-              to="/admin-add-users"
-              className={panelLinkClass}
-              onClick={() => setMobileOpen(false)}
-            >
-              <UsersIcon />
-              Users
-            </NavLink>
-          ) : null}
-          {navFilter("Calendar") ? (
-            <NavLink
-              to="/admin-calendar"
-              className={panelLinkClass}
-              onClick={() => setMobileOpen(false)}
-            >
-              <CalendarIcon />
-              Calendar
-            </NavLink>
-          ) : null}
-          {navFilter("Profile") ? (
-            <NavLink
-              to="/admin-profile"
-              className={panelLinkClass}
-              onClick={() => setMobileOpen(false)}
-            >
-              <ProfileIcon />
-              Profile
-            </NavLink>
-          ) : null}
-          {query.trim() &&
-          !navFilter("Overview") &&
-          !navFilter("Tasks") &&
-          !navFilter("Users") &&
-          !navFilter("Calendar") &&
-          !navFilter("Profile") ? (
-            <p className="px-3 py-2 text-xs text-slate-500">No matches</p>
-          ) : null}
-        </CollapsibleSection>
-      </nav>
-
-      <div className="mt-auto border-t border-slate-800/80 pt-4">
-        <button
-          type="button"
-          onClick={handleLogout}
-          className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-medium text-rose-400/90 transition-colors hover:bg-rose-950/40 hover:text-rose-300"
+        <nav
+          className="mt-6 flex flex-1 flex-col gap-1 overflow-y-auto pb-4"
+          aria-label="Admin navigation"
         >
-          Log out
-        </button>
-        <p className="mt-3 px-1 text-xs text-slate-600">
-          PSTO Calendar · Admin
-        </p>
-      </div>
+          <CollapsibleSection title="Dashboard" defaultOpen>
+            {navFilter("Overview") ? (
+              <NavLink
+                to="/admin-dashboard"
+                end
+                className={panelLinkClass}
+                onClick={() => setMobileOpen(false)}
+              >
+                <HomeIcon />
+                Dashboard
+              </NavLink>
+            ) : null}
+            {navFilter("Tasks") ? (
+              <NavLink
+                to="/admin-add-task"
+                className={panelLinkClass}
+                onClick={() => setMobileOpen(false)}
+              >
+                <TaskIcon />
+                Tasks
+              </NavLink>
+            ) : null}
+            {navFilter("Users") ? (
+              <NavLink
+                to="/admin-add-users"
+                className={panelLinkClass}
+                onClick={() => setMobileOpen(false)}
+              >
+                <UsersIcon />
+                Users
+              </NavLink>
+            ) : null}
+            {navFilter("Calendar") ? (
+              <NavLink
+                to="/admin-calendar"
+                className={panelLinkClass}
+                onClick={() => setMobileOpen(false)}
+              >
+                <CalendarIcon />
+                Calendar
+              </NavLink>
+            ) : null}
+            {navFilter("Profile") ? (
+              <NavLink
+                to="/admin-profile"
+                className={panelLinkClass}
+                onClick={() => setMobileOpen(false)}
+              >
+                <ProfileIcon />
+                Profile
+              </NavLink>
+            ) : null}
+            {query.trim() &&
+            !navFilter("Overview") &&
+            !navFilter("Tasks") &&
+            !navFilter("Users") &&
+            !navFilter("Calendar") &&
+            !navFilter("Profile") ? (
+              <p className="px-3 py-2 text-xs text-slate-500">No matches</p>
+            ) : null}
+          </CollapsibleSection>
+        </nav>
+
+        <div className="mt-auto border-t border-slate-800/80 pt-4">
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-medium text-rose-400/90 transition-colors hover:bg-rose-950/40 hover:text-rose-300"
+          >
+            Log out
+          </button>
+          <p className="mt-3 px-1 text-xs text-slate-600">
+            PSTO Calendar · Admin
+          </p>
+        </div>
       </aside>
     </>
   );
