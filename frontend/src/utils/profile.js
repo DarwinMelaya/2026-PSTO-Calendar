@@ -22,6 +22,16 @@ export const createProfile = async ({
   return { data, error };
 };
 
+export const getProfileById = async (id) => {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, email, name, code_name, role")
+    .eq("id", id)
+    .maybeSingle();
+
+  return { data, error };
+};
+
 export const listProfiles = async () => {
   const { data, error } = await supabase
     .from("profiles")

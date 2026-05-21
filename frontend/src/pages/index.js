@@ -14,3 +14,4 @@ export { default as AdminCalendar } from "./Admin/AdminCalendar";
 // User Page
 export { default as UserDashboard } from "./Users/UserDashboard";
 export { default as UserTask } from "./Users/UserTask";
+export { default as UserProfile } from "./Users/UserProfile";

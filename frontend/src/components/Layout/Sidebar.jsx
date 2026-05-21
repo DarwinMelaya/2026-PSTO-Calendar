@@ -53,6 +53,22 @@ const HomeIcon = () => (
   </svg>
 );
 
+const ProfileIcon = () => (
+  <svg
+    className={iconClass}
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={1.5}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 19.125a7.5 7.5 0 0115 0v.75H4.5v-.75z"
+    />
+  </svg>
+);
+
 const CalendarIcon = () => (
   <svg
     className={iconClass}
@@ -258,10 +274,22 @@ const Sidebar = () => {
               Calendar
             </NavLink>
           ) : null}
+          {navFilter("Profile") ? (
+            <NavLink
+              to="/admin-profile"
+              className={panelLinkClass}
+              onClick={() => setMobileOpen(false)}
+            >
+              <ProfileIcon />
+              Profile
+            </NavLink>
+          ) : null}
           {query.trim() &&
           !navFilter("Overview") &&
           !navFilter("Tasks") &&
-          !navFilter("Users") ? (
+          !navFilter("Users") &&
+          !navFilter("Calendar") &&
+          !navFilter("Profile") ? (
             <p className="px-3 py-2 text-xs text-slate-500">No matches</p>
           ) : null}
         </CollapsibleSection>
