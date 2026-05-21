@@ -108,6 +108,11 @@ const normalizeResponsibleIds = (responsibleId) => {
   );
 };
 
+const normalizeDeadline = (value) => {
+  const trimmed = typeof value === "string" ? value.trim() : value;
+  return trimmed ? trimmed : null;
+};
+
 export const createTask = async ({
   taskDate,
   agenda,
@@ -117,6 +122,7 @@ export const createTask = async ({
   status,
   remarks,
 }) => {
+  const normalizedDeadline = normalizeDeadline(deadline);
   const responsibleIds = normalizeResponsibleIds(responsibleId);
   if (responsibleIds.length === 0) {
     return {
@@ -139,7 +145,7 @@ export const createTask = async ({
         task_date: taskDate,
         agenda: agenda.trim(),
         activities: activities.trim(),
-        deadline,
+        deadline: normalizedDeadline,
         responsible_id: id,
         status,
         remarks: composedRemarks,
@@ -174,6 +180,7 @@ export const updateTask = async (
       error: { message: "At least one person responsible is required." },
     };
   }
+  const normalizedDeadline = normalizeDeadline(deadline);
   const existingMeta = parseTaskRemarks(existingRemarks ?? null);
   const effectiveGroupKey =
     groupKey || existingMeta.groupKey || parseTaskRemarks(remarks).groupKey || createGroupKey();
@@ -192,7 +199,7 @@ export const updateTask = async (
     task_date: taskDate,
     agenda: agenda.trim(),
     activities: activities.trim(),
-    deadline,
+    deadline: normalizedDeadline,
     status,
     remarks: composedRemarks,
   };

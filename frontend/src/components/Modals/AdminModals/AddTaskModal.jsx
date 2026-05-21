@@ -93,7 +93,7 @@ const AddTaskModal = ({ isOpen, onClose, onSuccess }) => {
       return;
     }
 
-    if (deadline < taskDate) {
+    if (deadline && taskDate && deadline < taskDate) {
       toast.error("Deadline cannot be before the task date.");
       return;
     }
@@ -104,7 +104,7 @@ const AddTaskModal = ({ isOpen, onClose, onSuccess }) => {
       taskDate,
       agenda,
       activities,
-      deadline,
+      deadline: deadline || null,
       responsibleId,
       status,
       remarks,
@@ -193,12 +193,12 @@ const AddTaskModal = ({ isOpen, onClose, onSuccess }) => {
                 htmlFor="modal-task-deadline"
                 className="mb-1.5 block text-sm font-medium text-slate-700"
               >
-                Deadline
+                Deadline{" "}
+                <span className="font-normal text-slate-400">(optional)</span>
               </label>
               <input
                 id="modal-task-deadline"
                 type="date"
-                required
                 min={form.taskDate || undefined}
                 value={form.deadline}
                 onChange={setField("deadline")}

@@ -3,6 +3,7 @@ import toast from "react-hot-toast";
 import AddUserModal from "../../components/Modals/AdminModals/AddUserModal";
 import EditModal from "../../components/Modals/AdminModals/EditModal";
 import Layout from "../../components/Layout/Layout";
+import { exportUsersToPdf } from "../../utils/exportUsersPdf";
 import { deleteProfile, listProfiles } from "../../utils/profile";
 
 const formatDate = (value) => {
@@ -55,6 +56,7 @@ const AddUsers = () => {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
@@ -111,6 +113,24 @@ const AddUsers = () => {
 
     toast.success("User deleted successfully.");
     loadUsers();
+  };
+
+  const handleExportPdf = () => {
+    if (loading) return;
+    if (users.length === 0) {
+      toast.error("No users to export.");
+      return;
+    }
+
+    setExportingPdf(true);
+    try {
+      exportUsersToPdf({ users, stats });
+      toast.success("PDF downloaded.");
+    } catch (err) {
+      toast.error(err?.message ?? "Failed to export PDF.");
+    } finally {
+      setExportingPdf(false);
+    }
   };
 
   return (
@@ -178,11 +198,35 @@ const AddUsers = () => {
                   : `${users.length} member${users.length === 1 ? "" : "s"} in your organization`}
               </p>
             </div>
-            {!loading && users.length > 0 ? (
-              <span className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800 ring-1 ring-inset ring-emerald-600/15">
-                Live list
-              </span>
-            ) : null}
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={handleExportPdf}
+                disabled={loading || exportingPdf || users.length === 0}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <svg
+                  className="h-4 w-4 shrink-0"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={2}
+                  stroke="currentColor"
+                  aria-hidden
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 01-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
+                  />
+                </svg>
+                {exportingPdf ? "Exporting…" : "Export PDF"}
+              </button>
+              {!loading && users.length > 0 ? (
+                <span className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800 ring-1 ring-inset ring-emerald-600/15">
+                  Live list
+                </span>
+              ) : null}
+            </div>
           </div>
 
           <div className="overflow-x-auto">

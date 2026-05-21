@@ -6,7 +6,7 @@ create table if not exists public.tasks (
   task_date date not null,
   agenda text not null,
   activities text not null,
-  deadline date not null,
+  deadline date null,
   responsible_id bigint not null,
   status text not null default 'pending'::text,
   remarks text null,
@@ -32,3 +32,6 @@ create index if not exists tasks_task_date_idx on public.tasks (task_date);
 alter table public.tasks disable row level security;
 
 grant select, insert, update, delete on public.tasks to anon, authenticated;
+
+-- If tasks already exists with NOT NULL deadline, run once in Supabase SQL Editor:
+-- alter table public.tasks alter column deadline drop not null;
