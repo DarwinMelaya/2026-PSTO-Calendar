@@ -86,6 +86,14 @@ export const Routers = () => {
             </ProtectedRoutes>
           }
         />
+        <Route
+          path="/viewer-profile"
+          element={
+            <ProtectedRoutes viewerOnly>
+              <UserProfile />
+            </ProtectedRoutes>
+          }
+        />
 
         {/* User Page */}
         <Route
