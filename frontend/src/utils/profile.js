@@ -1,5 +1,27 @@
 import supabase from "./supabaseClient";
 
+export const ROLES = {
+  ADMIN: "admin",
+  USER: "user",
+  VIEWER: "viewer",
+};
+
+export const ROLE_OPTIONS = [
+  { value: ROLES.USER, label: "User" },
+  { value: ROLES.ADMIN, label: "Admin" },
+  { value: ROLES.VIEWER, label: "Viewer (read-only)" },
+];
+
+export const isAdminRole = (role) => role === ROLES.ADMIN;
+export const isViewerRole = (role) => role === ROLES.VIEWER;
+export const isUserRole = (role) => role === ROLES.USER;
+
+export const getHomePathForRole = (role) => {
+  if (isAdminRole(role)) return "/admin-dashboard";
+  if (isViewerRole(role)) return "/viewer-dashboard";
+  return "/user-dashboard";
+};
+
 export const createProfile = async ({
   email,
   name,

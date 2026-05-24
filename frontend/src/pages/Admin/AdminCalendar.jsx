@@ -448,7 +448,7 @@ const DayView = ({ date, schedules, onScheduleClick }) => {
   );
 };
 
-const AdminCalendar = () => {
+const AdminCalendar = ({ readOnly = false }) => {
   const [loading, setLoading] = useState(true);
   const [tasks, setTasks] = useState([]);
 
@@ -590,6 +590,7 @@ const AdminCalendar = () => {
               Calendar
             </h1>
             <p className="text-sm text-slate-500">
+              {readOnly ? "View only · " : ""}
               {loading ? "Loading tasks…" : `${tasks.length} task(s) loaded`}
             </p>
           </div>

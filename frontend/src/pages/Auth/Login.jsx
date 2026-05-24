@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import PasswordInput from "../../components/Auth/PasswordInput";
-import { loginProfile } from "../../utils/profile";
+import { getHomePathForRole, loginProfile } from "../../utils/profile";
 import { setSession } from "../../utils/session";
 
 const MailIcon = (props) => (
@@ -159,7 +159,7 @@ const Login = () => {
 
     setSession(data);
     toast.success("Logged in successfully!");
-    navigate(data.role === "admin" ? "/admin-dashboard" : "/user-dashboard");
+    navigate(getHomePathForRole(data.role));
   };
 
   return (

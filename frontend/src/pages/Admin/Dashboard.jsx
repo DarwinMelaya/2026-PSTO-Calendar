@@ -137,7 +137,7 @@ function OwnerProgressCard({
   );
 }
 
-const Dashboard = () => {
+const Dashboard = ({ readOnly = false }) => {
   const [loading, setLoading] = useState(true);
   const [tasks, setTasks] = useState([]);
   const [profiles, setProfiles] = useState([]);
@@ -394,7 +394,7 @@ const Dashboard = () => {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-widest text-blue-600">
-              Admin
+              {readOnly ? "Viewer" : "Admin"}
             </p>
             <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
               Dashboard
@@ -471,7 +471,7 @@ const Dashboard = () => {
                   : `${priorityTasks.length} open shown · ${overview.priorityOpen} total open priority`}
               </p>
             </div>
-            {!loading && overview.priority > 0 ? (
+            {!readOnly && !loading && overview.priority > 0 ? (
               <NavLink
                 to="/admin-add-task"
                 className="inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-900 transition hover:bg-rose-100"

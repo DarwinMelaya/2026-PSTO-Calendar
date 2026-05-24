@@ -2,13 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import PasswordInput from "../../Auth/PasswordInput";
-import { updateProfile } from "../../../utils/profile";
+import { ROLE_OPTIONS, updateProfile } from "../../../utils/profile";
 import { clearSession } from "../../../utils/session";
-
-const ROLES = [
-  { value: "user", label: "User" },
-  { value: "admin", label: "Admin" },
-];
 
 const inputClass =
   "w-full rounded-lg border border-slate-300 px-4 py-2.5 text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20";
@@ -211,7 +206,7 @@ const EditModal = ({ isOpen, user, onClose, onSuccess }) => {
               Role
             </span>
             <div className="grid grid-cols-2 gap-3">
-              {ROLES.map(({ value, label }) => (
+              {ROLE_OPTIONS.map(({ value, label }) => (
                 <label
                   key={value}
                   className={`flex cursor-pointer items-center justify-center rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors ${

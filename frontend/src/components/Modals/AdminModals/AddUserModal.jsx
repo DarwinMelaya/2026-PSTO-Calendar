@@ -1,12 +1,7 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
 import PasswordInput from "../../Auth/PasswordInput";
-import { createProfile } from "../../../utils/profile";
-
-const ROLES = [
-  { value: "user", label: "User" },
-  { value: "admin", label: "Admin" },
-];
+import { createProfile, ROLE_OPTIONS } from "../../../utils/profile";
 
 const initialForm = {
   email: "",
@@ -187,7 +182,7 @@ const AddUserModal = ({ isOpen, onClose, onSuccess }) => {
               Role
             </span>
             <div className="grid grid-cols-2 gap-3">
-              {ROLES.map(({ value, label }) => (
+              {ROLE_OPTIONS.map(({ value, label }) => (
                 <label
                   key={value}
                   className={`flex cursor-pointer items-center justify-center rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors ${

@@ -15,10 +15,15 @@ const formatDate = (value) => {
   });
 };
 
-const roleBadgeClass = (role) =>
-  role === "admin"
-    ? "bg-violet-50 text-violet-800 ring-violet-600/15"
-    : "bg-slate-100 text-slate-700 ring-slate-600/10";
+const roleBadgeClass = (role) => {
+  if (role === "admin") {
+    return "bg-violet-50 text-violet-800 ring-violet-600/15";
+  }
+  if (role === "viewer") {
+    return "bg-sky-50 text-sky-800 ring-sky-600/15";
+  }
+  return "bg-slate-100 text-slate-700 ring-slate-600/10";
+};
 
 function initials(user) {
   const base = user.name?.trim() || user.email?.trim() || "?";
@@ -80,7 +85,8 @@ const AddUsers = () => {
     return {
       total: list.length,
       admins: list.filter((u) => u.role === "admin").length,
-      staff: list.filter((u) => u.role !== "admin").length,
+      staff: list.filter((u) => u.role === "user").length,
+      viewers: list.filter((u) => u.role === "viewer").length,
     };
   }, [users]);
 

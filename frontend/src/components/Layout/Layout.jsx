@@ -1,15 +1,26 @@
+import { isAdminRole, isViewerRole } from "../../utils/profile";
 import { getSession } from "../../utils/session";
 import Sidebar from "./Sidebar";
 import UserNavbar from "./UserNavbar";
 import UserSidebar from "./UserSidebar";
+import ViewerSidebar from "./ViewerSidebar";
 
 const Layout = ({ children }) => {
   const user = getSession();
-  const isAdmin = user?.role === "admin";
+  const isAdmin = isAdminRole(user?.role);
+  const isViewer = isViewerRole(user?.role);
+
+  const sidebar = isAdmin ? (
+    <Sidebar />
+  ) : isViewer ? (
+    <ViewerSidebar />
+  ) : (
+    <UserSidebar />
+  );
 
   return (
     <div className="min-h-screen bg-slate-50 lg:flex lg:items-start">
-      {isAdmin ? <Sidebar /> : <UserSidebar />}
+      {sidebar}
       <div className="flex min-h-screen w-full flex-1 flex-col">
         {!isAdmin ? (
           <div className="hidden lg:block">

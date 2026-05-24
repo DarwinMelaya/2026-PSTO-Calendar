@@ -12,7 +12,7 @@ create table if not exists public.profiles (
   email text not null unique,
   code_name text not null,
   password text not null,
-  role text not null default 'user' check (role in ('admin', 'user')),
+  role text not null default 'user' check (role in ('admin', 'user', 'viewer')),
   created_at timestamptz default now()
 );
 
