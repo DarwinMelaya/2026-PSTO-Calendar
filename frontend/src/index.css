@@ -1,1 +1,173 @@
 @import "tailwindcss";
+
+body.intro-active {
+  overflow: hidden;
+}
+
+.intro-splash {
+  --intro-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #050508;
+  color: #fff;
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    "Helvetica Neue",
+    Arial,
+    sans-serif;
+}
+
+.intro-splash--exit {
+  animation: intro-exit 0.55s var(--intro-ease) forwards;
+  pointer-events: none;
+}
+
+.intro-splash__panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: min(22rem, 88vw);
+  padding: 0 1.25rem;
+  text-align: center;
+  animation: intro-panel-in 0.5s var(--intro-ease) both;
+}
+
+.intro-splash__logo-wrap {
+  overflow: hidden;
+  line-height: 0;
+}
+
+.intro-splash__logo {
+  display: block;
+  width: clamp(4.75rem, 18vw, 7rem);
+  height: clamp(4.75rem, 18vw, 7rem);
+  object-fit: contain;
+  clip-path: inset(0 100% 0 0);
+  opacity: 0.92;
+  animation: intro-logo-reveal 1s var(--intro-ease) 0.12s forwards;
+}
+
+.intro-splash__meta {
+  margin-top: 1.5rem;
+  opacity: 0;
+  animation: intro-meta-in 0.65s var(--intro-ease) 0.72s forwards;
+}
+
+.intro-splash__org {
+  margin: 0;
+  font-size: clamp(0.8125rem, 2.6vw, 0.9375rem);
+  font-weight: 500;
+  line-height: 1.45;
+  letter-spacing: 0.01em;
+  color: rgba(255, 255, 255, 0.94);
+}
+
+.intro-splash__sub {
+  margin: 0.4rem 0 0;
+  font-size: clamp(0.6875rem, 2.2vw, 0.8125rem);
+  font-weight: 400;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.48);
+}
+
+.intro-splash__progress {
+  width: 100%;
+  margin-top: 2.25rem;
+  opacity: 0;
+  animation: intro-meta-in 0.5s var(--intro-ease) 0.85s forwards;
+}
+
+.intro-splash__progress-track {
+  height: 2px;
+  overflow: hidden;
+  border-radius: 1px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.intro-splash__progress-fill {
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: #00aeef;
+  animation: intro-progress 1.65s var(--intro-ease) 0.2s forwards;
+}
+
+@keyframes intro-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes intro-logo-reveal {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes intro-meta-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes intro-progress {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+@keyframes intro-exit {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .intro-splash__logo {
+    clip-path: none;
+    animation: none;
+    opacity: 1;
+  }
+
+  .intro-splash__meta,
+  .intro-splash__progress {
+    animation: none;
+    opacity: 1;
+  }
+
+  .intro-splash__progress-fill {
+    width: 100%;
+    animation: none;
+  }
+
+  .intro-splash--exit {
+    animation-duration: 0.2s;
+  }
+}
