@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import Layout from "../../components/Layout/Layout";
-import { hasDeadline, listTasks } from "../../utils/task";
+import { hasDeadline, isTaskPriority, listTasks } from "../../utils/task";
 
 const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const monthNames = [
@@ -201,7 +201,9 @@ const Calendar = ({
                       className={`w-full rounded-lg px-1.5 py-1 text-left text-[10px] font-semibold transition sm:px-2 sm:text-[11px] ${
                         schedule.completed
                           ? "bg-slate-100 text-slate-500 hover:bg-slate-200"
-                          : "bg-slate-800 text-white hover:bg-slate-700"
+                          : schedule.isPriority
+                            ? "bg-rose-600 text-white hover:bg-rose-700"
+                            : "bg-slate-800 text-white hover:bg-slate-700"
                       }`}
                       title={`${schedule.event_name} • ${schedule.department}`}
                     >
@@ -350,7 +352,9 @@ const WeekView = ({ anchorDate, schedules, onDateClick, onScheduleClick }) => {
                           className={`w-full rounded-lg px-2 py-1 text-left text-[11px] font-semibold transition ${
                             s.completed
                               ? "bg-slate-100 text-slate-500 hover:bg-slate-200"
-                              : "bg-slate-800 text-white hover:bg-slate-700"
+                              : s.isPriority
+                                ? "bg-rose-600 text-white hover:bg-rose-700"
+                                : "bg-slate-800 text-white hover:bg-slate-700"
                           }`}
                           title={s.department}
                         >
@@ -455,6 +459,7 @@ const AdminCalendar = () => {
         venue_id: null,
         venues: { name: task.profiles?.code_name ?? "No Venue" },
         completed: task.status === "completed",
+        isPriority: isTaskPriority(task),
         _task: task,
       });
     }

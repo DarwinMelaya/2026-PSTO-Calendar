@@ -1,6 +1,8 @@
+import PriorityBadge from "../../Task/PriorityBadge";
 import {
   formatTaskDeadline,
   hasDeadline,
+  isTaskPriority,
   TASK_STATUSES,
 } from "../../../utils/task";
 
@@ -74,9 +76,14 @@ const OwnerOpenTasksModal = ({ isOpen, onClose, ownerLabel, tasks }) => {
                     className="rounded-2xl border border-slate-200/90 bg-slate-50/50 p-4"
                   >
                     <div className="flex flex-wrap items-start justify-between gap-3">
-                      <p className="min-w-0 flex-1 font-semibold text-slate-900">
-                        {t.agenda}
-                      </p>
+                      <div className="min-w-0 flex-1">
+                        {isTaskPriority(t) ? (
+                          <div className="mb-1.5">
+                            <PriorityBadge />
+                          </div>
+                        ) : null}
+                        <p className="font-semibold text-slate-900">{t.agenda}</p>
+                      </div>
                       <span className="inline-flex shrink-0 rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-800 ring-1 ring-inset ring-slate-900/5">
                         {statusLabel(t.status)}
                       </span>

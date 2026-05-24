@@ -7,6 +7,8 @@ export const TASK_STATUSES = [
   { value: "on_hold", label: "On hold" },
 ];
 
+export const isTaskPriority = (task) => Boolean(task?.is_priority);
+
 const STATUS_REQUEST_PREFIX = "[[STATUS_REQUEST:";
 const STATUS_REQUEST_SUFFIX = "]]";
 const TASK_GROUP_PREFIX = "[[TASK_GROUP:";
@@ -144,6 +146,7 @@ export const createTask = async ({
   responsibleId,
   status,
   remarks,
+  isPriority = false,
 }) => {
   const resolvedDeadline = resolveDeadlineForDb(deadline);
   const responsibleIds = normalizeResponsibleIds(responsibleId);
@@ -171,11 +174,12 @@ export const createTask = async ({
         deadline: resolvedDeadline,
         responsible_id: id,
         status,
+        is_priority: Boolean(isPriority),
         remarks: composedRemarks,
       })),
     )
     .select(
-      "id, task_date, agenda, activities, deadline, status, remarks, created_at, responsible_id",
+      "id, task_date, agenda, activities, deadline, status, is_priority, remarks, created_at, responsible_id",
     );
 
   return { data, error };
@@ -191,6 +195,7 @@ export const updateTask = async (
     responsibleId,
     status,
     remarks,
+    isPriority = false,
     taskIds,
     groupKey,
     existingRemarks,
@@ -224,6 +229,7 @@ export const updateTask = async (
     activities: normalizeActivities(activities),
     deadline: resolvedDeadline,
     status,
+    is_priority: Boolean(isPriority),
     remarks: composedRemarks,
   };
 
@@ -248,7 +254,7 @@ export const updateTask = async (
       })
       .eq("id", rowId)
       .select(
-        "id, task_date, agenda, activities, deadline, status, remarks, created_at, responsible_id",
+        "id, task_date, agenda, activities, deadline, status, is_priority, remarks, created_at, responsible_id",
       )
       .single();
     if (updateError) {
@@ -268,7 +274,7 @@ export const updateTask = async (
         })),
       )
       .select(
-        "id, task_date, agenda, activities, deadline, status, remarks, created_at, responsible_id",
+        "id, task_date, agenda, activities, deadline, status, is_priority, remarks, created_at, responsible_id",
       );
     if (createError) {
       return { data: updatedRows, error: createError };
@@ -311,7 +317,7 @@ export const requestTaskStatusChange = async (
     })
     .eq("id", id)
     .select(
-      "id, task_date, agenda, activities, deadline, status, remarks, created_at, responsible_id",
+      "id, task_date, agenda, activities, deadline, status, is_priority, remarks, created_at, responsible_id",
     )
     .single();
 
@@ -344,7 +350,7 @@ export const approveTaskStatusRequest = async ({ id, remarks }) => {
     })
     .eq("id", id)
     .select(
-      "id, task_date, agenda, activities, deadline, status, remarks, created_at, responsible_id",
+      "id, task_date, agenda, activities, deadline, status, is_priority, remarks, created_at, responsible_id",
     )
     .single();
 
@@ -365,7 +371,7 @@ export const rejectTaskStatusRequest = async ({ id, remarks }) => {
     })
     .eq("id", id)
     .select(
-      "id, task_date, agenda, activities, deadline, status, remarks, created_at, responsible_id",
+      "id, task_date, agenda, activities, deadline, status, is_priority, remarks, created_at, responsible_id",
     )
     .single();
 
@@ -383,6 +389,7 @@ export const listTasks = async () => {
       activities,
       deadline,
       status,
+      is_priority,
       remarks,
       created_at,
       responsible_id,
@@ -399,7 +406,7 @@ export const listTasksForUser = async (responsibleId) => {
   const { data, error } = await supabase
     .from("tasks")
     .select(
-      "id, task_date, agenda, activities, deadline, status, remarks, created_at, responsible_id",
+      "id, task_date, agenda, activities, deadline, status, is_priority, remarks, created_at, responsible_id",
     )
     .eq("responsible_id", Number(responsibleId))
     .order("created_at", { ascending: false });

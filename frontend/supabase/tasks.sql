@@ -9,6 +9,7 @@ create table if not exists public.tasks (
   deadline date not null,
   responsible_id bigint not null,
   status text not null default 'pending'::text,
+  is_priority boolean not null default false,
   remarks text null,
   created_at timestamp with time zone null default now(),
   constraint tasks_pkey primary key (id),
@@ -32,3 +33,7 @@ create index if not exists tasks_task_date_idx on public.tasks (task_date);
 alter table public.tasks disable row level security;
 
 grant select, insert, update, delete on public.tasks to anon, authenticated;
+
+-- Migration for existing databases (run in Supabase SQL Editor):
+-- alter table public.tasks
+--   add column if not exists is_priority boolean not null default false;

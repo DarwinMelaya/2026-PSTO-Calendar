@@ -4,6 +4,7 @@ import Layout from "../../components/Layout/Layout";
 import { getSession } from "../../utils/session";
 import {
   TASK_STATUSES,
+  isTaskPriority,
   listTasksForUser,
   parseTaskRemarks,
   requestTaskStatusChange,
@@ -85,6 +86,17 @@ const UserTask = () => {
     loadTasks();
   }, [loadTasks]);
 
+  const sortedTasks = useMemo(() => {
+    return [...tasks].sort((a, b) => {
+      const priA = isTaskPriority(a) ? 1 : 0;
+      const priB = isTaskPriority(b) ? 1 : 0;
+      if (priB !== priA) return priB - priA;
+      const createdA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const createdB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return createdB - createdA;
+    });
+  }, [tasks]);
+
   const stats = useMemo(() => {
     const list = tasks;
     return {
@@ -93,6 +105,7 @@ const UserTask = () => {
       ongoing: list.filter((t) => t.status === "ongoing").length,
       completed: list.filter((t) => t.status === "completed").length,
       onHold: list.filter((t) => t.status === "on_hold").length,
+      priority: list.filter((t) => isTaskPriority(t)).length,
     };
   }, [tasks]);
 
@@ -267,7 +280,7 @@ const UserTask = () => {
                     </td>
                   </tr>
                 ) : (
-                  tasks.map((task) => (
+                  sortedTasks.map((task) => (
                     <tr
                       key={task.id}
                       className="transition-colors hover:bg-slate-50/90"
@@ -276,9 +289,16 @@ const UserTask = () => {
                         {formatDate(task.task_date)}
                       </td>
                       <td className="max-w-[200px] px-5 py-4 text-slate-800 sm:px-6">
-                        <span className="line-clamp-2" title={task.agenda}>
-                          {task.agenda}
-                        </span>
+                        <div className="flex flex-col gap-1.5">
+                          {isTaskPriority(task) ? (
+                            <span className="inline-flex w-fit rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-rose-800 ring-1 ring-inset ring-rose-600/15">
+                              Priority
+                            </span>
+                          ) : null}
+                          <span className="line-clamp-2" title={task.agenda}>
+                            {task.agenda}
+                          </span>
+                        </div>
                       </td>
                       <td className="max-w-[240px] px-5 py-4 text-slate-600 sm:px-6">
                         <span className="line-clamp-2" title={task.activities}>

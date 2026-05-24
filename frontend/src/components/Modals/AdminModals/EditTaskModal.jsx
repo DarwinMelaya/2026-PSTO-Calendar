@@ -14,6 +14,7 @@ const initialForm = {
   deadline: "",
   responsibleId: [],
   status: "pending",
+  isPriority: false,
   remarks: "",
 };
 
@@ -33,6 +34,7 @@ function taskToForm(task) {
         ? [String(task.responsible_id)]
         : [],
     status: task.status ?? "pending",
+    isPriority: Boolean(task.is_priority),
     remarks: task.remarks ?? "",
   };
 }
@@ -86,6 +88,9 @@ const EditTaskModal = ({ isOpen, onClose, onSuccess, task }) => {
   const setField = (field) => (e) =>
     setForm((prev) => ({ ...prev, [field]: e.target.value }));
 
+  const setPriority = (e) =>
+    setForm((prev) => ({ ...prev, isPriority: e.target.checked }));
+
   const toggleResponsibleId = (id) => {
     const value = String(id);
     const values = form.responsibleId.includes(value)
@@ -112,6 +117,7 @@ const EditTaskModal = ({ isOpen, onClose, onSuccess, task }) => {
       deadline,
       responsibleId,
       status,
+      isPriority,
       remarks,
     } = form;
 
@@ -139,6 +145,7 @@ const EditTaskModal = ({ isOpen, onClose, onSuccess, task }) => {
       deadline,
       responsibleId,
       status,
+      isPriority,
       remarks,
       taskIds: task.task_ids,
       groupKey: task.group_key,
@@ -334,6 +341,25 @@ const EditTaskModal = ({ isOpen, onClose, onSuccess, task }) => {
                   </option>
                 ))}
               </select>
+            </div>
+
+            <div className="flex items-end sm:col-span-2">
+              <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 bg-slate-50/80 px-4 py-3 w-full sm:w-auto">
+                <input
+                  type="checkbox"
+                  checked={form.isPriority}
+                  onChange={setPriority}
+                  className="h-4 w-4 rounded border-slate-300 text-rose-600 focus:ring-rose-500"
+                />
+                <span>
+                  <span className="block text-sm font-medium text-slate-800">
+                    Priority task
+                  </span>
+                  <span className="block text-xs text-slate-500">
+                    Mark as high priority for assignees
+                  </span>
+                </span>
+              </label>
             </div>
 
             <div className="sm:col-span-2">

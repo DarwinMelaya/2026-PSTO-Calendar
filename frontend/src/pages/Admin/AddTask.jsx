@@ -4,12 +4,14 @@ import AddTaskModal from "../../components/Modals/AdminModals/AddTaskModal";
 import EditTaskModal from "../../components/Modals/AdminModals/EditTaskModal";
 import ViewTaskModal from "../../components/Modals/AdminModals/ViewTaskModal";
 import Layout from "../../components/Layout/Layout";
+import PriorityBadge from "../../components/Task/PriorityBadge";
 import {
   TASK_STATUSES,
   approveTaskStatusRequest,
   deleteTasks,
   formatTaskDeadline,
   hasDeadline,
+  isTaskPriority,
   listTasks,
   parseTaskRemarks,
   rejectTaskStatusRequest,
@@ -120,6 +122,10 @@ const taskCreatedSortTime = (task) => {
 const groupMembers = (group) => [group, ...(group.members ?? [])];
 
 const compareGroupsNewestFirst = (a, b) => {
+  const priA = isTaskPriority(a) ? 1 : 0;
+  const priB = isTaskPriority(b) ? 1 : 0;
+  if (priB !== priA) return priB - priA;
+
   const membersA = groupMembers(a);
   const membersB = groupMembers(b);
   const maxDateA = Math.max(...membersA.map(taskDateSortTime), 0);
@@ -138,6 +144,7 @@ const DEFAULT_FILTERS = {
   status: "all",
   assignee: "all",
   awaitingApproval: false,
+  priorityOnly: false,
   datePeriod: "all",
   dateBasis: "task_date",
   anchorDate: toIsoDate(new Date()),
@@ -172,6 +179,7 @@ function StatCard({ label, value, accent }) {
     blue: "from-blue-50/80 to-white ring-blue-200/60",
     amber: "from-amber-50/80 to-white ring-amber-200/60",
     emerald: "from-emerald-50/80 to-white ring-emerald-200/60",
+    rose: "from-rose-50/80 to-white ring-rose-200/60",
   };
   return (
     <div
@@ -338,10 +346,12 @@ const AddTask = () => {
     const status = filters.status;
     const assignee = filters.assignee;
     const awaitingApproval = filters.awaitingApproval;
+    const priorityOnly = filters.priorityOnly;
     const dateField =
       filters.dateBasis === "deadline" ? "deadline" : "task_date";
 
     const filtered = groupedTasks.filter((task) => {
+      if (priorityOnly && !isTaskPriority(task)) return false;
       if (awaitingApproval && !task.requestedStatus) return false;
       if (status !== "all" && task.status !== status) return false;
       if (
@@ -407,7 +417,15 @@ const AddTask = () => {
       completed: list.filter((t) => t.status === "completed").length,
       onHold: list.filter((t) => t.status === "on_hold").length,
       awaitingApproval: list.filter((t) => !!t.requestedStatus).length,
+      priority: list.filter((t) => isTaskPriority(t)).length,
     };
+  }, [groupedTasks]);
+
+  const priorityTasks = useMemo(() => {
+    return groupedTasks
+      .filter((t) => isTaskPriority(t) && t.status !== "completed")
+      .sort(compareGroupsNewestFirst)
+      .slice(0, 8);
   }, [groupedTasks]);
 
   const dueSoon = useMemo(() => {
@@ -434,6 +452,7 @@ const AddTask = () => {
 
   const hasActiveFilters =
     filters.awaitingApproval ||
+    filters.priorityOnly ||
     filters.status !== "all" ||
     filters.assignee !== "all" ||
     filters.datePeriod !== "all" ||
@@ -572,6 +591,102 @@ const AddTask = () => {
           </div>
         </section>
 
+        <section className="overflow-hidden rounded-2xl border border-rose-200/80 bg-white shadow-xl shadow-rose-100/30 ring-1 ring-rose-900/[0.04]">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-rose-100 bg-gradient-to-r from-rose-50/90 to-white px-5 py-4 sm:px-6">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">
+                Priority tasks
+              </h2>
+              <p className="mt-0.5 text-sm text-slate-500">
+                {loadingTasks
+                  ? "Loading…"
+                  : `${priorityTasks.length} open · ${stats.priority} total marked priority`}
+              </p>
+            </div>
+            {!loadingTasks && stats.priority > 0 ? (
+              <button
+                type="button"
+                onClick={() =>
+                  setFilters((prev) => ({ ...prev, priorityOnly: true }))
+                }
+                className="inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-900 transition hover:bg-rose-100"
+              >
+                Show all in table
+              </button>
+            ) : null}
+          </div>
+          <div className="space-y-3 p-5 sm:p-6">
+            {loadingTasks ? (
+              <p className="text-sm text-slate-500">Loading…</p>
+            ) : priorityTasks.length === 0 ? (
+              <p className="text-sm text-slate-500">
+                No open priority tasks. Mark a task as priority when creating or
+                editing.
+              </p>
+            ) : (
+              priorityTasks.map((t) => (
+                <div
+                  key={t.groupKey || t.id}
+                  className="rounded-2xl border border-rose-200/90 bg-rose-50/30 p-4 shadow-sm"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <PriorityBadge />
+                        <span
+                          className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${statusBadgeClass(t.status)}`}
+                        >
+                          {statusLabel(t.status)}
+                        </span>
+                      </div>
+                      <p className="mt-2 truncate font-semibold text-slate-900">
+                        {t.agenda}
+                      </p>
+                      <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                        <div className="flex flex-wrap gap-1.5">
+                          {(t.responsibleLabels ?? ["—"]).map((label, idx) => (
+                            <span
+                              key={`${label}-${idx}`}
+                              className="inline-flex items-center rounded-lg bg-white px-2 py-0.5 text-xs font-semibold text-slate-800 ring-1 ring-inset ring-slate-900/5"
+                            >
+                              {label}
+                            </span>
+                          ))}
+                        </div>
+                        <span>•</span>
+                        <span>{formatDate(t.task_date)}</span>
+                        <span>•</span>
+                        <span className="font-medium">
+                          {formatTaskDeadline(t.deadline)}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setTaskToView(t)}
+                        className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+                      >
+                        View
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openEdit(t)}
+                        className="rounded-lg border border-rose-200 bg-white px-2.5 py-1 text-xs font-semibold text-rose-800 shadow-sm hover:bg-rose-50"
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  </div>
+                  <p className="mt-3 line-clamp-2 text-sm text-slate-600">
+                    {t.activities || "—"}
+                  </p>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
+
         <section className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-xl shadow-slate-200/40 ring-1 ring-slate-900/[0.04]">
           <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/90 to-white px-5 py-4 sm:px-6">
             <div>
@@ -628,9 +743,12 @@ const AddTask = () => {
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="truncate font-semibold text-slate-900">
-                          {t.agenda}
-                        </p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {isTaskPriority(t) ? <PriorityBadge /> : null}
+                          <p className="truncate font-semibold text-slate-900">
+                            {t.agenda}
+                          </p>
+                        </div>
                         <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
                           <div className="flex flex-wrap gap-1.5">
                             {(t.responsibleLabels ?? ["—"]).map(
@@ -666,11 +784,16 @@ const AddTask = () => {
           </div>
         </section>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <StatCard
             label="Total tasks"
             value={loadingTasks ? "…" : stats.total}
             accent="slate"
+          />
+          <StatCard
+            label="Priority"
+            value={loadingTasks ? "…" : stats.priority}
+            accent="rose"
           />
           <StatCard
             label="Pending"
@@ -698,7 +821,7 @@ const AddTask = () => {
               <p className="mt-0.5 text-sm text-slate-500">
                 {loadingTasks
                   ? "Loading your workspace…"
-                  : `${filteredGroupedTasks.length} shown · ${groupedTasks.length} total · ${stats.onHold} on hold · ${stats.awaitingApproval} awaiting approval`}
+                  : `${filteredGroupedTasks.length} shown · ${groupedTasks.length} total · ${stats.priority} priority · ${stats.onHold} on hold · ${stats.awaitingApproval} awaiting approval`}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
@@ -913,6 +1036,23 @@ const AddTask = () => {
                   >
                     Awaiting approval
                   </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        priorityOnly: !prev.priorityOnly,
+                      }))
+                    }
+                    className={`w-full rounded-xl border px-3 py-2.5 text-sm font-semibold shadow-sm transition focus:outline-none focus:ring-2 focus:ring-blue-500/20 sm:w-auto ${
+                      filters.priorityOnly
+                        ? "border-rose-200 bg-rose-50 text-rose-900"
+                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    Priority only
+                  </button>
                 </div>
               </div>
 
@@ -942,6 +1082,9 @@ const AddTask = () => {
                     Date
                   </th>
                   <th className="whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500 sm:px-6">
+                    Priority
+                  </th>
+                  <th className="whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500 sm:px-6">
                     Agenda
                   </th>
                   <th className="whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500 sm:px-6">
@@ -967,7 +1110,7 @@ const AddTask = () => {
               <tbody className="divide-y divide-slate-100">
                 {loadingTasks ? (
                   <tr>
-                    <td colSpan={8} className="px-6 py-16">
+                    <td colSpan={9} className="px-6 py-16">
                       <div className="flex flex-col items-center justify-center gap-3 text-center">
                         <div
                           className="h-10 w-10 animate-spin rounded-full border-2 border-slate-200 border-t-blue-600"
@@ -981,7 +1124,7 @@ const AddTask = () => {
                   </tr>
                 ) : groupedTasks.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-6 py-16">
+                    <td colSpan={9} className="px-6 py-16">
                       <div className="mx-auto flex max-w-md flex-col items-center text-center">
                         <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 ring-1 ring-blue-100">
                           <svg
@@ -1017,7 +1160,7 @@ const AddTask = () => {
                   </tr>
                 ) : filteredGroupedTasks.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-6 py-16">
+                    <td colSpan={9} className="px-6 py-16">
                       <div className="mx-auto flex max-w-md flex-col items-center text-center">
                         <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-50 text-slate-500 ring-1 ring-slate-200">
                           <svg
@@ -1057,10 +1200,19 @@ const AddTask = () => {
                   filteredGroupedTasks.map((task) => (
                     <tr
                       key={task.groupKey || task.id}
-                      className="transition-colors hover:bg-slate-50/90"
+                      className={`transition-colors hover:bg-slate-50/90 ${
+                        isTaskPriority(task) ? "bg-rose-50/35" : ""
+                      }`}
                     >
                       <td className="whitespace-nowrap px-5 py-4 font-medium text-slate-900 sm:px-6">
                         {formatDate(task.task_date)}
+                      </td>
+                      <td className="whitespace-nowrap px-5 py-4 sm:px-6">
+                        {isTaskPriority(task) ? (
+                          <PriorityBadge />
+                        ) : (
+                          <span className="text-xs text-slate-400">—</span>
+                        )}
                       </td>
                       <td className="max-w-[200px] px-5 py-4 text-slate-800 sm:px-6">
                         <span className="line-clamp-2" title={task.agenda}>

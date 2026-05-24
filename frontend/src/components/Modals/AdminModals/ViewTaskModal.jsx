@@ -1,6 +1,7 @@
 import {
   TASK_STATUSES,
   formatTaskDeadline,
+  isTaskPriority,
 } from "../../../utils/task";
 
 const formatDate = (value) => {
@@ -51,6 +52,11 @@ const ViewTaskModal = ({ isOpen, onClose, task }) => {
               className="text-xl font-semibold text-slate-900"
             >
               Task details
+              {isTaskPriority(task) ? (
+                <span className="ml-2 inline-flex align-middle rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-semibold text-rose-800 ring-1 ring-inset ring-rose-600/15">
+                  Priority
+                </span>
+              ) : null}
             </h2>
             <p className="mt-1 text-sm text-slate-500">
               {formatDate(task.task_date)}
@@ -100,6 +106,14 @@ const ViewTaskModal = ({ isOpen, onClose, task }) => {
                 {task.requestedStatus
                   ? ` · Requested: ${statusLabel(task.requestedStatus)}`
                   : ""}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Priority
+              </p>
+              <p className="mt-2 text-sm font-medium text-slate-800">
+                {isTaskPriority(task) ? "Yes" : "No"}
               </p>
             </div>
           </div>

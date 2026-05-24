@@ -3,8 +3,15 @@ import toast from "react-hot-toast";
 import { NavLink } from "react-router-dom";
 import Layout from "../../components/Layout/Layout";
 import OwnerOpenTasksModal from "../../components/Modals/AdminModals/OwnerOpenTasksModal";
+import PriorityBadge from "../../components/Task/PriorityBadge";
 import { listProfiles } from "../../utils/profile";
-import { listTasks, parseTaskRemarks, TASK_STATUSES } from "../../utils/task";
+import {
+  formatTaskDeadline,
+  isTaskPriority,
+  listTasks,
+  parseTaskRemarks,
+  TASK_STATUSES,
+} from "../../utils/task";
 
 const statusLabel = (status) =>
   TASK_STATUSES.find((s) => s.value === status)?.label ?? status;
@@ -16,6 +23,7 @@ function StatCard({ label, value, accent, subtitle }) {
     amber: "from-amber-50/80 to-white ring-amber-200/60",
     emerald: "from-emerald-50/80 to-white ring-emerald-200/60",
     violet: "from-violet-50/80 to-white ring-violet-200/60",
+    rose: "from-rose-50/80 to-white ring-rose-200/60",
   };
   return (
     <div
@@ -189,7 +197,12 @@ const Dashboard = () => {
         new Date(`${t.deadline}T00:00:00`) < new Date(),
     ).length;
 
-    return { total, completed, pendingApproval, overdue };
+    const priority = list.filter((t) => isTaskPriority(t)).length;
+    const priorityOpen = list.filter(
+      (t) => isTaskPriority(t) && t.status !== "completed",
+    ).length;
+
+    return { total, completed, pendingApproval, overdue, priority, priorityOpen };
   }, [enrichedTasks]);
 
   const completedByPerson = useMemo(() => {
@@ -304,6 +317,9 @@ const Dashboard = () => {
           t.status !== "completed",
       )
       .sort((a, b) => {
+        const priA = isTaskPriority(a) ? 1 : 0;
+        const priB = isTaskPriority(b) ? 1 : 0;
+        if (priB !== priA) return priB - priA;
         const aDate = a.deadline
           ? new Date(`${a.deadline}T00:00:00`).getTime()
           : Infinity;
@@ -313,6 +329,34 @@ const Dashboard = () => {
         return aDate - bDate;
       });
   }, [enrichedTasks, selectedOwnerId]);
+
+  const priorityTasks = useMemo(() => {
+    const seen = new Set();
+    const list = [];
+
+    for (const t of enrichedTasks) {
+      if (!isTaskPriority(t) || t.status === "completed") continue;
+      const key = t.groupKey || `single-${t.id}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      list.push(t);
+    }
+
+    return list
+      .sort((a, b) => {
+        const aDeadline = a.deadline
+          ? new Date(`${a.deadline}T00:00:00`).getTime()
+          : Infinity;
+        const bDeadline = b.deadline
+          ? new Date(`${b.deadline}T00:00:00`).getTime()
+          : Infinity;
+        if (aDeadline !== bDeadline) return aDeadline - bDeadline;
+        const aCreated = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const bCreated = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return bCreated - aCreated;
+      })
+      .slice(0, 8);
+  }, [enrichedTasks]);
 
   const dueSoon = useMemo(() => {
     const now = new Date();
@@ -330,7 +374,12 @@ const Dashboard = () => {
       }))
       .filter((t) => !Number.isNaN(t.deadlineDate.getTime()))
       .filter((t) => t.deadlineDate <= end)
-      .sort((a, b) => a.deadlineDate - b.deadlineDate)
+      .sort((a, b) => {
+        const priA = isTaskPriority(a) ? 1 : 0;
+        const priB = isTaskPriority(b) ? 1 : 0;
+        if (priB !== priA) return priB - priA;
+        return a.deadlineDate - b.deadlineDate;
+      })
       .slice(0, 8);
 
     return {
@@ -376,11 +425,19 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <StatCard
             label="Total tasks"
             value={loading ? "…" : overview.total}
             accent="slate"
+          />
+          <StatCard
+            label="Priority"
+            value={loading ? "…" : overview.priority}
+            accent="rose"
+            subtitle={
+              loading ? "" : `${overview.priorityOpen} open · high importance`
+            }
           />
           <StatCard
             label="Completed"
@@ -401,6 +458,74 @@ const Dashboard = () => {
             subtitle="Past due date"
           />
         </div>
+
+        <section className="overflow-hidden rounded-3xl border border-rose-200/80 bg-white shadow-xl shadow-rose-100/30 ring-1 ring-rose-900/[0.04]">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-rose-100 bg-gradient-to-r from-rose-50/90 to-white px-5 py-4">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">
+                Priority tasks
+              </h2>
+              <p className="mt-0.5 text-sm text-slate-500">
+                {loading
+                  ? "Loading…"
+                  : `${priorityTasks.length} open shown · ${overview.priorityOpen} total open priority`}
+              </p>
+            </div>
+            {!loading && overview.priority > 0 ? (
+              <NavLink
+                to="/admin-add-task"
+                className="inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-900 transition hover:bg-rose-100"
+              >
+                Manage in Tasks
+              </NavLink>
+            ) : null}
+          </div>
+          <div className="space-y-3 p-5">
+            {loading ? (
+              <p className="text-sm text-slate-500">Loading…</p>
+            ) : priorityTasks.length === 0 ? (
+              <p className="text-sm text-slate-500">
+                No open priority tasks. Mark tasks as priority from the Tasks
+                page.
+              </p>
+            ) : (
+              priorityTasks.map((t) => (
+                <div
+                  key={t.groupKey || t.id}
+                  className="rounded-2xl border border-rose-200/90 bg-rose-50/30 p-4 shadow-sm"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <PriorityBadge />
+                        <span className="inline-flex rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-800 ring-1 ring-inset ring-slate-900/5">
+                          {statusLabel(t.status)}
+                        </span>
+                      </div>
+                      <p className="mt-2 truncate font-semibold text-slate-900">
+                        {t.agenda}
+                      </p>
+                      <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                        <span className="inline-flex items-center rounded-lg bg-white px-2 py-0.5 text-xs font-semibold text-slate-800 ring-1 ring-inset ring-slate-900/5">
+                          {t.profile?.code_name ?? t.profiles?.code_name ?? "—"}
+                        </span>
+                        <span>•</span>
+                        <span>{formatDate(t.task_date)}</span>
+                        <span>•</span>
+                        <span className="font-medium">
+                          {formatTaskDeadline(t.deadline)}
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+                  <p className="mt-3 line-clamp-2 text-sm text-slate-600">
+                    {t.activities || "—"}
+                  </p>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
 
         <div className="grid gap-6 lg:grid-cols-3">
           <section className="lg:col-span-3 overflow-hidden rounded-3xl border border-slate-200/90 bg-white shadow-xl shadow-slate-200/40 ring-1 ring-slate-900/[0.04]">
@@ -497,9 +622,12 @@ const Dashboard = () => {
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="truncate font-semibold text-slate-900">
-                            {t.agenda}
-                          </p>
+                          <div className="flex flex-wrap items-center gap-2">
+                            {isTaskPriority(t) ? <PriorityBadge /> : null}
+                            <p className="truncate font-semibold text-slate-900">
+                              {t.agenda}
+                            </p>
+                          </div>
                           <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
                             <span className="inline-flex items-center rounded-lg bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-800 ring-1 ring-inset ring-slate-900/5">
                               {t.profile?.code_name ?? t.profiles?.code_name ?? "—"}
