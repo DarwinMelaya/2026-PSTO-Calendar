@@ -28,8 +28,6 @@ const isToday = (date) => {
   return d.getTime() === TODAY.getTime();
 };
 
-const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
-
 const addDays = (date, days) => {
   const d = new Date(date);
   d.setDate(d.getDate() + days);
@@ -251,13 +249,13 @@ const formatDateLabel = (date) =>
   });
 
 const ViewToggle = ({ value, onChange }) => (
-  <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+  <div className="flex w-full rounded-xl border border-slate-200 bg-white p-1 shadow-sm sm:inline-flex sm:w-auto">
     {["month", "week", "day"].map((v) => (
       <button
         key={v}
         type="button"
         onClick={() => onChange(v)}
-        className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
+        className={`flex-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition sm:flex-none sm:px-3 sm:text-sm ${
           value === v
             ? "bg-slate-900 text-white"
             : "text-slate-700 hover:bg-slate-50"
@@ -287,91 +285,132 @@ const SchedulePill = ({ schedule, onClick }) => (
   </button>
 );
 
+const WeekDayCard = ({
+  date,
+  items,
+  dateLabel,
+  onDateClick,
+  onScheduleClick,
+  compact = false,
+}) => {
+  const maxVisible = compact ? 4 : 6;
+  const visible = items.slice(0, maxVisible);
+
+  return (
+    <div className="bg-white p-3 sm:p-3 lg:p-2.5">
+      <button
+        type="button"
+        onClick={() => onDateClick(date)}
+        className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm font-semibold transition ${
+          isToday(date)
+            ? "bg-blue-600 text-white"
+            : "bg-slate-50 text-slate-700 hover:bg-slate-100"
+        }`}
+      >
+        <span className="min-w-0">
+          <span className="block text-xs uppercase tracking-wider">
+            {weekDays[date.getDay()]}
+          </span>
+          <span className="block text-xs font-medium opacity-80">{dateLabel}</span>
+        </span>
+        <span className="shrink-0 tabular-nums text-lg font-bold leading-none">
+          {date.getDate()}
+        </span>
+      </button>
+
+      <div className="mt-2.5 space-y-1.5">
+        {items.length === 0 ? (
+          <p className="px-1 py-1 text-xs text-slate-400">No tasks</p>
+        ) : (
+          visible.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              onClick={(e) => onScheduleClick(e, s)}
+              className={`w-full rounded-lg px-2.5 py-1.5 text-left text-xs font-semibold transition sm:text-[11px] ${
+                s.completed
+                  ? "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                  : s.isPriority
+                    ? "bg-rose-600 text-white hover:bg-rose-700"
+                    : "bg-slate-800 text-white hover:bg-slate-700"
+              }`}
+              title={s.department}
+            >
+              <span className="line-clamp-2">{s.event_name}</span>
+            </button>
+          ))
+        )}
+        {items.length > maxVisible ? (
+          <button
+            type="button"
+            onClick={() => onDateClick(date)}
+            className="w-full px-1 py-0.5 text-left text-xs font-medium text-blue-600 hover:text-blue-700"
+          >
+            +{items.length - maxVisible} more — view day
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+};
+
 const WeekView = ({ anchorDate, schedules, onDateClick, onScheduleClick }) => {
   const start = startOfWeek(anchorDate);
   const days = Array.from({ length: 7 }, (_, i) => addDays(start, i));
   const end = addDays(start, 6);
   const monthBoundary = start.getMonth() !== end.getMonth();
 
+  const dayCards = days.map((d) => {
+    const key = startOfDayKey(d);
+    const items = schedules[key] ?? [];
+    const dateLabel = d.toLocaleDateString(undefined, {
+      month: monthBoundary || d.getDate() === 1 ? "short" : undefined,
+      day: "numeric",
+    });
+    return { key, date: d, items, dateLabel };
+  });
+
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">
-            Week
-          </p>
-          <h2 className="truncate text-lg font-bold text-slate-900">
-            {formatRangeLabel(start, end)}
-          </h2>
+      <div className="min-w-0">
+        <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">
+          Week
+        </p>
+        <h2 className="text-base font-bold text-slate-900 sm:text-lg">
+          {formatRangeLabel(start, end)}
+        </h2>
+      </div>
+
+      {/* Phone / tablet: stacked days — no horizontal scroll */}
+      <div className="overflow-hidden rounded-2xl border border-slate-200 lg:hidden">
+        <div className="divide-y divide-slate-200">
+          {dayCards.map(({ key, date, items, dateLabel }) => (
+            <WeekDayCard
+              key={key}
+              date={date}
+              items={items}
+              dateLabel={dateLabel}
+              onDateClick={onDateClick}
+              onScheduleClick={onScheduleClick}
+              compact
+            />
+          ))}
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-2xl border border-slate-200">
-        <div className="min-w-[720px]">
-          <div className="grid grid-cols-7 gap-px bg-slate-200">
-            {days.map((d) => {
-              const key = startOfDayKey(d);
-              const items = schedules[key] ?? [];
-              const dateLabel = d.toLocaleDateString(undefined, {
-                month: monthBoundary || d.getDate() === 1 ? "short" : undefined,
-                day: "numeric",
-              });
-              return (
-                <div key={key} className="bg-white p-2 sm:p-3">
-                  <button
-                    type="button"
-                    onClick={() => onDateClick(d)}
-                    className={`flex w-full items-center justify-between rounded-xl px-2 py-1.5 text-left text-xs font-semibold transition ${
-                      isToday(d)
-                        ? "bg-blue-600 text-white"
-                        : "bg-slate-50 text-slate-700 hover:bg-slate-100"
-                    }`}
-                  >
-                    <span className="min-w-0">
-                      <span className="block uppercase tracking-wider">
-                        {weekDays[d.getDay()]}
-                      </span>
-                      <span className="block text-[11px] font-medium opacity-80">
-                        {dateLabel}
-                      </span>
-                    </span>
-                    <span className="shrink-0 tabular-nums text-base font-bold leading-none">
-                      {d.getDate()}
-                    </span>
-                  </button>
-
-                  <div className="mt-2 space-y-2">
-                    {items.length === 0 ? (
-                      <p className="px-1 text-xs text-slate-400">No tasks</p>
-                    ) : (
-                      items.slice(0, 6).map((s) => (
-                        <button
-                          key={s.id}
-                          type="button"
-                          onClick={(e) => onScheduleClick(e, s)}
-                          className={`w-full rounded-lg px-2 py-1 text-left text-[11px] font-semibold transition ${
-                            s.completed
-                              ? "bg-slate-100 text-slate-500 hover:bg-slate-200"
-                              : s.isPriority
-                                ? "bg-rose-600 text-white hover:bg-rose-700"
-                                : "bg-slate-800 text-white hover:bg-slate-700"
-                          }`}
-                          title={s.department}
-                        >
-                          <span className="line-clamp-2">{s.event_name}</span>
-                        </button>
-                      ))
-                    )}
-                    {items.length > 6 ? (
-                      <p className="px-1 text-xs font-medium text-slate-500">
-                        +{items.length - 6} more
-                      </p>
-                    ) : null}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+      {/* Desktop: 7-column week grid */}
+      <div className="hidden overflow-hidden rounded-2xl border border-slate-200 lg:block">
+        <div className="grid grid-cols-7 gap-px bg-slate-200">
+          {dayCards.map(({ key, date, items, dateLabel }) => (
+            <WeekDayCard
+              key={key}
+              date={date}
+              items={items}
+              dateLabel={dateLabel}
+              onDateClick={onDateClick}
+              onScheduleClick={onScheduleClick}
+            />
+          ))}
         </div>
       </div>
     </div>
@@ -593,7 +632,7 @@ const AdminCalendar = () => {
         </div>
 
         <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
             {viewMode === "month" ? (
               <Calendar
                 monthNow={monthNow}
