@@ -6,12 +6,22 @@ import {
   listAssignableProfiles,
 } from "../../../utils/task";
 
+const TASK_PROGRAMS = [
+  { value: "GIA", label: "GIA" },
+  { value: "SSCP", label: "SSCP" },
+  { value: "CEST", label: "CEST" },
+  { value: "SETUP", label: "SETUP" },
+  { value: "Scholarship", label: "Scholarship" },
+  { value: "Other", label: "Other" },
+];
+
 const initialForm = {
   taskDate: "",
   agenda: "",
   activities: "",
   deadline: "",
   responsibleId: [],
+  program: "GIA",
   status: "pending",
   isPriority: false,
   remarks: "",
@@ -78,6 +88,7 @@ const AddTaskModal = ({ isOpen, onClose, onSuccess }) => {
       activities,
       deadline,
       responsibleId,
+      program,
       status,
       isPriority,
       remarks,
@@ -106,6 +117,7 @@ const AddTaskModal = ({ isOpen, onClose, onSuccess }) => {
       activities,
       deadline,
       responsibleId,
+      program,
       status,
       isPriority,
       remarks,
@@ -205,6 +217,28 @@ const AddTaskModal = ({ isOpen, onClose, onSuccess }) => {
                 onChange={setField("deadline")}
                 className={inputClass}
               />
+            </div>
+
+            <div>
+              <label
+                htmlFor="modal-task-program"
+                className="mb-1.5 block text-sm font-medium text-slate-700"
+              >
+                Program
+              </label>
+              <select
+                id="modal-task-program"
+                required
+                value={form.program}
+                onChange={setField("program")}
+                className={inputClass}
+              >
+                {TASK_PROGRAMS.map(({ value, label }) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="sm:col-span-2">

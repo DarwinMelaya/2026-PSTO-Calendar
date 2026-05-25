@@ -2,6 +2,7 @@ import {
   TASK_STATUSES,
   formatTaskDeadline,
   isTaskPriority,
+  taskProgramLabel,
 } from "../../../utils/task";
 
 const formatDate = (value) => {
@@ -75,6 +76,9 @@ const ViewTaskModal = ({ isOpen, onClose, task }) => {
         </div>
 
         <div className="space-y-5 overflow-y-auto px-6 py-5">
+          <DetailBlock label="Program">
+            {taskProgramLabel(task.program)}
+          </DetailBlock>
           <DetailBlock label="Agenda">{task.agenda || "—"}</DetailBlock>
           <DetailBlock label="Activities">
             {task.activities || "—"}

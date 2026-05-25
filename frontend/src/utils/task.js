@@ -7,6 +7,19 @@ export const TASK_STATUSES = [
   { value: "on_hold", label: "On hold" },
 ];
 
+/** PSTO program choices (stored on tasks.program; options live in add/edit modals). */
+export const TASK_PROGRAMS = [
+  { value: "GIA", label: "GIA" },
+  { value: "SSCP", label: "SSCP" },
+  { value: "CEST", label: "CEST" },
+  { value: "SETUP", label: "SETUP" },
+  { value: "Scholarship", label: "Scholarship" },
+  { value: "Other", label: "Other" },
+];
+
+export const taskProgramLabel = (value) =>
+  TASK_PROGRAMS.find((p) => p.value === value)?.label ?? value ?? "—";
+
 export const isTaskPriority = (task) => Boolean(task?.is_priority);
 
 const STATUS_REQUEST_PREFIX = "[[STATUS_REQUEST:";
@@ -145,6 +158,7 @@ export const createTask = async ({
   deadline,
   responsibleId,
   status,
+  program,
   remarks,
   isPriority = false,
 }) => {
@@ -174,12 +188,13 @@ export const createTask = async ({
         deadline: resolvedDeadline,
         responsible_id: id,
         status,
+        program: program || "Other",
         is_priority: Boolean(isPriority),
         remarks: composedRemarks,
       })),
     )
     .select(
-      "id, task_date, agenda, activities, deadline, status, is_priority, remarks, created_at, responsible_id",
+      "id, task_date, agenda, activities, deadline, status, program, is_priority, remarks, created_at, responsible_id",
     );
 
   return { data, error };
@@ -194,6 +209,7 @@ export const updateTask = async (
     deadline,
     responsibleId,
     status,
+    program,
     remarks,
     isPriority = false,
     taskIds,
@@ -229,6 +245,7 @@ export const updateTask = async (
     activities: normalizeActivities(activities),
     deadline: resolvedDeadline,
     status,
+    program: program || "Other",
     is_priority: Boolean(isPriority),
     remarks: composedRemarks,
   };
@@ -254,7 +271,7 @@ export const updateTask = async (
       })
       .eq("id", rowId)
       .select(
-        "id, task_date, agenda, activities, deadline, status, is_priority, remarks, created_at, responsible_id",
+        "id, task_date, agenda, activities, deadline, status, program, is_priority, remarks, created_at, responsible_id",
       )
       .single();
     if (updateError) {
@@ -274,7 +291,7 @@ export const updateTask = async (
         })),
       )
       .select(
-        "id, task_date, agenda, activities, deadline, status, is_priority, remarks, created_at, responsible_id",
+        "id, task_date, agenda, activities, deadline, status, program, is_priority, remarks, created_at, responsible_id",
       );
     if (createError) {
       return { data: updatedRows, error: createError };
@@ -317,7 +334,7 @@ export const requestTaskStatusChange = async (
     })
     .eq("id", id)
     .select(
-      "id, task_date, agenda, activities, deadline, status, is_priority, remarks, created_at, responsible_id",
+      "id, task_date, agenda, activities, deadline, status, program, is_priority, remarks, created_at, responsible_id",
     )
     .single();
 
@@ -350,7 +367,7 @@ export const approveTaskStatusRequest = async ({ id, remarks }) => {
     })
     .eq("id", id)
     .select(
-      "id, task_date, agenda, activities, deadline, status, is_priority, remarks, created_at, responsible_id",
+      "id, task_date, agenda, activities, deadline, status, program, is_priority, remarks, created_at, responsible_id",
     )
     .single();
 
@@ -371,7 +388,7 @@ export const rejectTaskStatusRequest = async ({ id, remarks }) => {
     })
     .eq("id", id)
     .select(
-      "id, task_date, agenda, activities, deadline, status, is_priority, remarks, created_at, responsible_id",
+      "id, task_date, agenda, activities, deadline, status, program, is_priority, remarks, created_at, responsible_id",
     )
     .single();
 
@@ -389,6 +406,7 @@ export const listTasks = async () => {
       activities,
       deadline,
       status,
+      program,
       is_priority,
       remarks,
       created_at,
@@ -406,7 +424,7 @@ export const listTasksForUser = async (responsibleId) => {
   const { data, error } = await supabase
     .from("tasks")
     .select(
-      "id, task_date, agenda, activities, deadline, status, is_priority, remarks, created_at, responsible_id",
+      "id, task_date, agenda, activities, deadline, status, program, is_priority, remarks, created_at, responsible_id",
     )
     .eq("responsible_id", Number(responsibleId))
     .order("created_at", { ascending: false });

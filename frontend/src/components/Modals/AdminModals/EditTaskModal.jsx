@@ -7,12 +7,22 @@ import {
   updateTask,
 } from "../../../utils/task";
 
+const TASK_PROGRAMS = [
+  { value: "GIA", label: "GIA" },
+  { value: "SSCP", label: "SSCP" },
+  { value: "CEST", label: "CEST" },
+  { value: "SETUP", label: "SETUP" },
+  { value: "Scholarship", label: "Scholarship" },
+  { value: "Other", label: "Other" },
+];
+
 const initialForm = {
   taskDate: "",
   agenda: "",
   activities: "",
   deadline: "",
   responsibleId: [],
+  program: "GIA",
   status: "pending",
   isPriority: false,
   remarks: "",
@@ -33,6 +43,7 @@ function taskToForm(task) {
       : task.responsible_id != null
         ? [String(task.responsible_id)]
         : [],
+    program: task.program ?? "Other",
     status: task.status ?? "pending",
     isPriority: Boolean(task.is_priority),
     remarks: task.remarks ?? "",
@@ -116,6 +127,7 @@ const EditTaskModal = ({ isOpen, onClose, onSuccess, task }) => {
       activities,
       deadline,
       responsibleId,
+      program,
       status,
       isPriority,
       remarks,
@@ -144,6 +156,7 @@ const EditTaskModal = ({ isOpen, onClose, onSuccess, task }) => {
       activities,
       deadline,
       responsibleId,
+      program,
       status,
       isPriority,
       remarks,
@@ -246,6 +259,28 @@ const EditTaskModal = ({ isOpen, onClose, onSuccess, task }) => {
                 onChange={setField("deadline")}
                 className={inputClass}
               />
+            </div>
+
+            <div>
+              <label
+                htmlFor="edit-modal-task-program"
+                className="mb-1.5 block text-sm font-medium text-slate-700"
+              >
+                Program
+              </label>
+              <select
+                id="edit-modal-task-program"
+                required
+                value={form.program}
+                onChange={setField("program")}
+                className={inputClass}
+              >
+                {TASK_PROGRAMS.map(({ value, label }) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="sm:col-span-2">

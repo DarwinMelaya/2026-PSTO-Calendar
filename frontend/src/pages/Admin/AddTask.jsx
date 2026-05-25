@@ -6,6 +6,7 @@ import ViewTaskModal from "../../components/Modals/AdminModals/ViewTaskModal";
 import Layout from "../../components/Layout/Layout";
 import PriorityBadge from "../../components/Task/PriorityBadge";
 import {
+  TASK_PROGRAMS,
   TASK_STATUSES,
   approveTaskStatusRequest,
   deleteTasks,
@@ -15,6 +16,7 @@ import {
   listTasks,
   parseTaskRemarks,
   rejectTaskStatusRequest,
+  taskProgramLabel,
 } from "../../utils/task";
 
 const daysBetween = (a, b) => Math.floor((a - b) / (1000 * 60 * 60 * 24));
@@ -142,6 +144,7 @@ const compareGroupsNewestFirst = (a, b) => {
 const DEFAULT_FILTERS = {
   q: "",
   status: "all",
+  program: "all",
   assignee: "all",
   awaitingApproval: false,
   priorityOnly: false,
@@ -344,6 +347,7 @@ const AddTask = () => {
   const filteredGroupedTasks = useMemo(() => {
     const q = filters.q.trim().toLowerCase();
     const status = filters.status;
+    const program = filters.program;
     const assignee = filters.assignee;
     const awaitingApproval = filters.awaitingApproval;
     const priorityOnly = filters.priorityOnly;
@@ -354,6 +358,7 @@ const AddTask = () => {
       if (priorityOnly && !isTaskPriority(task)) return false;
       if (awaitingApproval && !task.requestedStatus) return false;
       if (status !== "all" && task.status !== status) return false;
+      if (program !== "all" && task.program !== program) return false;
       if (
         assignee !== "all" &&
         !(task.responsibleLabels ?? []).some((label) => label === assignee)
@@ -374,6 +379,8 @@ const AddTask = () => {
         task.agenda,
         task.activities,
         task.cleanRemarks,
+        task.program,
+        taskProgramLabel(task.program),
         ...(task.responsibleLabels ?? []),
       ]
         .filter(Boolean)
@@ -454,6 +461,7 @@ const AddTask = () => {
     filters.awaitingApproval ||
     filters.priorityOnly ||
     filters.status !== "all" ||
+    filters.program !== "all" ||
     filters.assignee !== "all" ||
     filters.datePeriod !== "all" ||
     !!filters.q.trim();
@@ -652,6 +660,8 @@ const AddTask = () => {
                           ))}
                         </div>
                         <span>•</span>
+                        <span>{taskProgramLabel(t.program)}</span>
+                        <span>•</span>
                         <span>{formatDate(t.task_date)}</span>
                         <span>•</span>
                         <span className="font-medium">
@@ -760,6 +770,8 @@ const AddTask = () => {
                               ),
                             )}
                           </div>
+                          <span>•</span>
+                          <span>{taskProgramLabel(t.program)}</span>
                           <span>•</span>
                           <span className="font-medium">
                             {formatTaskDeadline(t.deadline)}
@@ -1000,6 +1012,25 @@ const AddTask = () => {
                   </select>
 
                   <select
+                    value={filters.program}
+                    onChange={(e) =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        program: e.target.value,
+                      }))
+                    }
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                    aria-label="Filter by program"
+                  >
+                    <option value="all">All programs</option>
+                    {TASK_PROGRAMS.map(({ value, label }) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+
+                  <select
                     value={filters.assignee}
                     onChange={(e) =>
                       setFilters((prev) => ({
@@ -1083,6 +1114,9 @@ const AddTask = () => {
                     Priority
                   </th>
                   <th className="whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500 sm:px-6">
+                    Program
+                  </th>
+                  <th className="whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500 sm:px-6">
                     Agenda
                   </th>
                   <th className="whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500 sm:px-6">
@@ -1108,7 +1142,7 @@ const AddTask = () => {
               <tbody className="divide-y divide-slate-100">
                 {loadingTasks ? (
                   <tr>
-                    <td colSpan={9} className="px-6 py-16">
+                    <td colSpan={10} className="px-6 py-16">
                       <div className="flex flex-col items-center justify-center gap-3 text-center">
                         <div
                           className="h-10 w-10 animate-spin rounded-full border-2 border-slate-200 border-t-blue-600"
@@ -1122,7 +1156,7 @@ const AddTask = () => {
                   </tr>
                 ) : groupedTasks.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-6 py-16">
+                    <td colSpan={10} className="px-6 py-16">
                       <div className="mx-auto flex max-w-md flex-col items-center text-center">
                         <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 ring-1 ring-blue-100">
                           <svg
@@ -1158,7 +1192,7 @@ const AddTask = () => {
                   </tr>
                 ) : filteredGroupedTasks.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-6 py-16">
+                    <td colSpan={10} className="px-6 py-16">
                       <div className="mx-auto flex max-w-md flex-col items-center text-center">
                         <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-50 text-slate-500 ring-1 ring-slate-200">
                           <svg
@@ -1211,6 +1245,11 @@ const AddTask = () => {
                         ) : (
                           <span className="text-xs text-slate-400">—</span>
                         )}
+                      </td>
+                      <td className="whitespace-nowrap px-5 py-4 sm:px-6">
+                        <span className="inline-flex rounded-lg bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-900 ring-1 ring-inset ring-indigo-600/15">
+                          {taskProgramLabel(task.program)}
+                        </span>
                       </td>
                       <td className="max-w-[200px] px-5 py-4 text-slate-800 sm:px-6">
                         <span className="line-clamp-2" title={task.agenda}>
