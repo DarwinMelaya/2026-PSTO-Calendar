@@ -201,7 +201,7 @@ function OwnerProgressCard({ label, completed, total }) {
   const pct = safeTotal > 0 ? Math.round((safeCompleted / safeTotal) * 100) : 0;
 
   return (
-    <div className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-sm">
+    <div className="min-w-0 rounded-2xl border border-slate-200/90 bg-white p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-slate-900">
@@ -534,8 +534,8 @@ const AddTask = () => {
 
   return (
     <Layout>
-      <div className="mx-auto max-w-7xl space-y-8">
-        <div className="space-y-3">
+      <div className="mx-auto w-full min-w-0 max-w-7xl space-y-8 overflow-x-hidden lg:max-w-[min(80rem,calc(100vw-19rem))]">
+        <div className="min-w-0 space-y-3">
           <p className="text-xs font-semibold uppercase tracking-widest text-blue-600">
             Admin
           </p>
@@ -548,9 +548,9 @@ const AddTask = () => {
           </p>
         </div>
 
-        <section className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-xl shadow-slate-200/40 ring-1 ring-slate-900/[0.04]">
+        <section className="min-w-0 max-w-full overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-lg shadow-slate-200/40 ring-1 ring-slate-900/[0.04]">
           <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/90 to-white px-5 py-4 sm:px-6">
-            <div>
+            <div className="min-w-0">
               <h2 className="text-lg font-semibold text-slate-900">
                 Owner progress
               </h2>
@@ -575,23 +575,21 @@ const AddTask = () => {
                 No owner progress yet. Add tasks first.
               </p>
             ) : (
-              <div className="-mx-5 overflow-x-auto px-5 sm:-mx-6 sm:px-6">
-                <div className="grid min-w-[720px] grid-cols-3 gap-3 sm:min-w-0 sm:grid-cols-2 lg:grid-cols-4">
-                  {ownerProgress.map((o) => (
-                    <OwnerProgressCard
-                      key={o.id}
-                      label={o.label}
-                      completed={o.completed}
-                      total={o.total}
-                    />
-                  ))}
-                </div>
+              <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+                {ownerProgress.map((o) => (
+                  <OwnerProgressCard
+                    key={o.id}
+                    label={o.label}
+                    completed={o.completed}
+                    total={o.total}
+                  />
+                ))}
               </div>
             )}
           </div>
         </section>
 
-        <section className="overflow-hidden rounded-2xl border border-rose-200/80 bg-white shadow-xl shadow-rose-100/30 ring-1 ring-rose-900/[0.04]">
+        <section className="min-w-0 max-w-full overflow-hidden rounded-2xl border border-rose-200/80 bg-white shadow-lg shadow-rose-100/30 ring-1 ring-rose-900/[0.04]">
           <div className="flex flex-wrap items-center justify-between gap-4 border-b border-rose-100 bg-gradient-to-r from-rose-50/90 to-white px-5 py-4 sm:px-6">
             <div>
               <h2 className="text-lg font-semibold text-slate-900">
@@ -687,9 +685,9 @@ const AddTask = () => {
           </div>
         </section>
 
-        <section className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-xl shadow-slate-200/40 ring-1 ring-slate-900/[0.04]">
+        <section className="min-w-0 max-w-full overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-lg shadow-slate-200/40 ring-1 ring-slate-900/[0.04]">
           <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/90 to-white px-5 py-4 sm:px-6">
-            <div>
+            <div className="min-w-0">
               <h2 className="text-lg font-semibold text-slate-900">
                 Near due deadlines
               </h2>
@@ -784,7 +782,7 @@ const AddTask = () => {
           </div>
         </section>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid min-w-0 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
           <StatCard
             label="Total tasks"
             value={loadingTasks ? "…" : stats.total}
@@ -812,9 +810,9 @@ const AddTask = () => {
           />
         </div>
 
-        <section className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-xl shadow-slate-200/40 ring-1 ring-slate-900/[0.04]">
+        <section className="min-w-0 max-w-full overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-lg shadow-slate-200/40 ring-1 ring-slate-900/[0.04]">
           <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/90 to-white px-5 py-4 sm:px-6">
-            <div>
+            <div className="min-w-0">
               <h2 className="text-lg font-semibold text-slate-900">
                 All tasks
               </h2>
@@ -854,8 +852,8 @@ const AddTask = () => {
             </div>
           </div>
 
-          <div className="border-b border-slate-100 bg-white px-5 py-4 sm:px-6">
-            <div className="mb-4 flex flex-col gap-3">
+          <div className="min-w-0 border-b border-slate-100 bg-white px-5 py-4 sm:px-6">
+            <div className="mb-4 flex min-w-0 flex-col gap-3">
               <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Date range
@@ -951,9 +949,9 @@ const AddTask = () => {
               ) : null}
             </div>
 
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
-                <div className="relative flex-1">
+            <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center">
+                <div className="relative min-w-0 flex-1">
                   <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
                     <svg
                       className="h-4 w-4"
@@ -1074,8 +1072,8 @@ const AddTask = () => {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[980px] text-left text-sm">
+          <div className="w-0 min-w-full overflow-x-auto overscroll-x-contain">
+            <table className="w-full min-w-[720px] text-left text-sm lg:min-w-[980px]">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/80">
                   <th className="whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500 sm:px-6">
