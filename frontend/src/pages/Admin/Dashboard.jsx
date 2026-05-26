@@ -2,6 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { NavLink } from "react-router-dom";
 import Layout from "../../components/Layout/Layout";
+import ApprovalViewModal from "../../components/Modals/AdminModals/Dashboard/ApprovalViewModal";
+import CompletedViewModal from "../../components/Modals/AdminModals/Dashboard/CompletedViewModal";
+import OverdueViewModal from "../../components/Modals/AdminModals/Dashboard/OverdueViewModal";
+import PriorityViewModal from "../../components/Modals/AdminModals/Dashboard/PriorityViewModal";
+import TotalTaskModal from "../../components/Modals/AdminModals/Dashboard/TotalTaskModal";
 import OwnerOpenTasksModal from "../../components/Modals/AdminModals/OwnerOpenTasksModal";
 import PriorityBadge from "../../components/Task/PriorityBadge";
 import { listProfiles } from "../../utils/profile";
@@ -16,7 +21,7 @@ import {
 const statusLabel = (status) =>
   TASK_STATUSES.find((s) => s.value === status)?.label ?? status;
 
-function StatCard({ label, value, accent, subtitle }) {
+function StatCard({ label, value, accent, subtitle, onClick }) {
   const accents = {
     slate: "from-slate-50 to-white ring-slate-200/80",
     blue: "from-blue-50/80 to-white ring-blue-200/60",
@@ -25,10 +30,14 @@ function StatCard({ label, value, accent, subtitle }) {
     violet: "from-violet-50/80 to-white ring-violet-200/60",
     rose: "from-rose-50/80 to-white ring-rose-200/60",
   };
-  return (
-    <div
-      className={`group relative overflow-hidden rounded-2xl bg-gradient-to-br p-5 shadow-sm ring-1 ${accents[accent] ?? accents.slate}`}
-    >
+  const className = `group relative w-full overflow-hidden rounded-2xl bg-gradient-to-br p-5 text-left shadow-sm ring-1 transition ${accents[accent] ?? accents.slate} ${
+    onClick
+      ? "cursor-pointer hover:shadow-md hover:ring-slate-300/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+      : ""
+  }`;
+
+  const content = (
+    <>
       <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-white/40 blur-2xl transition group-hover:scale-110" />
       <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
         {label}
@@ -39,8 +48,23 @@ function StatCard({ label, value, accent, subtitle }) {
       {subtitle ? (
         <p className="mt-1 text-sm text-slate-500">{subtitle}</p>
       ) : null}
-    </div>
+      {onClick ? (
+        <p className="mt-2 text-xs font-medium text-blue-600 opacity-0 transition group-hover:opacity-100">
+          Click to view
+        </p>
+      ) : null}
+    </>
   );
+
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className={className}>
+        {content}
+      </button>
+    );
+  }
+
+  return <div className={className}>{content}</div>;
 }
 
 function RankRow({ rank, title, meta, value, badge }) {
@@ -142,6 +166,7 @@ const Dashboard = ({ readOnly = false }) => {
   const [tasks, setTasks] = useState([]);
   const [profiles, setProfiles] = useState([]);
   const [selectedOwnerId, setSelectedOwnerId] = useState(null);
+  const [activeStatModal, setActiveStatModal] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -358,6 +383,71 @@ const Dashboard = ({ readOnly = false }) => {
       .slice(0, 8);
   }, [enrichedTasks]);
 
+  const isOverdueTask = useCallback((t) => {
+    if (t.status === "completed" || !t.deadline) return false;
+    const deadline = new Date(`${t.deadline}T00:00:00`);
+    return !Number.isNaN(deadline.getTime()) && deadline < new Date();
+  }, []);
+
+  const allTasksSorted = useMemo(() => {
+    return [...enrichedTasks].sort((a, b) => {
+      const aCreated = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const bCreated = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return bCreated - aCreated;
+    });
+  }, [enrichedTasks]);
+
+  const priorityTasksAll = useMemo(() => {
+    return enrichedTasks
+      .filter((t) => isTaskPriority(t))
+      .sort((a, b) => {
+        const aDeadline = a.deadline
+          ? new Date(`${a.deadline}T00:00:00`).getTime()
+          : Infinity;
+        const bDeadline = b.deadline
+          ? new Date(`${b.deadline}T00:00:00`).getTime()
+          : Infinity;
+        if (aDeadline !== bDeadline) return aDeadline - bDeadline;
+        const aCreated = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const bCreated = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return bCreated - aCreated;
+      });
+  }, [enrichedTasks]);
+
+  const completedTasksAll = useMemo(() => {
+    return enrichedTasks
+      .filter((t) => t.status === "completed")
+      .sort((a, b) => {
+        const aAt = a.completedAt ? new Date(a.completedAt).getTime() : 0;
+        const bAt = b.completedAt ? new Date(b.completedAt).getTime() : 0;
+        return bAt - aAt;
+      });
+  }, [enrichedTasks]);
+
+  const approvalTasksAll = useMemo(() => {
+    return enrichedTasks
+      .filter((t) => !!t.requestedStatus)
+      .sort((a, b) => {
+        const aDate = a.task_date
+          ? new Date(`${a.task_date}T00:00:00`).getTime()
+          : 0;
+        const bDate = b.task_date
+          ? new Date(`${b.task_date}T00:00:00`).getTime()
+          : 0;
+        return bDate - aDate;
+      });
+  }, [enrichedTasks]);
+
+  const overdueTasksAll = useMemo(() => {
+    return enrichedTasks
+      .filter(isOverdueTask)
+      .sort((a, b) => {
+        const aDeadline = new Date(`${a.deadline}T00:00:00`).getTime();
+        const bDeadline = new Date(`${b.deadline}T00:00:00`).getTime();
+        return aDeadline - bDeadline;
+      });
+  }, [enrichedTasks, isOverdueTask]);
+
   const dueSoon = useMemo(() => {
     const now = new Date();
     const today = new Date(now);
@@ -430,6 +520,7 @@ const Dashboard = ({ readOnly = false }) => {
             label="Total tasks"
             value={loading ? "…" : overview.total}
             accent="slate"
+            onClick={loading ? undefined : () => setActiveStatModal("total")}
           />
           <StatCard
             label="Priority"
@@ -438,24 +529,28 @@ const Dashboard = ({ readOnly = false }) => {
             subtitle={
               loading ? "" : `${overview.priorityOpen} open · high importance`
             }
+            onClick={loading ? undefined : () => setActiveStatModal("priority")}
           />
           <StatCard
             label="Completed"
             value={loading ? "…" : overview.completed}
             accent="emerald"
             subtitle={loading ? "" : `${statusLabel("completed")} tasks`}
+            onClick={loading ? undefined : () => setActiveStatModal("completed")}
           />
           <StatCard
             label="Awaiting approval"
             value={loading ? "…" : overview.pendingApproval}
             accent="amber"
             subtitle="Status change requests"
+            onClick={loading ? undefined : () => setActiveStatModal("approval")}
           />
           <StatCard
             label="Overdue (not completed)"
             value={loading ? "…" : overview.overdue}
             accent="violet"
             subtitle="Past due date"
+            onClick={loading ? undefined : () => setActiveStatModal("overdue")}
           />
         </div>
 
@@ -762,6 +857,32 @@ const Dashboard = ({ readOnly = false }) => {
         onClose={() => setSelectedOwnerId(null)}
         ownerLabel={selectedOwner?.label}
         tasks={incompleteTasksForOwner}
+      />
+
+      <TotalTaskModal
+        isOpen={activeStatModal === "total"}
+        onClose={() => setActiveStatModal(null)}
+        tasks={allTasksSorted}
+      />
+      <PriorityViewModal
+        isOpen={activeStatModal === "priority"}
+        onClose={() => setActiveStatModal(null)}
+        tasks={priorityTasksAll}
+      />
+      <CompletedViewModal
+        isOpen={activeStatModal === "completed"}
+        onClose={() => setActiveStatModal(null)}
+        tasks={completedTasksAll}
+      />
+      <ApprovalViewModal
+        isOpen={activeStatModal === "approval"}
+        onClose={() => setActiveStatModal(null)}
+        tasks={approvalTasksAll}
+      />
+      <OverdueViewModal
+        isOpen={activeStatModal === "overdue"}
+        onClose={() => setActiveStatModal(null)}
+        tasks={overdueTasksAll}
       />
     </Layout>
   );
