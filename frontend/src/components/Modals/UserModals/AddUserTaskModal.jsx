@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import {
   TASK_PROGRAMS,
-  TASK_STATUSES,
   createTask,
   listAssignableProfiles,
 } from "../../../utils/task";
@@ -14,7 +13,6 @@ const buildInitialForm = (currentUserId) => ({
   deadline: "",
   responsibleId: currentUserId ? [String(currentUserId)] : [],
   program: "GIA",
-  status: "pending",
   isPriority: false,
   remarks: "",
 });
@@ -82,7 +80,6 @@ const AddUserTaskModal = ({ isOpen, onClose, onSuccess, currentUserId }) => {
       deadline,
       responsibleId,
       program,
-      status,
       isPriority,
       remarks,
     } = form;
@@ -116,7 +113,7 @@ const AddUserTaskModal = ({ isOpen, onClose, onSuccess, currentUserId }) => {
       deadline,
       responsibleId,
       program,
-      status,
+      status: "pending",
       isPriority,
       remarks,
     });
@@ -316,28 +313,6 @@ const AddUserTaskModal = ({ isOpen, onClose, onSuccess, currentUserId }) => {
               <p className="mt-1 text-xs text-slate-500">
                 You are selected by default. Add others if needed.
               </p>
-            </div>
-
-            <div>
-              <label
-                htmlFor="user-modal-task-status"
-                className="mb-1.5 block text-sm font-medium text-slate-700"
-              >
-                Status
-              </label>
-              <select
-                id="user-modal-task-status"
-                required
-                value={form.status}
-                onChange={setField("status")}
-                className={inputClass}
-              >
-                {TASK_STATUSES.map(({ value, label }) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
             </div>
 
             <div className="flex items-end sm:col-span-2">
