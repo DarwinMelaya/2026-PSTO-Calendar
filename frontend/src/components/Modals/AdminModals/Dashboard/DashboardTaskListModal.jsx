@@ -26,6 +26,8 @@ const DashboardTaskListModal = ({
   tasks,
   emptyMessage,
   modalId = "dashboard-task-list-modal",
+  renderActions,
+  getItemKey = (t) => String(t.id),
 }) => {
   if (!isOpen) return null;
 
@@ -75,6 +77,14 @@ const DashboardTaskListModal = ({
           ) : (
             <ul className="space-y-3">
               {tasks.map((t) => {
+                const assigneeLabels =
+                  t.responsibleLabels?.length > 0
+                    ? t.responsibleLabels
+                    : [
+                        t.profile?.code_name ??
+                          t.profiles?.code_name ??
+                          "—",
+                      ];
                 const withDeadline = hasDeadline(t.deadline);
                 const deadlineDate = withDeadline
                   ? new Date(`${t.deadline}T00:00:00`)
@@ -88,7 +98,7 @@ const DashboardTaskListModal = ({
 
                 return (
                   <li
-                    key={t.id}
+                    key={getItemKey(t)}
                     className="rounded-2xl border border-slate-200/90 bg-slate-50/50 p-4"
                   >
                     <div className="flex flex-wrap items-start justify-between gap-3">
@@ -100,9 +110,14 @@ const DashboardTaskListModal = ({
                         ) : null}
                         <p className="font-semibold text-slate-900">{t.agenda}</p>
                         <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                          <span className="inline-flex items-center rounded-lg bg-white px-2 py-0.5 text-xs font-semibold text-slate-800 ring-1 ring-inset ring-slate-900/5">
-                            {t.profile?.code_name ?? t.profiles?.code_name ?? "—"}
-                          </span>
+                          {assigneeLabels.map((label, idx) => (
+                            <span
+                              key={`${label}-${idx}`}
+                              className="inline-flex items-center rounded-lg bg-white px-2 py-0.5 text-xs font-semibold text-slate-800 ring-1 ring-inset ring-slate-900/5"
+                            >
+                              {label}
+                            </span>
+                          ))}
                           <span>•</span>
                           <span>{formatDate(t.task_date)}</span>
                         </p>
@@ -132,6 +147,11 @@ const DashboardTaskListModal = ({
                           </span>
                         ) : null}
                       </p>
+                    ) : null}
+                    {renderActions ? (
+                      <div className="mt-3 flex flex-wrap justify-end gap-2 border-t border-slate-200/80 pt-3">
+                        {renderActions(t)}
+                      </div>
                     ) : null}
                   </li>
                 );

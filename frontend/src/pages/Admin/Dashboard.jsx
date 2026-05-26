@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { NavLink } from "react-router-dom";
 import Layout from "../../components/Layout/Layout";
 import ApprovalViewModal from "../../components/Modals/AdminModals/Dashboard/ApprovalViewModal";
 import CompletedViewModal from "../../components/Modals/AdminModals/Dashboard/CompletedViewModal";
@@ -11,7 +10,6 @@ import OwnerOpenTasksModal from "../../components/Modals/AdminModals/OwnerOpenTa
 import PriorityBadge from "../../components/Task/PriorityBadge";
 import { listProfiles } from "../../utils/profile";
 import {
-  formatTaskDeadline,
   isTaskPriority,
   listTasks,
   parseTaskRemarks,
@@ -355,34 +353,6 @@ const Dashboard = ({ readOnly = false }) => {
       });
   }, [enrichedTasks, selectedOwnerId]);
 
-  const priorityTasks = useMemo(() => {
-    const seen = new Set();
-    const list = [];
-
-    for (const t of enrichedTasks) {
-      if (!isTaskPriority(t) || t.status === "completed") continue;
-      const key = t.groupKey || `single-${t.id}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      list.push(t);
-    }
-
-    return list
-      .sort((a, b) => {
-        const aDeadline = a.deadline
-          ? new Date(`${a.deadline}T00:00:00`).getTime()
-          : Infinity;
-        const bDeadline = b.deadline
-          ? new Date(`${b.deadline}T00:00:00`).getTime()
-          : Infinity;
-        if (aDeadline !== bDeadline) return aDeadline - bDeadline;
-        const aCreated = a.created_at ? new Date(a.created_at).getTime() : 0;
-        const bCreated = b.created_at ? new Date(b.created_at).getTime() : 0;
-        return bCreated - aCreated;
-      })
-      .slice(0, 8);
-  }, [enrichedTasks]);
-
   const isOverdueTask = useCallback((t) => {
     if (t.status === "completed" || !t.deadline) return false;
     const deadline = new Date(`${t.deadline}T00:00:00`);
@@ -553,74 +523,6 @@ const Dashboard = ({ readOnly = false }) => {
             onClick={loading ? undefined : () => setActiveStatModal("overdue")}
           />
         </div>
-
-        <section className="overflow-hidden rounded-3xl border border-rose-200/80 bg-white shadow-xl shadow-rose-100/30 ring-1 ring-rose-900/[0.04]">
-          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-rose-100 bg-gradient-to-r from-rose-50/90 to-white px-5 py-4">
-            <div>
-              <h2 className="text-lg font-semibold text-slate-900">
-                Priority tasks
-              </h2>
-              <p className="mt-0.5 text-sm text-slate-500">
-                {loading
-                  ? "Loading…"
-                  : `${priorityTasks.length} open shown · ${overview.priorityOpen} total open priority`}
-              </p>
-            </div>
-            {!readOnly && !loading && overview.priority > 0 ? (
-              <NavLink
-                to="/admin-add-task"
-                className="inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-900 transition hover:bg-rose-100"
-              >
-                Manage in Tasks
-              </NavLink>
-            ) : null}
-          </div>
-          <div className="space-y-3 p-5">
-            {loading ? (
-              <p className="text-sm text-slate-500">Loading…</p>
-            ) : priorityTasks.length === 0 ? (
-              <p className="text-sm text-slate-500">
-                No open priority tasks. Mark tasks as priority from the Tasks
-                page.
-              </p>
-            ) : (
-              priorityTasks.map((t) => (
-                <div
-                  key={t.groupKey || t.id}
-                  className="rounded-2xl border border-rose-200/90 bg-rose-50/30 p-4 shadow-sm"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <PriorityBadge />
-                        <span className="inline-flex rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-800 ring-1 ring-inset ring-slate-900/5">
-                          {statusLabel(t.status)}
-                        </span>
-                      </div>
-                      <p className="mt-2 truncate font-semibold text-slate-900">
-                        {t.agenda}
-                      </p>
-                      <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                        <span className="inline-flex items-center rounded-lg bg-white px-2 py-0.5 text-xs font-semibold text-slate-800 ring-1 ring-inset ring-slate-900/5">
-                          {t.profile?.code_name ?? t.profiles?.code_name ?? "—"}
-                        </span>
-                        <span>•</span>
-                        <span>{formatDate(t.task_date)}</span>
-                        <span>•</span>
-                        <span className="font-medium">
-                          {formatTaskDeadline(t.deadline)}
-                        </span>
-                      </p>
-                    </div>
-                  </div>
-                  <p className="mt-3 line-clamp-2 text-sm text-slate-600">
-                    {t.activities || "—"}
-                  </p>
-                </div>
-              ))
-            )}
-          </div>
-        </section>
 
         <div className="grid gap-6 lg:grid-cols-3">
           <section className="lg:col-span-3 overflow-hidden rounded-3xl border border-slate-200/90 bg-white shadow-xl shadow-slate-200/40 ring-1 ring-slate-900/[0.04]">
@@ -878,6 +780,8 @@ const Dashboard = ({ readOnly = false }) => {
         isOpen={activeStatModal === "approval"}
         onClose={() => setActiveStatModal(null)}
         tasks={approvalTasksAll}
+        onRefresh={load}
+        readOnly={readOnly}
       />
       <OverdueViewModal
         isOpen={activeStatModal === "overdue"}
