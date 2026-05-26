@@ -160,6 +160,8 @@ const DATE_PERIODS = [
   { value: "month", label: "Month" },
 ];
 
+const TASKS_PAGE_SIZE = 10;
+
 const statusBadgeClass = (status) => {
   switch (status) {
     case "completed":
@@ -242,6 +244,7 @@ const AddTask = () => {
   const [deletingId, setDeletingId] = useState(null);
   const [resolvingRequestId, setResolvingRequestId] = useState(null);
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
+  const [tablePage, setTablePage] = useState(1);
 
   const loadTasks = useCallback(async () => {
     setLoadingTasks(true);
@@ -391,6 +394,35 @@ const AddTask = () => {
     });
     return filtered.sort(compareGroupsNewestFirst);
   }, [filters, groupedTasks, dateRange]);
+
+  const tablePageCount = Math.max(
+    1,
+    Math.ceil(filteredGroupedTasks.length / TASKS_PAGE_SIZE),
+  );
+
+  const paginatedGroupedTasks = useMemo(() => {
+    const start = (tablePage - 1) * TASKS_PAGE_SIZE;
+    return filteredGroupedTasks.slice(start, start + TASKS_PAGE_SIZE);
+  }, [filteredGroupedTasks, tablePage]);
+
+  useEffect(() => {
+    setTablePage(1);
+  }, [filters]);
+
+  useEffect(() => {
+    if (tablePage > tablePageCount) {
+      setTablePage(tablePageCount);
+    }
+  }, [tablePage, tablePageCount]);
+
+  const tableRangeStart =
+    filteredGroupedTasks.length === 0
+      ? 0
+      : (tablePage - 1) * TASKS_PAGE_SIZE + 1;
+  const tableRangeEnd = Math.min(
+    tablePage * TASKS_PAGE_SIZE,
+    filteredGroupedTasks.length,
+  );
 
   const shiftAnchorDate = (direction) => {
     const anchor = parseDateOnly(filters.anchorDate) ?? new Date();
@@ -1229,7 +1261,7 @@ const AddTask = () => {
                     </td>
                   </tr>
                 ) : (
-                  filteredGroupedTasks.map((task) => (
+                  paginatedGroupedTasks.map((task) => (
                     <tr
                       key={task.groupKey || task.id}
                       className={`transition-colors hover:bg-slate-50/90 ${
@@ -1361,6 +1393,44 @@ const AddTask = () => {
               </tbody>
             </table>
           </div>
+
+          {!loadingTasks && filteredGroupedTasks.length > 0 ? (
+            <div className="flex flex-col gap-3 border-t border-slate-100 bg-slate-50/50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+              <p className="text-sm text-slate-600">
+                Showing{" "}
+                <span className="font-semibold text-slate-900">
+                  {tableRangeStart}–{tableRangeEnd}
+                </span>{" "}
+                of{" "}
+                <span className="font-semibold text-slate-900">
+                  {filteredGroupedTasks.length}
+                </span>
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setTablePage((p) => Math.max(1, p - 1))}
+                  disabled={tablePage <= 1}
+                  className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Previous
+                </button>
+                <span className="px-2 text-sm font-medium text-slate-600">
+                  Page {tablePage} of {tablePageCount}
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setTablePage((p) => Math.min(tablePageCount, p + 1))
+                  }
+                  disabled={tablePage >= tablePageCount}
+                  className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          ) : null}
         </section>
       </div>
 
