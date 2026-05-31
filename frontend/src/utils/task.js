@@ -318,18 +318,40 @@ export const deleteTask = async (id) => {
   return { error };
 };
 
+export const updateTaskRemarks = async (id, { cleanRemarks, existingRemarks }) => {
+  const meta = parseTaskRemarks(existingRemarks);
+  const { data, error } = await supabase
+    .from("tasks")
+    .update({
+      remarks: composeTaskRemarks({
+        remarks: cleanRemarks,
+        requestedStatus: meta.requestedStatus,
+        groupKey: meta.groupKey,
+        completedAt: meta.completedAt,
+      }),
+    })
+    .eq("id", id)
+    .select(
+      "id, task_date, agenda, activities, deadline, status, program, is_priority, remarks, created_at, responsible_id",
+    )
+    .single();
+
+  return { data, error };
+};
+
 export const requestTaskStatusChange = async (
   id,
-  { requestedStatus, remarks, groupKey },
+  { requestedStatus, remarks, groupKey, existingRemarks },
 ) => {
+  const existingMeta = parseTaskRemarks(existingRemarks ?? remarks);
   const { data, error } = await supabase
     .from("tasks")
     .update({
       remarks: composeTaskRemarks({
         remarks,
         requestedStatus,
-        groupKey,
-        completedAt: parseTaskRemarks(remarks).completedAt,
+        groupKey: groupKey ?? existingMeta.groupKey,
+        completedAt: existingMeta.completedAt,
       }),
     })
     .eq("id", id)

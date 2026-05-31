@@ -346,7 +346,7 @@ const AddUserTaskModal = ({ isOpen, onClose, onSuccess, currentUserId }) => {
                 rows={2}
                 value={form.remarks}
                 onChange={setField("remarks")}
-                placeholder="Optional remarks"
+                placeholder="What you plan to do or initial notes for admin"
                 className={inputClass}
               />
             </div>

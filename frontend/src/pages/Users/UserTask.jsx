@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import Layout from "../../components/Layout/Layout";
+import ViewTaskModal from "../../components/Modals/AdminModals/ViewTaskModal";
 import AddUserTaskModal from "../../components/Modals/UserModals/AddUserTaskModal";
 import { getSession } from "../../utils/session";
 import {
@@ -9,6 +10,7 @@ import {
   listTasksForUser,
   parseTaskRemarks,
   requestTaskStatusChange,
+  updateTaskRemarks,
 } from "../../utils/task";
 
 const formatDate = (value) => {
@@ -62,8 +64,11 @@ const UserTask = () => {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [requestDrafts, setRequestDrafts] = useState({});
+  const [remarksDrafts, setRemarksDrafts] = useState({});
   const [requestingId, setRequestingId] = useState(null);
+  const [savingRemarksId, setSavingRemarksId] = useState(null);
   const [addModalOpen, setAddModalOpen] = useState(false);
+  const [taskToView, setTaskToView] = useState(null);
 
   const loadTasks = useCallback(async () => {
     if (!session?.id) {
@@ -113,10 +118,57 @@ const UserTask = () => {
 
   const codeName = session?.code_name?.trim();
 
+  const remarksForTask = (task) => {
+    const saved = parseTaskRemarks(task.remarks).cleanRemarks;
+    return remarksDrafts[task.id] ?? saved;
+  };
+
+  const taskForView = (task) => {
+    const meta = parseTaskRemarks(task.remarks);
+    return {
+      ...task,
+      cleanRemarks: remarksForTask(task).trim() || meta.cleanRemarks,
+      requestedStatus: meta.requestedStatus,
+      responsibleLabels: codeName ? [codeName] : ["—"],
+    };
+  };
+
+  const handleSaveRemarks = async (task) => {
+    const cleanRemarks = remarksForTask(task).trim();
+    const saved = parseTaskRemarks(task.remarks).cleanRemarks.trim();
+
+    if (cleanRemarks === saved) {
+      toast.error("No changes to save.");
+      return;
+    }
+
+    setSavingRemarksId(task.id);
+    const { error } = await updateTaskRemarks(task.id, {
+      cleanRemarks,
+      existingRemarks: task.remarks,
+    });
+    setSavingRemarksId(null);
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    toast.success("Remarks saved. Admin can see your update.");
+    setRemarksDrafts((prev) => {
+      const next = { ...prev };
+      delete next[task.id];
+      return next;
+    });
+    loadTasks();
+  };
+
   const handleRequestStatus = async (task) => {
-    const { requestedStatus: pendingRequest } = parseTaskRemarks(task.remarks);
+    const meta = parseTaskRemarks(task.remarks);
+    const { requestedStatus: pendingRequest } = meta;
     const selectedStatus =
       requestDrafts[task.id] ?? pendingRequest ?? task.status;
+    const cleanRemarks = remarksForTask(task).trim();
 
     if (!selectedStatus) {
       toast.error("Please choose a status.");
@@ -131,7 +183,9 @@ const UserTask = () => {
     setRequestingId(task.id);
     const { error } = await requestTaskStatusChange(task.id, {
       requestedStatus: selectedStatus,
-      remarks: task.remarks,
+      remarks: cleanRemarks,
+      groupKey: meta.groupKey,
+      existingRemarks: task.remarks,
     });
     setRequestingId(null);
 
@@ -145,6 +199,11 @@ const UserTask = () => {
         ? "Status request updated. Awaiting admin approval."
         : "Status change request sent for admin approval.",
     );
+    setRemarksDrafts((prev) => {
+      const next = { ...prev };
+      delete next[task.id];
+      return next;
+    });
     loadTasks();
   };
 
@@ -233,7 +292,7 @@ const UserTask = () => {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[880px] text-left text-sm">
+            <table className="w-full min-w-[1020px] text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/80">
                   <th className="whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500 sm:px-6">
@@ -335,9 +394,21 @@ const UserTask = () => {
                         </div>
                       </td>
                       <td className="max-w-[240px] px-5 py-4 text-slate-600 sm:px-6">
-                        <span className="line-clamp-2" title={task.activities}>
-                          {task.activities}
-                        </span>
+                        <div className="flex flex-col gap-2">
+                          <span
+                            className="line-clamp-2"
+                            title={task.activities}
+                          >
+                            {task.activities || "—"}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setTaskToView(taskForView(task))}
+                            className="w-fit rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-blue-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+                          >
+                            View
+                          </button>
+                        </div>
                       </td>
                       <td className="whitespace-nowrap px-5 py-4 text-slate-800 sm:px-6">
                         {formatDate(task.deadline)}
@@ -349,13 +420,38 @@ const UserTask = () => {
                           {statusLabel(task.status)}
                         </span>
                       </td>
-                      <td className="max-w-[220px] px-5 py-4 text-slate-600 sm:px-6">
-                        <span
-                          className="line-clamp-2"
-                          title={parseTaskRemarks(task.remarks).cleanRemarks}
-                        >
-                          {parseTaskRemarks(task.remarks).cleanRemarks || "—"}
-                        </span>
+                      <td className="min-w-[220px] max-w-[280px] px-5 py-4 sm:px-6">
+                        <div className="space-y-2">
+                          <textarea
+                            rows={2}
+                            value={remarksForTask(task)}
+                            onChange={(e) =>
+                              setRemarksDrafts((prev) => ({
+                                ...prev,
+                                [task.id]: e.target.value,
+                              }))
+                            }
+                            disabled={
+                              savingRemarksId === task.id ||
+                              requestingId === task.id
+                            }
+                            placeholder="What you accomplished, progress notes…"
+                            className="w-full resize-y rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleSaveRemarks(task)}
+                            disabled={
+                              savingRemarksId === task.id ||
+                              requestingId === task.id
+                            }
+                            className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {savingRemarksId === task.id
+                              ? "Saving..."
+                              : "Save remarks"}
+                          </button>
+                        </div>
                       </td>
                       <td className="whitespace-nowrap px-5 py-4 text-right sm:px-6">
                         <div className="flex items-center justify-end gap-2">
@@ -414,6 +510,12 @@ const UserTask = () => {
         onClose={() => setAddModalOpen(false)}
         onSuccess={loadTasks}
         currentUserId={session?.id}
+      />
+
+      <ViewTaskModal
+        isOpen={!!taskToView}
+        task={taskToView}
+        onClose={() => setTaskToView(null)}
       />
     </Layout>
   );
