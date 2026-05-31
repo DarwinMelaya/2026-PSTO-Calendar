@@ -1,12 +1,22 @@
-import DashboardTaskListModal from "./DashboardTaskListModal";
+import DashboardTaskListWithActions from "./DashboardTaskListWithActions";
 
-const OverdueViewModal = ({ isOpen, onClose, tasks }) => (
-  <DashboardTaskListModal
+const OverdueViewModal = ({
+  isOpen,
+  onClose,
+  tasks,
+  onRefresh,
+  readOnly = false,
+}) => (
+  <DashboardTaskListWithActions
     isOpen={isOpen}
     onClose={onClose}
     tasks={tasks}
+    onRefresh={onRefresh}
+    readOnly={readOnly}
     title="Overdue tasks"
-    subtitle={`${tasks.length} not completed · past due date`}
+    getSubtitle={(grouped) =>
+      `${grouped.length} not completed · past due date`
+    }
     emptyMessage="No overdue tasks."
     modalId="overdue-tasks-modal"
   />

@@ -1,12 +1,20 @@
-import DashboardTaskListModal from "./DashboardTaskListModal";
+import DashboardTaskListWithActions from "./DashboardTaskListWithActions";
 
-const CompletedViewModal = ({ isOpen, onClose, tasks }) => (
-  <DashboardTaskListModal
+const CompletedViewModal = ({
+  isOpen,
+  onClose,
+  tasks,
+  onRefresh,
+  readOnly = false,
+}) => (
+  <DashboardTaskListWithActions
     isOpen={isOpen}
     onClose={onClose}
     tasks={tasks}
+    onRefresh={onRefresh}
+    readOnly={readOnly}
     title="Completed tasks"
-    subtitle={`${tasks.length} completed`}
+    getSubtitle={(grouped) => `${grouped.length} completed`}
     emptyMessage="No completed tasks yet."
     modalId="completed-tasks-modal"
   />

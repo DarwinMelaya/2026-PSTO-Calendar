@@ -765,16 +765,22 @@ const Dashboard = ({ readOnly = false }) => {
         isOpen={activeStatModal === "total"}
         onClose={() => setActiveStatModal(null)}
         tasks={allTasksSorted}
+        onRefresh={load}
+        readOnly={readOnly}
       />
       <PriorityViewModal
         isOpen={activeStatModal === "priority"}
         onClose={() => setActiveStatModal(null)}
         tasks={priorityTasksAll}
+        onRefresh={load}
+        readOnly={readOnly}
       />
       <CompletedViewModal
         isOpen={activeStatModal === "completed"}
         onClose={() => setActiveStatModal(null)}
         tasks={completedTasksAll}
+        onRefresh={load}
+        readOnly={readOnly}
       />
       <ApprovalViewModal
         isOpen={activeStatModal === "approval"}
@@ -787,6 +793,8 @@ const Dashboard = ({ readOnly = false }) => {
         isOpen={activeStatModal === "overdue"}
         onClose={() => setActiveStatModal(null)}
         tasks={overdueTasksAll}
+        onRefresh={load}
+        readOnly={readOnly}
       />
     </Layout>
   );

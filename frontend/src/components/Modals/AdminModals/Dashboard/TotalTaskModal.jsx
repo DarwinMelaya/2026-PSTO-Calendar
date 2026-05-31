@@ -1,12 +1,22 @@
-import DashboardTaskListModal from "./DashboardTaskListModal";
+import DashboardTaskListWithActions from "./DashboardTaskListWithActions";
 
-const TotalTaskModal = ({ isOpen, onClose, tasks }) => (
-  <DashboardTaskListModal
+const TotalTaskModal = ({
+  isOpen,
+  onClose,
+  tasks,
+  onRefresh,
+  readOnly = false,
+}) => (
+  <DashboardTaskListWithActions
     isOpen={isOpen}
     onClose={onClose}
     tasks={tasks}
+    onRefresh={onRefresh}
+    readOnly={readOnly}
     title="Total tasks"
-    subtitle={`${tasks.length} task${tasks.length === 1 ? "" : "s"}`}
+    getSubtitle={(grouped) =>
+      `${grouped.length} task${grouped.length === 1 ? "" : "s"}`
+    }
     emptyMessage="No tasks yet."
     modalId="total-tasks-modal"
   />
