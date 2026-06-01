@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import AddTaskModal from "../../components/Modals/AdminModals/AddTaskModal";
 import EditTaskModal from "../../components/Modals/AdminModals/EditTaskModal";
+import OwnerOpenTasksModal from "../../components/Modals/AdminModals/OwnerOpenTasksModal";
 import ViewTaskModal from "../../components/Modals/AdminModals/ViewTaskModal";
 import Layout from "../../components/Layout/Layout";
 import PriorityBadge from "../../components/Task/PriorityBadge";
@@ -200,13 +201,21 @@ function StatCard({ label, value, accent }) {
   );
 }
 
-function OwnerProgressCard({ label, completed, total }) {
+function OwnerProgressCard({ label, completed, total, selected, onClick }) {
   const safeTotal = Math.max(0, Number(total) || 0);
   const safeCompleted = clamp(Number(completed) || 0, 0, safeTotal || 0);
   const pct = safeTotal > 0 ? Math.round((safeCompleted / safeTotal) * 100) : 0;
 
   return (
-    <div className="min-w-0 rounded-2xl border border-slate-200/90 bg-white p-4 shadow-sm">
+    <button
+      type="button"
+      onClick={onClick}
+      className={`min-w-0 rounded-2xl border p-4 text-left shadow-sm transition hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 ${
+        selected
+          ? "border-blue-300 bg-blue-50/50 ring-2 ring-blue-500/20"
+          : "border-slate-200/90 bg-white hover:border-slate-300"
+      }`}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-slate-900">
@@ -230,7 +239,7 @@ function OwnerProgressCard({ label, completed, total }) {
           style={{ width: `${pct}%` }}
         />
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -245,6 +254,7 @@ const AddTask = () => {
   const [resolvingRequestId, setResolvingRequestId] = useState(null);
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [tablePage, setTablePage] = useState(1);
+  const [selectedOwnerId, setSelectedOwnerId] = useState(null);
 
   const loadTasks = useCallback(async () => {
     setLoadingTasks(true);
@@ -320,6 +330,33 @@ const AddTask = () => {
       })
       .slice(0, 12);
   }, [tasks]);
+
+  const selectedOwner = useMemo(
+    () => ownerProgress.find((o) => o.id === selectedOwnerId) ?? null,
+    [ownerProgress, selectedOwnerId],
+  );
+
+  const incompleteTasksForOwner = useMemo(() => {
+    if (!selectedOwnerId) return [];
+    return (tasks ?? [])
+      .filter(
+        (t) =>
+          String(t?.responsible_id) === String(selectedOwnerId) &&
+          t?.status !== "completed",
+      )
+      .sort((a, b) => {
+        const priA = isTaskPriority(a) ? 1 : 0;
+        const priB = isTaskPriority(b) ? 1 : 0;
+        if (priB !== priA) return priB - priA;
+        const aDate = a.deadline
+          ? new Date(`${a.deadline}T00:00:00`).getTime()
+          : Infinity;
+        const bDate = b.deadline
+          ? new Date(`${b.deadline}T00:00:00`).getTime()
+          : Infinity;
+        return aDate - bDate;
+      });
+  }, [tasks, selectedOwnerId]);
 
   const assigneeOptions = useMemo(() => {
     const labels = new Set();
@@ -572,7 +609,7 @@ const AddTask = () => {
               <p className="mt-0.5 text-sm text-slate-500">
                 {loadingTasks
                   ? "Loading…"
-                  : "Completed tasks per owner (deadline-based list)"}
+                  : "Click an owner to view open (not completed) tasks"}
               </p>
             </div>
             {!loadingTasks && ownerProgress.length > 0 ? (
@@ -597,6 +634,8 @@ const AddTask = () => {
                     label={o.label}
                     completed={o.completed}
                     total={o.total}
+                    selected={String(selectedOwnerId) === String(o.id)}
+                    onClick={() => setSelectedOwnerId(o.id)}
                   />
                 ))}
               </div>
@@ -1235,6 +1274,14 @@ const AddTask = () => {
         isOpen={!!taskToView}
         task={taskToView}
         onClose={() => setTaskToView(null)}
+      />
+
+      <OwnerOpenTasksModal
+        isOpen={!!selectedOwnerId}
+        onClose={() => setSelectedOwnerId(null)}
+        ownerLabel={selectedOwner?.label}
+        tasks={incompleteTasksForOwner}
+        onRefresh={loadTasks}
       />
     </Layout>
   );

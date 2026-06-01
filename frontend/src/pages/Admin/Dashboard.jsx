@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { FiRefreshCw, FiSearch, FiX } from "react-icons/fi";
 import toast from "react-hot-toast";
 import Layout from "../../components/Layout/Layout";
 import ApprovalViewModal from "../../components/Modals/AdminModals/Dashboard/ApprovalViewModal";
@@ -500,20 +501,10 @@ const Dashboard = ({ readOnly = false }) => {
                 placeholder="Search tasks, owners, status, dates..."
                 className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-9 text-sm text-slate-700 shadow-sm outline-none transition focus:border-blue-300 focus:ring-2 focus:ring-blue-500/20"
               />
-              <svg
+              <FiSearch
                 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={2}
-                stroke="currentColor"
                 aria-hidden
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="m21 21-4.35-4.35m1.85-5.15a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z"
-                />
-              </svg>
+              />
               {searchQuery ? (
                 <button
                   type="button"
@@ -521,7 +512,7 @@ const Dashboard = ({ readOnly = false }) => {
                   className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
                   aria-label="Clear search"
                 >
-                  <span className="text-base leading-none">&times;</span>
+                  <FiX className="h-4 w-4" aria-hidden />
                 </button>
               ) : null}
             </label>
@@ -536,20 +527,10 @@ const Dashboard = ({ readOnly = false }) => {
               className="group relative inline-flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:bg-slate-50 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 sm:w-auto"
             >
               <span className="pointer-events-none absolute inset-x-6 -bottom-6 h-8 rounded-full bg-blue-300/35 blur-xl opacity-0 transition duration-300 group-hover:opacity-100" />
-              <svg
+              <FiRefreshCw
                 className={`h-5 w-5 ${loading ? "animate-spin text-blue-600" : "text-slate-500"}`}
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={2}
-                stroke="currentColor"
                 aria-hidden
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
-                />
-              </svg>
+              />
               Refresh
             </button>
           </div>
