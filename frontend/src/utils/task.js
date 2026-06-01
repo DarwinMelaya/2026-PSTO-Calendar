@@ -28,6 +28,81 @@ const TASK_GROUP_PREFIX = "[[TASK_GROUP:";
 const TASK_GROUP_SUFFIX = "]]";
 const COMPLETED_AT_PREFIX = "[[COMPLETED_AT:";
 const COMPLETED_AT_SUFFIX = "]]";
+const SUB_TASKS_PREFIX = "[[SUB_TASKS:";
+const SUB_TASKS_SUFFIX = "]]";
+
+export const emptySubTask = () => ({ title: "", remarks: "" });
+
+export const normalizeSubTasks = (subTasks) => {
+  if (!Array.isArray(subTasks)) return [];
+  return subTasks
+    .map((item) => ({
+      title: typeof item?.title === "string" ? item.title.trim() : "",
+      remarks: typeof item?.remarks === "string" ? item.remarks.trim() : "",
+    }))
+    .filter((item) => item.title || item.remarks);
+};
+
+export const parseTaskActivities = (activities) => {
+  const raw = (activities ?? "").trim();
+  if (!raw) {
+    return { cleanActivities: "", subTasks: [] };
+  }
+
+  const lines = raw.split("\n");
+  let subTasks = [];
+  const cleanLines = [];
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (
+      trimmed.startsWith(SUB_TASKS_PREFIX) &&
+      trimmed.endsWith(SUB_TASKS_SUFFIX)
+    ) {
+      const payload = trimmed.slice(
+        SUB_TASKS_PREFIX.length,
+        trimmed.length - SUB_TASKS_SUFFIX.length,
+      );
+      try {
+        const parsed = JSON.parse(payload);
+        if (Array.isArray(parsed)) {
+          subTasks = normalizeSubTasks(parsed);
+        }
+      } catch {
+        // ignore malformed marker
+      }
+      continue;
+    }
+    cleanLines.push(line);
+  }
+
+  return {
+    cleanActivities: cleanLines.join("\n").trim(),
+    subTasks,
+  };
+};
+
+const composeTaskActivities = ({ activities, subTasks }) => {
+  const { cleanActivities } = parseTaskActivities(activities);
+  const normalizedSubTasks = normalizeSubTasks(subTasks);
+  const marker =
+    normalizedSubTasks.length > 0
+      ? `${SUB_TASKS_PREFIX}${JSON.stringify(normalizedSubTasks)}${SUB_TASKS_SUFFIX}`
+      : "";
+
+  const parts = [cleanActivities, marker].filter(Boolean);
+  return parts.length > 0 ? parts.join("\n") : "";
+};
+
+export const formatActivitiesPreview = (activities) => {
+  const { cleanActivities, subTasks } = parseTaskActivities(activities);
+  const subLines = subTasks.map((item, index) => {
+    const title = item.title || `Sub-task ${index + 1}`;
+    return item.remarks ? `${title} — ${item.remarks}` : title;
+  });
+  const parts = [cleanActivities, ...subLines].filter(Boolean);
+  return parts.join("\n");
+};
 
 export const parseTaskRemarks = (remarks) => {
   const raw = (remarks ?? "").trim();
@@ -137,8 +212,8 @@ export const resolveDeadlineForDb = (deadline) => {
   return NO_DEADLINE;
 };
 
-export const normalizeActivities = (activities) =>
-  typeof activities === "string" ? activities.trim() : "";
+export const normalizeActivities = (activities, subTasks) =>
+  composeTaskActivities({ activities, subTasks });
 
 export const deadlineForForm = (value) => (hasDeadline(value) ? value : "");
 
@@ -155,6 +230,7 @@ export const createTask = async ({
   taskDate,
   agenda,
   activities,
+  subTasks,
   deadline,
   responsibleId,
   status,
@@ -184,7 +260,7 @@ export const createTask = async ({
       responsibleIds.map((id) => ({
         task_date: taskDate,
         agenda: agenda.trim(),
-        activities: normalizeActivities(activities),
+        activities: normalizeActivities(activities, subTasks),
         deadline: resolvedDeadline,
         responsible_id: id,
         status,
@@ -206,6 +282,7 @@ export const updateTask = async (
     taskDate,
     agenda,
     activities,
+    subTasks,
     deadline,
     responsibleId,
     status,
@@ -242,7 +319,7 @@ export const updateTask = async (
   const basePayload = {
     task_date: taskDate,
     agenda: agenda.trim(),
-    activities: normalizeActivities(activities),
+    activities: normalizeActivities(activities, subTasks),
     deadline: resolvedDeadline,
     status,
     program: program || "Other",

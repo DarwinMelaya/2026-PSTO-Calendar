@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
+import SubTasksField from "../../Task/SubTasksField";
 import {
   TASK_STATUSES,
   deadlineForForm,
   listAssignableProfiles,
+  normalizeSubTasks,
+  parseTaskActivities,
   updateTask,
 } from "../../../utils/task";
 
@@ -20,6 +23,7 @@ const initialForm = {
   taskDate: "",
   agenda: "",
   activities: "",
+  subTasks: [],
   deadline: "",
   responsibleId: [],
   program: "GIA",
@@ -33,10 +37,12 @@ const inputClass =
 
 function taskToForm(task) {
   if (!task) return initialForm;
+  const { cleanActivities, subTasks } = parseTaskActivities(task.activities);
   return {
     taskDate: task.task_date ?? "",
     agenda: task.agenda ?? "",
-    activities: task.activities ?? "",
+    activities: cleanActivities,
+    subTasks,
     deadline: deadlineForForm(task.deadline),
     responsibleId: Array.isArray(task.responsible_ids)
       ? task.responsible_ids.map((id) => String(id))
@@ -125,6 +131,7 @@ const EditTaskModal = ({ isOpen, onClose, onSuccess, task }) => {
       taskDate,
       agenda,
       activities,
+      subTasks,
       deadline,
       responsibleId,
       program,
@@ -154,6 +161,7 @@ const EditTaskModal = ({ isOpen, onClose, onSuccess, task }) => {
       taskDate,
       agenda,
       activities,
+      subTasks: normalizeSubTasks(subTasks),
       deadline,
       responsibleId,
       program,
@@ -314,8 +322,22 @@ const EditTaskModal = ({ isOpen, onClose, onSuccess, task }) => {
                 rows={3}
                 value={form.activities}
                 onChange={setField("activities")}
-                placeholder="Describe the activities"
+                placeholder="General activity notes (optional)"
                 className={inputClass}
+              />
+            </div>
+
+            <div className="sm:col-span-2">
+              <p className="mb-1.5 block text-sm font-medium text-slate-700">
+                Sub-tasks{" "}
+                <span className="font-normal text-slate-400">(optional)</span>
+              </p>
+              <SubTasksField
+                subTasks={form.subTasks}
+                onChange={(subTasks) =>
+                  setForm((prev) => ({ ...prev, subTasks }))
+                }
+                disabled={submitting}
               />
             </div>
 

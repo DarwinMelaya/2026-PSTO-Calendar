@@ -14,6 +14,8 @@ import {
   hasDeadline,
   isTaskPriority,
   listTasks,
+  formatActivitiesPreview,
+  parseTaskActivities,
   parseTaskRemarks,
   rejectTaskStatusRequest,
   taskProgramLabel,
@@ -269,8 +271,11 @@ const AddTask = () => {
       );
       const key = groupKey || `single-${task.id}`;
       const current = groups.get(key);
+      const { cleanActivities, subTasks } = parseTaskActivities(task.activities);
       const normalizedTask = {
         ...task,
+        cleanActivities,
+        subTasks,
         cleanRemarks,
         requestedStatus,
         groupKey,
@@ -378,7 +383,8 @@ const AddTask = () => {
 
       const haystack = [
         task.agenda,
-        task.activities,
+        task.cleanActivities,
+        ...(task.subTasks ?? []).flatMap((st) => [st.title, st.remarks]),
         task.cleanRemarks,
         task.program,
         taskProgramLabel(task.program),
@@ -1064,10 +1070,16 @@ const AddTask = () => {
                         <div className="flex flex-col gap-2">
                           <span
                             className="line-clamp-2"
-                            title={task.activities}
+                            title={formatActivitiesPreview(task.activities)}
                           >
-                            {task.activities || "—"}
+                            {formatActivitiesPreview(task.activities) || "—"}
                           </span>
+                          {(task.subTasks?.length ?? 0) > 0 ? (
+                            <span className="w-fit rounded-md bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-800 ring-1 ring-inset ring-indigo-600/15">
+                              {task.subTasks.length} sub-task
+                              {task.subTasks.length === 1 ? "" : "s"}
+                            </span>
+                          ) : null}
                           <button
                             type="button"
                             onClick={() => setTaskToView(task)}

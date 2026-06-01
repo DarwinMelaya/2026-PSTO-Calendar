@@ -2,6 +2,7 @@ import {
   TASK_STATUSES,
   formatTaskDeadline,
   isTaskPriority,
+  parseTaskActivities,
   taskProgramLabel,
 } from "../../../utils/task";
 
@@ -30,6 +31,8 @@ const DetailBlock = ({ label, children }) => (
 
 const ViewTaskModal = ({ isOpen, onClose, task }) => {
   if (!isOpen || !task) return null;
+
+  const { cleanActivities, subTasks } = parseTaskActivities(task.activities);
 
   return (
     <div
@@ -81,8 +84,34 @@ const ViewTaskModal = ({ isOpen, onClose, task }) => {
           </DetailBlock>
           <DetailBlock label="Agenda">{task.agenda || "—"}</DetailBlock>
           <DetailBlock label="Activities">
-            {task.activities || "—"}
+            {cleanActivities || "—"}
           </DetailBlock>
+          {subTasks.length > 0 ? (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Sub-tasks
+              </p>
+              <ul className="mt-2 space-y-3">
+                {subTasks.map((item, index) => (
+                  <li
+                    key={`${item.title}-${index}`}
+                    className="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2.5"
+                  >
+                    <p className="text-sm font-semibold text-slate-900">
+                      {item.title || `Sub-task ${index + 1}`}
+                    </p>
+                    {item.remarks ? (
+                      <p className="mt-1 text-sm text-slate-600 whitespace-pre-wrap">
+                        {item.remarks}
+                      </p>
+                    ) : (
+                      <p className="mt-1 text-sm text-slate-400">No remarks</p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           <DetailBlock label="Remarks">{task.cleanRemarks || "—"}</DetailBlock>
 
           <div className="grid gap-4 sm:grid-cols-2">

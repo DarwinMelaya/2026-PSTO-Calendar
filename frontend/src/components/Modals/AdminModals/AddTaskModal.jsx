@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import SubTasksField from "../../Task/SubTasksField";
 import {
   TASK_STATUSES,
   createTask,
   listAssignableProfiles,
+  normalizeSubTasks,
 } from "../../../utils/task";
 
 const TASK_PROGRAMS = [
@@ -19,6 +21,7 @@ const initialForm = {
   taskDate: "",
   agenda: "",
   activities: "",
+  subTasks: [],
   deadline: "",
   responsibleId: [],
   program: "GIA",
@@ -86,6 +89,7 @@ const AddTaskModal = ({ isOpen, onClose, onSuccess }) => {
       taskDate,
       agenda,
       activities,
+      subTasks,
       deadline,
       responsibleId,
       program,
@@ -115,6 +119,7 @@ const AddTaskModal = ({ isOpen, onClose, onSuccess }) => {
       taskDate,
       agenda,
       activities,
+      subTasks: normalizeSubTasks(subTasks),
       deadline,
       responsibleId,
       program,
@@ -272,8 +277,22 @@ const AddTaskModal = ({ isOpen, onClose, onSuccess }) => {
                 rows={3}
                 value={form.activities}
                 onChange={setField("activities")}
-                placeholder="Describe the activities"
+                placeholder="General activity notes (optional)"
                 className={inputClass}
+              />
+            </div>
+
+            <div className="sm:col-span-2">
+              <p className="mb-1.5 block text-sm font-medium text-slate-700">
+                Sub-tasks{" "}
+                <span className="font-normal text-slate-400">(optional)</span>
+              </p>
+              <SubTasksField
+                subTasks={form.subTasks}
+                onChange={(subTasks) =>
+                  setForm((prev) => ({ ...prev, subTasks }))
+                }
+                disabled={submitting}
               />
             </div>
 
