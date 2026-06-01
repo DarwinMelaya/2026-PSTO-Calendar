@@ -30,13 +30,14 @@ function StatCard({ label, value, accent, subtitle, onClick }) {
   };
   const className = `group relative w-full overflow-hidden rounded-2xl bg-gradient-to-br p-5 text-left shadow-sm ring-1 transition ${accents[accent] ?? accents.slate} ${
     onClick
-      ? "cursor-pointer hover:shadow-md hover:ring-slate-300/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+      ? "cursor-pointer hover:-translate-y-1 hover:shadow-lg hover:ring-slate-300/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
       : ""
   }`;
 
   const content = (
     <>
       <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-white/40 blur-2xl transition group-hover:scale-110" />
+      <div className="pointer-events-none absolute inset-x-8 -bottom-8 h-12 rounded-full bg-blue-300/30 blur-2xl opacity-0 transition duration-300 group-hover:opacity-100" />
       <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
         {label}
       </p>
@@ -119,12 +120,13 @@ function OwnerProgressCard({
     <button
       type="button"
       onClick={onClick}
-      className={`w-full rounded-2xl border p-4 text-left shadow-sm transition hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 ${
+      className={`group relative w-full overflow-hidden rounded-2xl border p-4 text-left shadow-sm transition hover:-translate-y-1 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 ${
         selected
           ? "border-blue-300 bg-blue-50/50 ring-2 ring-blue-500/20"
           : "border-slate-200/90 bg-white hover:border-slate-300"
       }`}
     >
+      <div className="pointer-events-none absolute inset-x-8 -bottom-8 h-12 rounded-full bg-emerald-300/30 blur-2xl opacity-0 transition duration-300 group-hover:opacity-100" />
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-slate-900">
@@ -531,8 +533,9 @@ const Dashboard = ({ readOnly = false }) => {
             <button
               type="button"
               onClick={load}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 sm:w-auto"
+              className="group relative inline-flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:bg-slate-50 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 sm:w-auto"
             >
+              <span className="pointer-events-none absolute inset-x-6 -bottom-6 h-8 rounded-full bg-blue-300/35 blur-xl opacity-0 transition duration-300 group-hover:opacity-100" />
               <svg
                 className={`h-5 w-5 ${loading ? "animate-spin text-blue-600" : "text-slate-500"}`}
                 fill="none"
