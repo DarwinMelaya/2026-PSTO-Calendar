@@ -101,6 +101,8 @@ const formatDate = (value) => {
   });
 };
 
+const normalizeText = (value) => String(value ?? "").toLowerCase().trim();
+
 function OwnerProgressCard({
   label,
   completed,
@@ -163,6 +165,7 @@ const Dashboard = ({ readOnly = false }) => {
   const [loading, setLoading] = useState(true);
   const [tasks, setTasks] = useState([]);
   const [profiles, setProfiles] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedOwnerId, setSelectedOwnerId] = useState(null);
   const [activeStatModal, setActiveStatModal] = useState(null);
 
@@ -208,8 +211,33 @@ const Dashboard = ({ readOnly = false }) => {
     });
   }, [tasks, profileById]);
 
+  const filteredTasks = useMemo(() => {
+    const query = normalizeText(searchQuery);
+    if (!query) return enrichedTasks;
+
+    return enrichedTasks.filter((t) => {
+      const assigneeLabel =
+        t.profile?.code_name ?? t.profile?.email ?? t.profiles?.code_name ?? "";
+      const searchBlob = normalizeText(
+        [
+          t.agenda,
+          t.activities,
+          t.status,
+          t.requestedStatus,
+          t.task_date,
+          t.deadline,
+          t.deadline_time,
+          assigneeLabel,
+          t.cleanRemarks,
+          t.notes,
+        ].join(" "),
+      );
+      return searchBlob.includes(query);
+    });
+  }, [enrichedTasks, searchQuery]);
+
   const overview = useMemo(() => {
-    const list = enrichedTasks;
+    const list = filteredTasks;
     const total = list.length;
     const completed = list.filter((t) => t.status === "completed").length;
     const pendingApproval = list.filter((t) => !!t.requestedStatus).length;
@@ -226,11 +254,11 @@ const Dashboard = ({ readOnly = false }) => {
     ).length;
 
     return { total, completed, pendingApproval, overdue, priority, priorityOpen };
-  }, [enrichedTasks]);
+  }, [filteredTasks]);
 
   const completedByPerson = useMemo(() => {
     const counts = new Map();
-    for (const t of enrichedTasks) {
+    for (const t of filteredTasks) {
       if (t.status !== "completed") continue;
       const id = Number(t.responsible_id);
       counts.set(id, (counts.get(id) ?? 0) + 1);
@@ -248,12 +276,12 @@ const Dashboard = ({ readOnly = false }) => {
       })
       .sort((a, b) => b.count - a.count)
       .slice(0, 8);
-  }, [enrichedTasks, profileById]);
+  }, [filteredTasks, profileById]);
 
   const earlyFinishByPerson = useMemo(() => {
     // Only count tasks that have COMPLETED_AT marker and a deadline.
     const stats = new Map();
-    for (const t of enrichedTasks) {
+    for (const t of filteredTasks) {
       if (t.status !== "completed") continue;
       if (!t.completedAt || !t.deadline) continue;
 
@@ -289,11 +317,11 @@ const Dashboard = ({ readOnly = false }) => {
       })
       .sort((a, b) => b.avgDaysEarly - a.avgDaysEarly)
       .slice(0, 8);
-  }, [enrichedTasks, profileById]);
+  }, [filteredTasks, profileById]);
 
   const statusCounts = useMemo(() => {
     const map = new Map();
-    for (const t of enrichedTasks) {
+    for (const t of filteredTasks) {
       map.set(t.status, (map.get(t.status) ?? 0) + 1);
     }
     return TASK_STATUSES.map((s) => ({
@@ -301,11 +329,11 @@ const Dashboard = ({ readOnly = false }) => {
       label: s.label,
       count: map.get(s.value) ?? 0,
     }));
-  }, [enrichedTasks]);
+  }, [filteredTasks]);
 
   const ownerProgress = useMemo(() => {
     const map = new Map();
-    for (const t of enrichedTasks ?? []) {
+    for (const t of filteredTasks ?? []) {
       const id = Number(t?.responsible_id);
       if (!id) continue;
       const label = t?.profile?.code_name || t?.profile?.email || `profile #${id}`;
@@ -324,7 +352,7 @@ const Dashboard = ({ readOnly = false }) => {
         return b.total - a.total;
       })
       .slice(0, 12);
-  }, [enrichedTasks]);
+  }, [filteredTasks]);
 
   const selectedOwner = useMemo(
     () => ownerProgress.find((o) => o.id === selectedOwnerId) ?? null,
@@ -333,7 +361,7 @@ const Dashboard = ({ readOnly = false }) => {
 
   const incompleteTasksForOwner = useMemo(() => {
     if (!selectedOwnerId) return [];
-    return enrichedTasks
+    return filteredTasks
       .filter(
         (t) =>
           Number(t.responsible_id) === selectedOwnerId &&
@@ -351,7 +379,7 @@ const Dashboard = ({ readOnly = false }) => {
           : Infinity;
         return aDate - bDate;
       });
-  }, [enrichedTasks, selectedOwnerId]);
+  }, [filteredTasks, selectedOwnerId]);
 
   const isOverdueTask = useCallback((t) => {
     if (t.status === "completed" || !t.deadline) return false;
@@ -360,15 +388,15 @@ const Dashboard = ({ readOnly = false }) => {
   }, []);
 
   const allTasksSorted = useMemo(() => {
-    return [...enrichedTasks].sort((a, b) => {
+    return [...filteredTasks].sort((a, b) => {
       const aCreated = a.created_at ? new Date(a.created_at).getTime() : 0;
       const bCreated = b.created_at ? new Date(b.created_at).getTime() : 0;
       return bCreated - aCreated;
     });
-  }, [enrichedTasks]);
+  }, [filteredTasks]);
 
   const priorityTasksAll = useMemo(() => {
-    return enrichedTasks
+    return filteredTasks
       .filter((t) => isTaskPriority(t))
       .sort((a, b) => {
         const aDeadline = a.deadline
@@ -382,20 +410,20 @@ const Dashboard = ({ readOnly = false }) => {
         const bCreated = b.created_at ? new Date(b.created_at).getTime() : 0;
         return bCreated - aCreated;
       });
-  }, [enrichedTasks]);
+  }, [filteredTasks]);
 
   const completedTasksAll = useMemo(() => {
-    return enrichedTasks
+    return filteredTasks
       .filter((t) => t.status === "completed")
       .sort((a, b) => {
         const aAt = a.completedAt ? new Date(a.completedAt).getTime() : 0;
         const bAt = b.completedAt ? new Date(b.completedAt).getTime() : 0;
         return bAt - aAt;
       });
-  }, [enrichedTasks]);
+  }, [filteredTasks]);
 
   const approvalTasksAll = useMemo(() => {
-    return enrichedTasks
+    return filteredTasks
       .filter((t) => !!t.requestedStatus)
       .sort((a, b) => {
         const aDate = a.task_date
@@ -406,17 +434,17 @@ const Dashboard = ({ readOnly = false }) => {
           : 0;
         return bDate - aDate;
       });
-  }, [enrichedTasks]);
+  }, [filteredTasks]);
 
   const overdueTasksAll = useMemo(() => {
-    return enrichedTasks
+    return filteredTasks
       .filter(isOverdueTask)
       .sort((a, b) => {
         const aDeadline = new Date(`${a.deadline}T00:00:00`).getTime();
         const bDeadline = new Date(`${b.deadline}T00:00:00`).getTime();
         return aDeadline - bDeadline;
       });
-  }, [enrichedTasks, isOverdueTask]);
+  }, [filteredTasks, isOverdueTask]);
 
   const dueSoon = useMemo(() => {
     const now = new Date();
@@ -426,7 +454,7 @@ const Dashboard = ({ readOnly = false }) => {
     const end = new Date(today);
     end.setDate(end.getDate() + windowDays);
 
-    const list = enrichedTasks
+    const list = filteredTasks
       .filter((t) => t.status !== "completed" && t.deadline)
       .map((t) => ({
         ...t,
@@ -446,7 +474,7 @@ const Dashboard = ({ readOnly = false }) => {
       windowDays,
       items: list,
     };
-  }, [enrichedTasks]);
+  }, [filteredTasks]);
 
   return (
     <Layout>
@@ -461,6 +489,45 @@ const Dashboard = ({ readOnly = false }) => {
             </h1>
           </div>
           <div className="flex flex-wrap items-center gap-3">
+            <label className="relative block w-full sm:w-80">
+              <span className="sr-only">Search tasks</span>
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search tasks, owners, status, dates..."
+                className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-9 text-sm text-slate-700 shadow-sm outline-none transition focus:border-blue-300 focus:ring-2 focus:ring-blue-500/20"
+              />
+              <svg
+                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={2}
+                stroke="currentColor"
+                aria-hidden
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="m21 21-4.35-4.35m1.85-5.15a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z"
+                />
+              </svg>
+              {searchQuery ? (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                  aria-label="Clear search"
+                >
+                  <span className="text-base leading-none">&times;</span>
+                </button>
+              ) : null}
+            </label>
+            {!loading ? (
+              <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 ring-1 ring-inset ring-slate-900/5">
+                {overview.total} result{overview.total === 1 ? "" : "s"}
+              </span>
+            ) : null}
             <button
               type="button"
               onClick={load}
@@ -759,6 +826,8 @@ const Dashboard = ({ readOnly = false }) => {
         onClose={() => setSelectedOwnerId(null)}
         ownerLabel={selectedOwner?.label}
         tasks={incompleteTasksForOwner}
+        onRefresh={load}
+        readOnly={readOnly}
       />
 
       <TotalTaskModal
