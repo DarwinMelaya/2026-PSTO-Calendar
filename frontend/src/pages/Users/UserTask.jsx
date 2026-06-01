@@ -3,16 +3,118 @@ import toast from "react-hot-toast";
 import Layout from "../../components/Layout/Layout";
 import ViewTaskModal from "../../components/Modals/AdminModals/ViewTaskModal";
 import AddUserTaskModal from "../../components/Modals/UserModals/AddUserTaskModal";
+import EditUserTaskModal from "../../components/Modals/UserModals/EditUserTaskModal";
+import {
+  EmptyIllustration,
+  getGreeting,
+  ProgressRing,
+  StatCard,
+  TableSkeleton,
+} from "../../components/User/UserWorkspaceUI";
 import { getSession } from "../../utils/session";
 import {
+  TASK_PROGRAMS,
   TASK_STATUSES,
   formatTaskDeadline,
+  hasDeadline,
   isTaskPriority,
   listTasksForUser,
   parseTaskRemarks,
   requestTaskStatusChange,
+  taskProgramLabel,
   updateTaskRemarks,
 } from "../../utils/task";
+
+const toIsoDate = (date) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+};
+
+const parseDateOnly = (value) => {
+  if (!value) return null;
+  const d = new Date(`${value}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? null : d;
+};
+
+const startOfDay = (date) => {
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+
+const addDays = (date, days) => {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return startOfDay(d);
+};
+
+const startOfWeek = (date) => {
+  const d = startOfDay(date);
+  d.setDate(d.getDate() - d.getDay());
+  return d;
+};
+
+const formatRangeLabel = (start, end) => {
+  const sameMonth = start.getMonth() === end.getMonth();
+  const sameYear = start.getFullYear() === end.getFullYear();
+  const startFmt = start.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: sameYear ? undefined : "numeric",
+  });
+  const endFmt = end.toLocaleDateString(undefined, {
+    month: sameMonth ? undefined : "short",
+    day: "numeric",
+    year: "numeric",
+  });
+  return `${startFmt} – ${endFmt}`;
+};
+
+const getDateRange = (period, anchorDate) => {
+  if (period === "all") return null;
+  const anchor = startOfDay(parseDateOnly(anchorDate) ?? new Date());
+
+  if (period === "day") {
+    return { start: anchor, end: anchor };
+  }
+
+  if (period === "week") {
+    const start = startOfWeek(anchor);
+    return { start, end: addDays(start, 6) };
+  }
+
+  const start = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+  const end = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0);
+  return { start: startOfDay(start), end: startOfDay(end) };
+};
+
+const isDateInRange = (value, range) => {
+  if (!range) return true;
+  const d = parseDateOnly(value);
+  if (!d) return false;
+  const t = startOfDay(d).getTime();
+  return t >= range.start.getTime() && t <= range.end.getTime();
+};
+
+const DEFAULT_FILTERS = {
+  q: "",
+  status: "all",
+  program: "all",
+  awaitingApproval: false,
+  priorityOnly: false,
+  datePeriod: "all",
+  dateBasis: "task_date",
+  anchorDate: toIsoDate(new Date()),
+};
+
+const DATE_PERIODS = [
+  { value: "all", label: "All" },
+  { value: "day", label: "Day" },
+  { value: "week", label: "Week" },
+  { value: "month", label: "Month" },
+];
 
 const formatDate = (value) => {
   if (!value) return "—";
@@ -39,26 +141,10 @@ const statusBadgeClass = (status) => {
 const statusLabel = (status) =>
   TASK_STATUSES.find((s) => s.value === status)?.label ?? status;
 
-function StatCard({ label, value, accent }) {
-  const accents = {
-    slate: "from-slate-50 to-white ring-slate-200/80",
-    blue: "from-blue-50/80 to-white ring-blue-200/60",
-    amber: "from-amber-50/80 to-white ring-amber-200/60",
-    emerald: "from-emerald-50/80 to-white ring-emerald-200/60",
-  };
-  return (
-    <div
-      className={`rounded-xl bg-gradient-to-br p-4 shadow-sm ring-1 ${accents[accent] ?? accents.slate}`}
-    >
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-        {label}
-      </p>
-      <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-slate-900">
-        {value}
-      </p>
-    </div>
-  );
-}
+const completedRowClass = (selectedStatus) =>
+  selectedStatus === "completed"
+    ? "text-emerald-950 [&_td]:!border-emerald-500/35 [&_td]:!bg-emerald-400/80 [&_td]:shadow-emerald-900/5 hover:[&_td]:!bg-emerald-500/75"
+    : "hover:[&_td]:shadow-md";
 
 const UserTask = () => {
   const session = getSession();
@@ -69,7 +155,11 @@ const UserTask = () => {
   const [requestingId, setRequestingId] = useState(null);
   const [savingRemarksId, setSavingRemarksId] = useState(null);
   const [addModalOpen, setAddModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [taskToEdit, setTaskToEdit] = useState(null);
   const [taskToView, setTaskToView] = useState(null);
+  const [filters, setFilters] = useState(DEFAULT_FILTERS);
+  const [filtersExpanded, setFiltersExpanded] = useState(true);
 
   const loadTasks = useCallback(async () => {
     if (!session?.id) {
@@ -105,6 +195,98 @@ const UserTask = () => {
     });
   }, [tasks]);
 
+  const dateRange = useMemo(
+    () => getDateRange(filters.datePeriod, filters.anchorDate),
+    [filters.datePeriod, filters.anchorDate],
+  );
+
+  const dateFilterLabel = useMemo(() => {
+    if (!dateRange) return null;
+    if (filters.datePeriod === "day") {
+      return formatDate(filters.anchorDate);
+    }
+    if (filters.datePeriod === "week") {
+      return formatRangeLabel(dateRange.start, dateRange.end);
+    }
+    return dateRange.start.toLocaleDateString(undefined, {
+      month: "long",
+      year: "numeric",
+    });
+  }, [dateRange, filters.anchorDate, filters.datePeriod]);
+
+  const filteredTasks = useMemo(() => {
+    const q = filters.q.trim().toLowerCase();
+    const status = filters.status;
+    const program = filters.program;
+    const awaitingApproval = filters.awaitingApproval;
+    const priorityOnly = filters.priorityOnly;
+    const dateField =
+      filters.dateBasis === "deadline" ? "deadline" : "task_date";
+
+    return sortedTasks.filter((task) => {
+      if (priorityOnly && !isTaskPriority(task)) return false;
+
+      const meta = parseTaskRemarks(task.remarks);
+      if (awaitingApproval && !meta.requestedStatus) return false;
+      if (status !== "all" && task.status !== status) return false;
+      if (program !== "all" && task.program !== program) return false;
+      if (
+        dateRange &&
+        dateField === "deadline" &&
+        !hasDeadline(task.deadline)
+      ) {
+        return false;
+      }
+      if (!isDateInRange(task[dateField], dateRange)) return false;
+
+      if (!q) return true;
+
+      const haystack = [
+        task.agenda,
+        task.activities,
+        meta.cleanRemarks,
+        task.program,
+        taskProgramLabel(task.program),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return haystack.includes(q);
+    });
+  }, [filters, sortedTasks, dateRange]);
+
+  const hasActiveFilters =
+    filters.awaitingApproval ||
+    filters.priorityOnly ||
+    filters.status !== "all" ||
+    filters.program !== "all" ||
+    filters.datePeriod !== "all" ||
+    !!filters.q.trim();
+
+  const shiftAnchorDate = (direction) => {
+    const anchor = parseDateOnly(filters.anchorDate) ?? new Date();
+    let next = anchor;
+
+    if (filters.datePeriod === "day") {
+      next = addDays(anchor, direction);
+    } else if (filters.datePeriod === "week") {
+      next = addDays(anchor, direction * 7);
+    } else if (filters.datePeriod === "month") {
+      next = new Date(anchor.getFullYear(), anchor.getMonth() + direction, 1);
+    }
+
+    setFilters((prev) => ({ ...prev, anchorDate: toIsoDate(next) }));
+  };
+
+  const setDatePeriod = (datePeriod) => {
+    setFilters((prev) => ({
+      ...prev,
+      datePeriod,
+      anchorDate: prev.anchorDate || toIsoDate(new Date()),
+    }));
+  };
+
   const stats = useMemo(() => {
     const list = tasks;
     return {
@@ -114,10 +296,29 @@ const UserTask = () => {
       completed: list.filter((t) => t.status === "completed").length,
       onHold: list.filter((t) => t.status === "on_hold").length,
       priority: list.filter((t) => isTaskPriority(t)).length,
+      awaitingApproval: list.filter(
+        (t) => !!parseTaskRemarks(t.remarks).requestedStatus,
+      ).length,
     };
   }, [tasks]);
 
   const codeName = session?.code_name?.trim();
+
+  const completionPercent = useMemo(() => {
+    if (!stats.total) return 0;
+    return Math.round((stats.completed / stats.total) * 100);
+  }, [stats.completed, stats.total]);
+
+  const todayLabel = useMemo(
+    () =>
+      new Date().toLocaleDateString(undefined, {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      }),
+    [],
+  );
 
   const remarksForTask = (task) => {
     const saved = parseTaskRemarks(task.remarks).cleanRemarks;
@@ -132,6 +333,19 @@ const UserTask = () => {
       requestedStatus: meta.requestedStatus,
       responsibleLabels: codeName ? [codeName] : ["—"],
     };
+  };
+
+  const openEdit = (task) => {
+    setTaskToEdit({
+      ...task,
+      existing_remarks: task.remarks,
+    });
+    setEditModalOpen(true);
+  };
+
+  const closeEdit = () => {
+    setEditModalOpen(false);
+    setTaskToEdit(null);
   };
 
   const handleSaveRemarks = async (task) => {
@@ -210,69 +424,188 @@ const UserTask = () => {
 
   return (
     <Layout>
-      <div className="mx-auto max-w-7xl space-y-8">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-widest text-blue-600">
-              My workspace
-            </p>
-            <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-              My tasks
-            </h1>
-            <p className="max-w-xl text-base text-slate-600 leading-relaxed">
-              View and add tasks assigned to you
-              {codeName ? (
-                <span className="font-semibold text-slate-800">
-                  {` · Code name: ${codeName}`}
-                </span>
-              ) : (
-                ""
-              )}
-              .
-            </p>
-          </div>
-        </div>
+      <div className="mx-auto max-w-7xl space-y-6 bg-gradient-to-b from-slate-50/80 via-transparent to-blue-50/40 pb-10 sm:space-y-8">
+        {/* Hero */}
+        <section className="ut-animate-in relative overflow-hidden rounded-3xl border border-blue-400/20 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-900 px-6 py-8 shadow-2xl shadow-blue-900/30 sm:px-8 sm:py-10">
+          <div
+            className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-cyan-400/20 blur-3xl"
+            aria-hidden
+          />
+          <div
+            className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-indigo-400/25 blur-3xl"
+            aria-hidden
+          />
+          <div
+            className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.12),_transparent_55%)]"
+            aria-hidden
+          />
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="relative z-10 flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
+            <div className="max-w-2xl space-y-4">
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold text-blue-50 backdrop-blur-sm">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-300 opacity-60" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-cyan-300" />
+                </span>
+                PSTO Calendar · My workspace
+              </div>
+              <div>
+                <p className="text-sm font-medium text-blue-100/90">
+                  {getGreeting()}
+                  {codeName ? (
+                    <span className="text-white">{`, ${codeName}`}</span>
+                  ) : null}
+                </p>
+                <h1 className="mt-1 text-3xl font-bold tracking-tight text-white sm:text-4xl lg:text-[2.35rem] lg:leading-tight">
+                  Your task command center
+                </h1>
+                <p className="mt-3 text-sm leading-relaxed text-blue-100/85 sm:text-base">
+                  Track assignments, update progress, and request status changes —
+                  all in one place.{" "}
+                  <span className="text-white/90">{todayLabel}</span>
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {!loading && stats.priority > 0 ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-500/25 px-3 py-1 text-xs font-semibold text-rose-50 ring-1 ring-rose-300/30">
+                    {stats.priority} priority
+                  </span>
+                ) : null}
+                {!loading && stats.awaitingApproval > 0 ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/20 px-3 py-1 text-xs font-semibold text-amber-50 ring-1 ring-amber-300/30">
+                    {stats.awaitingApproval} awaiting approval
+                  </span>
+                ) : null}
+                {!loading && stats.onHold > 0 ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white ring-1 ring-white/20">
+                    {stats.onHold} on hold
+                  </span>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="flex flex-col items-center gap-5 sm:flex-row lg:flex-col lg:items-end">
+              <ProgressRing percent={completionPercent} loading={loading} />
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row lg:flex-col">
+                <button
+                  type="button"
+                  onClick={() => setAddModalOpen(true)}
+                  disabled={!session?.id}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-blue-700 shadow-lg shadow-blue-950/20 transition hover:bg-blue-50 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <svg
+                    className="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={2}
+                    stroke="currentColor"
+                    aria-hidden
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M12 4.5v15m7.5-7.5h-15"
+                    />
+                  </svg>
+                  New task
+                </button>
+                <button
+                  type="button"
+                  onClick={loadTasks}
+                  disabled={loading}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/25 bg-white/10 px-5 py-3 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20 disabled:opacity-50"
+                >
+                  <svg
+                    className={`h-5 w-5 ${loading ? "animate-spin" : ""}`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={2}
+                    stroke="currentColor"
+                    aria-hidden
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
+                    />
+                  </svg>
+                  Refresh
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Stats */}
+        <div className="ut-animate-in ut-delay-1 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
           <StatCard
             label="Total tasks"
             value={loading ? "…" : stats.total}
             accent="slate"
+            sublabel="Assigned to you"
           />
           <StatCard
             label="Pending"
             value={loading ? "…" : stats.pending}
             accent="blue"
+            sublabel="Not started yet"
           />
           <StatCard
             label="Ongoing"
             value={loading ? "…" : stats.ongoing}
             accent="amber"
+            sublabel="In progress"
           />
           <StatCard
             label="Completed"
             value={loading ? "…" : stats.completed}
             accent="emerald"
+            sublabel="Marked done"
+          />
+          <StatCard
+            label="Priority"
+            value={loading ? "…" : stats.priority}
+            accent="rose"
+            sublabel="Needs attention"
           />
         </div>
 
-        <section className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-xl shadow-slate-200/40 ring-1 ring-slate-900/[0.04]">
-          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/90 to-white px-5 py-4 sm:px-6">
-            <div>
-              <h2 className="text-lg font-semibold text-slate-900">
-                Assigned to you
-              </h2>
-              <p className="mt-0.5 text-sm text-slate-500">
-                {loading
-                  ? "Loading your task list…"
-                  : `${tasks.length} task${tasks.length === 1 ? "" : "s"} · ${stats.onHold} on hold`}
-              </p>
+        {/* Task table */}
+        <section className="ut-animate-in ut-delay-2 overflow-hidden rounded-3xl border border-slate-200/80 bg-white/90 shadow-xl shadow-slate-300/25 ring-1 ring-slate-900/[0.04] backdrop-blur-sm">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100/80 bg-gradient-to-r from-slate-50 via-white to-blue-50/30 px-5 py-5 sm:px-6">
+            <div className="flex items-start gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-md shadow-blue-500/25">
+                <svg
+                  className="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={2}
+                  stroke="currentColor"
+                  aria-hidden
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm0 5.25h.007v.008H3.75v-.008zm0 5.25h.007v.008H3.75v-.008z"
+                  />
+                </svg>
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">
+                  Task board
+                </h2>
+                <p className="mt-0.5 text-sm text-slate-500">
+                  {loading
+                    ? "Syncing your assignments…"
+                    : `${filteredTasks.length} shown · ${tasks.length} total`}
+                </p>
+              </div>
             </div>
             <button
               type="button"
               onClick={() => setAddModalOpen(true)}
               disabled={!session?.id}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3.5 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-blue-600/30 transition hover:from-blue-700 hover:to-indigo-700 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 sm:hidden"
             >
               <svg
                 className="h-4 w-4"
@@ -292,97 +625,376 @@ const UserTask = () => {
             </button>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1020px] text-left text-sm">
+          <div className="border-b border-slate-100 bg-slate-50/40 px-5 py-3 sm:px-6">
+            <button
+              type="button"
+              onClick={() => setFiltersExpanded((open) => !open)}
+              className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-white px-4 py-3 text-left shadow-sm transition hover:border-slate-300 hover:shadow"
+              aria-expanded={filtersExpanded}
+            >
+              <span className="flex items-center gap-3">
+                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={2}
+                    stroke="currentColor"
+                    aria-hidden
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.036a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z"
+                    />
+                  </svg>
+                </span>
+                <span>
+                  <span className="block text-sm font-semibold text-slate-900">
+                    Search & filters
+                  </span>
+                  <span className="block text-xs text-slate-500">
+                    {hasActiveFilters
+                      ? "Filters active — tap to adjust"
+                      : "Find tasks by date, status, or keyword"}
+                  </span>
+                </span>
+              </span>
+              <svg
+                className={`h-5 w-5 shrink-0 text-slate-400 transition ${filtersExpanded ? "rotate-180" : ""}`}
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={2}
+                stroke="currentColor"
+                aria-hidden
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M19.5 8.25l-7.5 7.5-7.5-7.5"
+                />
+              </svg>
+            </button>
+          </div>
+
+          {filtersExpanded ? (
+          <div className="border-b border-slate-100 bg-white px-5 py-5 sm:px-6">
+            <div className="mb-4 flex min-w-0 flex-col gap-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Date range
+                </p>
+                <div className="inline-flex w-full rounded-xl border border-slate-200 bg-white p-1 shadow-sm sm:w-auto">
+                  {DATE_PERIODS.map(({ value, label }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setDatePeriod(value)}
+                      className={`flex-1 rounded-lg px-3 py-1.5 text-sm font-semibold transition sm:flex-none ${
+                        filters.datePeriod === value
+                          ? "bg-slate-900 text-white"
+                          : "text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {filters.datePeriod !== "all" ? (
+                <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50/80 p-3 sm:flex-row sm:flex-wrap sm:items-center">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => shiftAnchorDate(-1)}
+                      className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-lg font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                      aria-label={`Previous ${filters.datePeriod}`}
+                    >
+                      ‹
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => shiftAnchorDate(1)}
+                      className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-lg font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                      aria-label={`Next ${filters.datePeriod}`}
+                    >
+                      ›
+                    </button>
+                    <input
+                      type="date"
+                      value={filters.anchorDate}
+                      onChange={(e) =>
+                        setFilters((prev) => ({
+                          ...prev,
+                          anchorDate: e.target.value,
+                        }))
+                      }
+                      className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 sm:flex-none"
+                      aria-label="Anchor date"
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFilters((prev) => ({
+                          ...prev,
+                          anchorDate: toIsoDate(new Date()),
+                        }))
+                      }
+                      className="shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                    >
+                      Today
+                    </button>
+                  </div>
+
+                  <p className="min-w-0 flex-1 text-sm font-medium text-slate-700 sm:text-center">
+                    {dateFilterLabel}
+                    <span className="mt-0.5 block text-xs font-normal text-slate-500">
+                      Filtering by{" "}
+                      {filters.dateBasis === "deadline"
+                        ? "deadline"
+                        : "task date"}
+                    </span>
+                  </p>
+
+                  <select
+                    value={filters.dateBasis}
+                    onChange={(e) =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        dateBasis: e.target.value,
+                      }))
+                    }
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 sm:w-auto"
+                    aria-label="Date field to filter"
+                  >
+                    <option value="task_date">Task date</option>
+                    <option value="deadline">Deadline</option>
+                  </select>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center">
+                <div className="relative min-w-0 flex-1">
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                    <svg
+                      className="h-4 w-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      strokeWidth={2}
+                      stroke="currentColor"
+                      aria-hidden
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
+                      />
+                    </svg>
+                  </span>
+                  <input
+                    type="search"
+                    value={filters.q}
+                    onChange={(e) =>
+                      setFilters((prev) => ({ ...prev, q: e.target.value }))
+                    }
+                    placeholder="Search agenda, activities, remarks…"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-10 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  />
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <select
+                    value={filters.status}
+                    onChange={(e) =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        status: e.target.value,
+                      }))
+                    }
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                    aria-label="Filter by status"
+                  >
+                    <option value="all">All statuses</option>
+                    {TASK_STATUSES.map(({ value, label }) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+
+                  <select
+                    value={filters.program}
+                    onChange={(e) =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        program: e.target.value,
+                      }))
+                    }
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                    aria-label="Filter by program"
+                  >
+                    <option value="all">All programs</option>
+                    {TASK_PROGRAMS.map(({ value, label }) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        awaitingApproval: !prev.awaitingApproval,
+                      }))
+                    }
+                    className={`w-full rounded-xl border px-3 py-2.5 text-sm font-semibold shadow-sm transition focus:outline-none focus:ring-2 focus:ring-blue-500/20 sm:w-auto ${
+                      filters.awaitingApproval
+                        ? "border-amber-200 bg-amber-50 text-amber-900"
+                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    Awaiting approval
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        priorityOnly: !prev.priorityOnly,
+                      }))
+                    }
+                    className={`w-full rounded-xl border px-3 py-2.5 text-sm font-semibold shadow-sm transition focus:outline-none focus:ring-2 focus:ring-blue-500/20 sm:w-auto ${
+                      filters.priorityOnly
+                        ? "border-rose-200 bg-rose-50 text-rose-900"
+                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    Priority only
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-3 lg:justify-end">
+                {hasActiveFilters ? (
+                  <button
+                    type="button"
+                    onClick={() => setFilters(DEFAULT_FILTERS)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 sm:w-auto"
+                  >
+                    Clear filters
+                  </button>
+                ) : (
+                  <span className="text-sm text-slate-500">
+                    Tip: combine search, status, and date range.
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+          ) : null}
+
+          <div className="overflow-x-auto bg-slate-50/30 p-2 sm:p-3">
+            <table className="w-full min-w-[1020px] border-separate border-spacing-y-2 text-left text-sm">
               <thead>
-                <tr className="border-b border-slate-100 bg-slate-50/80">
-                  <th className="whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500 sm:px-6">
+                <tr>
+                  <th className="whitespace-nowrap rounded-l-xl bg-slate-900 px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-white sm:px-6">
                     Date
                   </th>
-                  <th className="whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500 sm:px-6">
+                  <th className="whitespace-nowrap bg-slate-900 px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-white sm:px-6">
                     Agenda
                   </th>
-                  <th className="whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500 sm:px-6">
+                  <th className="whitespace-nowrap bg-slate-900 px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-white sm:px-6">
                     Activities
                   </th>
-                  <th className="whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500 sm:px-6">
+                  <th className="whitespace-nowrap bg-slate-900 px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-white sm:px-6">
                     Deadline
                   </th>
-                  <th className="whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500 sm:px-6">
+                  <th className="whitespace-nowrap bg-slate-900 px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-white sm:px-6">
                     Status
                   </th>
-                  <th className="whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500 sm:px-6">
+                  <th className="whitespace-nowrap bg-slate-900 px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-white sm:px-6">
                     Remarks
                   </th>
-                  <th className="w-[1%] whitespace-nowrap px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-slate-500 sm:px-6">
+                  <th className="w-[1%] whitespace-nowrap rounded-r-xl bg-slate-900 px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-white sm:px-6">
                     Request status
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody>
                 {loading ? (
-                  <tr>
-                    <td colSpan={7} className="px-6 py-16">
-                      <div className="flex flex-col items-center justify-center gap-3 text-center">
-                        <div
-                          className="h-10 w-10 animate-spin rounded-full border-2 border-slate-200 border-t-blue-600"
-                          aria-hidden
-                        />
-                        <p className="text-sm font-medium text-slate-600">
-                          Loading tasks…
-                        </p>
-                      </div>
-                    </td>
-                  </tr>
+                  <TableSkeleton />
                 ) : tasks.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-16">
+                    <td colSpan={7} className="px-6 py-20">
                       <div className="mx-auto flex max-w-md flex-col items-center text-center">
-                        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 ring-1 ring-blue-100">
-                          <svg
-                            className="h-7 w-7"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            strokeWidth={1.5}
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z"
-                            />
-                          </svg>
-                        </div>
-                        <p className="mt-4 text-base font-semibold text-slate-900">
-                          No tasks assigned yet
+                        <EmptyIllustration />
+                        <p className="mt-6 text-lg font-bold text-slate-900">
+                          Your board is ready
                         </p>
-                        <p className="mt-2 text-sm text-slate-500 leading-relaxed">
-                          Add a task with the button above, or wait for an admin
-                          to assign one. Your tasks appear here with deadline
-                          and status.
+                        <p className="mt-2 text-sm leading-relaxed text-slate-500">
+                          Create your first task or wait for an admin assignment.
+                          Everything you need to track progress lives here.
                         </p>
                         {session?.id ? (
                           <button
                             type="button"
                             onClick={() => setAddModalOpen(true)}
-                            className="mt-5 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-600/25 hover:from-blue-700 hover:to-indigo-700"
                           >
-                            Add your first task
+                            Create first task
+                          </button>
+                        ) : null}
+                      </div>
+                    </td>
+                  </tr>
+                ) : filteredTasks.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-20">
+                      <div className="mx-auto flex max-w-md flex-col items-center text-center">
+                        <EmptyIllustration variant="filter" />
+                        <p className="mt-6 text-lg font-bold text-slate-900">
+                          No matches found
+                        </p>
+                        <p className="mt-2 text-sm leading-relaxed text-slate-500">
+                          Try a different keyword or clear your filters to see
+                          the full list again.
+                        </p>
+                        {hasActiveFilters ? (
+                          <button
+                            type="button"
+                            onClick={() => setFilters(DEFAULT_FILTERS)}
+                            className="mt-6 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-blue-600/20 hover:from-blue-700 hover:to-indigo-700"
+                          >
+                            Clear filters
                           </button>
                         ) : null}
                       </div>
                     </td>
                   </tr>
                 ) : (
-                  sortedTasks.map((task) => (
+                  filteredTasks.map((task) => {
+                    const pendingRequest = parseTaskRemarks(task.remarks)
+                      .requestedStatus;
+                    const selectedRequestStatus =
+                      requestDrafts[task.id] ??
+                      pendingRequest ??
+                      task.status;
+
+                    return (
                     <tr
                       key={task.id}
-                      className="transition-colors hover:bg-slate-50/90"
+                      className={`group transition-all duration-200 ${completedRowClass(selectedRequestStatus)}`}
                     >
-                      <td className="whitespace-nowrap px-5 py-4 font-medium text-slate-900 sm:px-6">
+                      <td className="whitespace-nowrap rounded-l-xl border border-r-0 border-slate-200/80 bg-white px-5 py-4 font-semibold text-slate-900 shadow-sm sm:px-6">
                         {formatDate(task.task_date)}
                       </td>
-                      <td className="max-w-[200px] px-5 py-4 text-slate-800 sm:px-6">
+                      <td className="max-w-[200px] border-y border-slate-200/80 bg-white px-5 py-4 text-slate-800 shadow-sm sm:px-6">
                         <div className="flex flex-col gap-1.5">
                           {isTaskPriority(task) ? (
                             <span className="inline-flex w-fit rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-rose-800 ring-1 ring-inset ring-rose-600/15">
@@ -394,7 +1006,7 @@ const UserTask = () => {
                           </span>
                         </div>
                       </td>
-                      <td className="max-w-[240px] px-5 py-4 text-slate-600 sm:px-6">
+                      <td className="max-w-[240px] border-y border-slate-200/80 bg-white px-5 py-4 text-slate-600 shadow-sm sm:px-6">
                         <div className="flex flex-col gap-2">
                           <span
                             className="line-clamp-2"
@@ -402,26 +1014,39 @@ const UserTask = () => {
                           >
                             {task.activities || "—"}
                           </span>
-                          <button
-                            type="button"
-                            onClick={() => setTaskToView(taskForView(task))}
-                            className="w-fit rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-blue-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
-                          >
-                            View
-                          </button>
+                          <div className="flex flex-wrap gap-1.5 opacity-90 transition group-hover:opacity-100">
+                            <button
+                              type="button"
+                              onClick={() => setTaskToView(taskForView(task))}
+                              className="w-fit rounded-lg border border-blue-100 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 shadow-sm transition hover:bg-blue-100"
+                            >
+                              View
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => openEdit(task)}
+                              disabled={
+                                savingRemarksId === task.id ||
+                                requestingId === task.id
+                              }
+                              className="w-fit rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              Edit
+                            </button>
+                          </div>
                         </div>
                       </td>
-                      <td className="whitespace-nowrap px-5 py-4 text-slate-800 sm:px-6">
+                      <td className="whitespace-nowrap border-y border-slate-200/80 bg-white px-5 py-4 text-slate-800 shadow-sm sm:px-6">
                         {formatTaskDeadline(task.deadline, task.deadline_time)}
                       </td>
-                      <td className="whitespace-nowrap px-5 py-4 sm:px-6">
+                      <td className="whitespace-nowrap border-y border-slate-200/80 bg-white px-5 py-4 shadow-sm sm:px-6">
                         <span
                           className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${statusBadgeClass(task.status)}`}
                         >
                           {statusLabel(task.status)}
                         </span>
                       </td>
-                      <td className="min-w-[220px] max-w-[280px] px-5 py-4 sm:px-6">
+                      <td className="min-w-[220px] max-w-[280px] border-y border-slate-200/80 bg-white px-5 py-4 shadow-sm sm:px-6">
                         <div className="space-y-2">
                           <textarea
                             rows={2}
@@ -437,7 +1062,7 @@ const UserTask = () => {
                               requestingId === task.id
                             }
                             placeholder="What you accomplished, progress notes…"
-                            className="w-full resize-y rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                            className="w-full resize-y rounded-lg border border-slate-200 bg-slate-50/50 px-2.5 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 transition focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
                           />
                           <button
                             type="button"
@@ -446,7 +1071,7 @@ const UserTask = () => {
                               savingRemarksId === task.id ||
                               requestingId === task.id
                             }
-                            className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             {savingRemarksId === task.id
                               ? "Saving..."
@@ -454,14 +1079,10 @@ const UserTask = () => {
                           </button>
                         </div>
                       </td>
-                      <td className="whitespace-nowrap px-5 py-4 text-right sm:px-6">
+                      <td className="whitespace-nowrap rounded-r-xl border border-l-0 border-slate-200/80 bg-white px-5 py-4 text-right shadow-sm sm:px-6">
                         <div className="flex items-center justify-end gap-2">
                           <select
-                            value={
-                              requestDrafts[task.id] ??
-                              parseTaskRemarks(task.remarks).requestedStatus ??
-                              task.status
-                            }
+                            value={selectedRequestStatus}
                             onChange={(e) =>
                               setRequestDrafts((prev) => ({
                                 ...prev,
@@ -469,7 +1090,11 @@ const UserTask = () => {
                               }))
                             }
                             disabled={requestingId === task.id}
-                            className="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                            className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 ${
+                              selectedRequestStatus === "completed"
+                                ? "border-emerald-800 bg-emerald-100 text-emerald-950 focus:border-emerald-900"
+                                : "border-slate-300 bg-white text-slate-700 focus:border-blue-500"
+                            }`}
                           >
                             {TASK_STATUSES.map(({ value, label }) => (
                               <option key={value} value={value}>
@@ -481,24 +1106,29 @@ const UserTask = () => {
                             type="button"
                             onClick={() => handleRequestStatus(task)}
                             disabled={requestingId === task.id}
-                            className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:from-blue-700 hover:to-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             {requestingId === task.id
                               ? "Sending..."
                               : "Request"}
                           </button>
                         </div>
-                        {parseTaskRemarks(task.remarks).requestedStatus ? (
-                          <p className="mt-1 text-xs text-amber-600">
+                        {pendingRequest ? (
+                          <p
+                            className={`mt-1 text-xs ${
+                              pendingRequest === "completed"
+                                ? "font-semibold text-emerald-900"
+                                : "text-amber-800"
+                            }`}
+                          >
                             Pending admin approval:{" "}
-                            {statusLabel(
-                              parseTaskRemarks(task.remarks).requestedStatus,
-                            )}
+                            {statusLabel(pendingRequest)}
                           </p>
                         ) : null}
                       </td>
                     </tr>
-                  ))
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -509,6 +1139,14 @@ const UserTask = () => {
       <AddUserTaskModal
         isOpen={addModalOpen}
         onClose={() => setAddModalOpen(false)}
+        onSuccess={loadTasks}
+        currentUserId={session?.id}
+      />
+
+      <EditUserTaskModal
+        isOpen={editModalOpen}
+        task={taskToEdit}
+        onClose={closeEdit}
         onSuccess={loadTasks}
         currentUserId={session?.id}
       />

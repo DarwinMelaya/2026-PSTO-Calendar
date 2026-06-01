@@ -325,6 +325,7 @@ export const updateTask = async (
     taskIds,
     groupKey,
     existingRemarks,
+    preservePendingRequest = false,
   },
 ) => {
   const responsibleIds = normalizeResponsibleIds(responsibleId);
@@ -348,7 +349,9 @@ export const updateTask = async (
       : null;
   const composedRemarks = composeTaskRemarks({
     remarks,
-    requestedStatus: null,
+    requestedStatus: preservePendingRequest
+      ? existingMeta.requestedStatus
+      : null,
     groupKey: effectiveGroupKey,
     completedAt: effectiveCompletedAt,
   });

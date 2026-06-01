@@ -149,7 +149,41 @@ body.intro-active {
   }
 }
 
+@keyframes ut-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ut-animate-in {
+  animation: ut-fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.ut-delay-1 {
+  animation-delay: 0.07s;
+}
+
+.ut-delay-2 {
+  animation-delay: 0.14s;
+}
+
+.ut-delay-3 {
+  animation-delay: 0.21s;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .ut-animate-in,
+  .ut-delay-1,
+  .ut-delay-2,
+  .ut-delay-3 {
+    animation: none;
+  }
+
   .intro-splash__logo {
     clip-path: none;
     animation: none;

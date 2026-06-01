@@ -7,6 +7,14 @@ import ViewTaskModal from "../../components/Modals/AdminModals/ViewTaskModal";
 import Layout from "../../components/Layout/Layout";
 import PriorityBadge from "../../components/Task/PriorityBadge";
 import {
+  EmptyIllustration,
+  getGreeting,
+  PanelHeader,
+  ProgressRing,
+  StatCard,
+  TableSkeleton,
+} from "../../components/User/UserWorkspaceUI";
+import {
   TASK_PROGRAMS,
   TASK_STATUSES,
   approveTaskStatusRequest,
@@ -179,28 +187,6 @@ const statusBadgeClass = (status) => {
 const statusLabel = (status) =>
   TASK_STATUSES.find((s) => s.value === status)?.label ?? status;
 
-function StatCard({ label, value, accent }) {
-  const accents = {
-    slate: "from-slate-50 to-white ring-slate-200/80",
-    blue: "from-blue-50/80 to-white ring-blue-200/60",
-    amber: "from-amber-50/80 to-white ring-amber-200/60",
-    emerald: "from-emerald-50/80 to-white ring-emerald-200/60",
-    rose: "from-rose-50/80 to-white ring-rose-200/60",
-  };
-  return (
-    <div
-      className={`rounded-xl bg-gradient-to-br p-4 shadow-sm ring-1 ${accents[accent] ?? accents.slate}`}
-    >
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-        {label}
-      </p>
-      <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-slate-900">
-        {value}
-      </p>
-    </div>
-  );
-}
-
 function OwnerProgressCard({ label, completed, total, selected, onClick }) {
   const safeTotal = Math.max(0, Number(total) || 0);
   const safeCompleted = clamp(Number(completed) || 0, 0, safeTotal || 0);
@@ -255,6 +241,7 @@ const AddTask = () => {
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [tablePage, setTablePage] = useState(1);
   const [selectedOwnerId, setSelectedOwnerId] = useState(null);
+  const [filtersExpanded, setFiltersExpanded] = useState(true);
 
   const loadTasks = useCallback(async () => {
     setLoadingTasks(true);
@@ -501,6 +488,22 @@ const AddTask = () => {
     };
   }, [groupedTasks]);
 
+  const completionPercent = useMemo(() => {
+    if (!stats.total) return 0;
+    return Math.round((stats.completed / stats.total) * 100);
+  }, [stats.completed, stats.total]);
+
+  const todayLabel = useMemo(
+    () =>
+      new Date().toLocaleDateString(undefined, {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      }),
+    [],
+  );
+
   const hasActiveFilters =
     filters.awaitingApproval ||
     filters.priorityOnly ||
@@ -586,46 +589,210 @@ const AddTask = () => {
 
   return (
     <Layout>
-      <div className="mx-auto w-full min-w-0 max-w-7xl space-y-8 overflow-x-hidden lg:max-w-[min(80rem,calc(100vw-19rem))]">
-        <div className="min-w-0 space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-widest text-blue-600">
-            Admin
-          </p>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-            Tasks
-          </h1>
-          <p className="max-w-xl text-base text-slate-600 leading-relaxed">
-            Create assignments, track deadlines, and keep responsibility clear
-            with code-name owners.
-          </p>
+      <div className="mx-auto w-full min-w-0 max-w-7xl space-y-6 overflow-x-hidden bg-gradient-to-b from-slate-50/80 via-transparent to-blue-50/40 pb-10 sm:space-y-8 lg:max-w-[min(80rem,calc(100vw-19rem))]">
+        {/* Hero */}
+        <section className="ut-animate-in relative overflow-hidden rounded-3xl border border-blue-400/20 bg-gradient-to-br from-blue-600 via-indigo-700 to-slate-900 px-6 py-8 shadow-2xl shadow-blue-900/30 sm:px-8 sm:py-10">
+          <div
+            className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-cyan-400/20 blur-3xl"
+            aria-hidden
+          />
+          <div
+            className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-indigo-400/25 blur-3xl"
+            aria-hidden
+          />
+          <div
+            className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.12),_transparent_55%)]"
+            aria-hidden
+          />
+
+          <div className="relative z-10 flex flex-col gap-8 xl:flex-row xl:items-center xl:justify-between">
+            <div className="max-w-2xl space-y-4">
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold text-blue-50 backdrop-blur-sm">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-300 opacity-60" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-cyan-300" />
+                </span>
+                PSTO Calendar · Task management
+              </div>
+              <div>
+                <p className="text-sm font-medium text-blue-100/90">
+                  {getGreeting()}
+                </p>
+                <h1 className="mt-1 text-3xl font-bold tracking-tight text-white sm:text-4xl lg:text-[2.35rem] lg:leading-tight">
+                  Task command center
+                </h1>
+                <p className="mt-3 text-sm leading-relaxed text-blue-100/85 sm:text-base">
+                  Create assignments, approve status requests, and track
+                  deadlines by code name.{" "}
+                  <span className="text-white/90">{todayLabel}</span>
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {!loadingTasks && stats.awaitingApproval > 0 ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/20 px-3 py-1 text-xs font-semibold text-amber-50 ring-1 ring-amber-300/30">
+                    {stats.awaitingApproval} awaiting approval
+                  </span>
+                ) : null}
+                {!loadingTasks && stats.priority > 0 ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-500/25 px-3 py-1 text-xs font-semibold text-rose-50 ring-1 ring-rose-300/30">
+                    {stats.priority} priority
+                  </span>
+                ) : null}
+                {!loadingTasks && stats.onHold > 0 ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white ring-1 ring-white/20">
+                    {stats.onHold} on hold
+                  </span>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="flex flex-col items-center gap-5 sm:flex-row xl:flex-col xl:items-end">
+              <ProgressRing percent={completionPercent} loading={loadingTasks} />
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row xl:flex-col">
+                <button
+                  type="button"
+                  onClick={() => setAddModalOpen(true)}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-blue-700 shadow-lg shadow-blue-950/20 transition hover:bg-blue-50 hover:shadow-xl"
+                >
+                  <svg
+                    className="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={2}
+                    stroke="currentColor"
+                    aria-hidden
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M12 4.5v15m7.5-7.5h-15"
+                    />
+                  </svg>
+                  New task
+                </button>
+                <button
+                  type="button"
+                  onClick={loadTasks}
+                  disabled={loadingTasks}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/25 bg-white/10 px-5 py-3 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20 disabled:opacity-50"
+                >
+                  <svg
+                    className={`h-5 w-5 ${loadingTasks ? "animate-spin" : ""}`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={2}
+                    stroke="currentColor"
+                    aria-hidden
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
+                    />
+                  </svg>
+                  Refresh
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Stats */}
+        <div className="ut-animate-in ut-delay-1 grid min-w-0 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
+          <StatCard
+            label="Total tasks"
+            value={loadingTasks ? "…" : stats.total}
+            accent="slate"
+            sublabel="All assignments"
+          />
+          <StatCard
+            label="Priority"
+            value={loadingTasks ? "…" : stats.priority}
+            accent="rose"
+            sublabel="High importance"
+          />
+          <StatCard
+            label="Pending"
+            value={loadingTasks ? "…" : stats.pending}
+            accent="blue"
+            sublabel="Not started"
+          />
+          <StatCard
+            label="Ongoing"
+            value={loadingTasks ? "…" : stats.ongoing}
+            accent="amber"
+            sublabel="In progress"
+          />
+          <StatCard
+            label="Completed"
+            value={loadingTasks ? "…" : stats.completed}
+            accent="emerald"
+            sublabel="Marked done"
+          />
         </div>
 
-        <section className="min-w-0 max-w-full overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-lg shadow-slate-200/40 ring-1 ring-slate-900/[0.04]">
-          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/90 to-white px-5 py-4 sm:px-6">
-            <div className="min-w-0">
-              <h2 className="text-lg font-semibold text-slate-900">
-                Owner progress
-              </h2>
-              <p className="mt-0.5 text-sm text-slate-500">
-                {loadingTasks
-                  ? "Loading…"
-                  : "Click an owner to view open (not completed) tasks"}
-              </p>
-            </div>
-            {!loadingTasks && ownerProgress.length > 0 ? (
-              <span className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800 ring-1 ring-inset ring-emerald-600/15">
-                Top {Math.min(ownerProgress.length, 12)}
-              </span>
-            ) : null}
-          </div>
+        {/* Owner progress */}
+        <section className="ut-animate-in ut-delay-2 min-w-0 max-w-full overflow-hidden rounded-3xl border border-slate-200/80 bg-white/90 shadow-xl shadow-slate-300/25 ring-1 ring-slate-900/[0.04] backdrop-blur-sm">
+          <PanelHeader
+            iconGradient="bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-500/25"
+            icon={
+              <svg
+                className="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={2}
+                stroke="currentColor"
+                aria-hidden
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"
+                />
+              </svg>
+            }
+            title="Owner progress"
+            subtitle={
+              loadingTasks
+                ? "Loading team completion…"
+                : "Click an owner to view open (not completed) tasks"
+            }
+            action={
+              !loadingTasks && ownerProgress.length > 0 ? (
+                <span className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800 ring-1 ring-inset ring-emerald-600/15">
+                  Top {Math.min(ownerProgress.length, 12)}
+                </span>
+              ) : null
+            }
+          />
 
-          <div className="p-5 sm:p-6">
+          <div className="bg-slate-50/40 p-5 sm:p-6">
             {loadingTasks ? (
-              <p className="text-sm text-slate-500">Loading…</p>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {[0, 1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className="h-24 animate-pulse rounded-2xl border border-slate-200/80 bg-white"
+                  />
+                ))}
+              </div>
             ) : ownerProgress.length === 0 ? (
-              <p className="text-sm text-slate-500">
-                No owner progress yet. Add tasks first.
-              </p>
+              <div className="flex flex-col items-center py-10 text-center">
+                <EmptyIllustration />
+                <p className="mt-6 text-lg font-bold text-slate-900">
+                  No owner data yet
+                </p>
+                <p className="mt-2 max-w-sm text-sm text-slate-500">
+                  Add tasks with assignees to see completion by code name.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setAddModalOpen(true)}
+                  className="mt-6 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-600/25 hover:from-blue-700 hover:to-indigo-700"
+                >
+                  Add first task
+                </button>
+              </div>
             ) : (
               <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
                 {ownerProgress.map((o) => (
@@ -643,76 +810,94 @@ const AddTask = () => {
           </div>
         </section>
 
-        <div className="grid min-w-0 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
-          <StatCard
-            label="Total tasks"
-            value={loadingTasks ? "…" : stats.total}
-            accent="slate"
-          />
-          <StatCard
-            label="Priority"
-            value={loadingTasks ? "…" : stats.priority}
-            accent="rose"
-          />
-          <StatCard
-            label="Pending"
-            value={loadingTasks ? "…" : stats.pending}
-            accent="blue"
-          />
-          <StatCard
-            label="Ongoing"
-            value={loadingTasks ? "…" : stats.ongoing}
-            accent="amber"
-          />
-          <StatCard
-            label="Completed"
-            value={loadingTasks ? "…" : stats.completed}
-            accent="emerald"
-          />
-        </div>
-
-        <section className="min-w-0 max-w-full overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-lg shadow-slate-200/40 ring-1 ring-slate-900/[0.04]">
-          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/90 to-white px-5 py-4 sm:px-6">
-            <div className="min-w-0">
-              <h2 className="text-lg font-semibold text-slate-900">
-                All tasks
-              </h2>
-              <p className="mt-0.5 text-sm text-slate-500">
-                {loadingTasks
-                  ? "Loading your workspace…"
-                  : `${filteredGroupedTasks.length} shown · ${groupedTasks.length} total · ${stats.priority} priority · ${stats.onHold} on hold · ${stats.awaitingApproval} awaiting approval`}
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-              {!loadingTasks && groupedTasks.length > 0 ? (
+        {/* Task board */}
+        <section className="ut-animate-in ut-delay-3 min-w-0 max-w-full overflow-hidden rounded-3xl border border-slate-200/80 bg-white/90 shadow-xl shadow-slate-300/25 ring-1 ring-slate-900/[0.04] backdrop-blur-sm">
+          <PanelHeader
+            iconGradient="bg-gradient-to-br from-blue-500 to-indigo-600 shadow-blue-500/25"
+            icon={
+              <svg
+                className="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={2}
+                stroke="currentColor"
+                aria-hidden
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm0 5.25h.007v.008H3.75v-.008zm0 5.25h.007v.008H3.75v-.008z"
+                />
+              </svg>
+            }
+            title="All tasks"
+            subtitle={
+              loadingTasks
+                ? "Syncing workspace…"
+                : `${filteredGroupedTasks.length} shown · ${groupedTasks.length} total · ${stats.awaitingApproval} awaiting approval`
+            }
+            action={
+              !loadingTasks && groupedTasks.length > 0 ? (
                 <span className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-800 ring-1 ring-inset ring-blue-600/15">
                   Latest first
                 </span>
-              ) : null}
-              <button
-                type="button"
-                onClick={() => setAddModalOpen(true)}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-blue-600/25 transition hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-600/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+              ) : null
+            }
+          />
+
+          <div className="border-b border-slate-100 bg-slate-50/40 px-5 py-3 sm:px-6">
+            <button
+              type="button"
+              onClick={() => setFiltersExpanded((open) => !open)}
+              className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-white px-4 py-3 text-left shadow-sm transition hover:border-slate-300 hover:shadow"
+              aria-expanded={filtersExpanded}
+            >
+              <span className="flex items-center gap-3">
+                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={2}
+                    stroke="currentColor"
+                    aria-hidden
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.036a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z"
+                    />
+                  </svg>
+                </span>
+                <span>
+                  <span className="block text-sm font-semibold text-slate-900">
+                    Search & filters
+                  </span>
+                  <span className="block text-xs text-slate-500">
+                    {hasActiveFilters
+                      ? "Filters active — tap to adjust"
+                      : "Find tasks by date, status, assignee, or keyword"}
+                  </span>
+                </span>
+              </span>
+              <svg
+                className={`h-5 w-5 shrink-0 text-slate-400 transition ${filtersExpanded ? "rotate-180" : ""}`}
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={2}
+                stroke="currentColor"
+                aria-hidden
               >
-                <svg
-                  className="h-4 w-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth={2}
-                  stroke="currentColor"
-                  aria-hidden
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M12 4.5v15m7.5-7.5h-15"
-                  />
-                </svg>
-                Add task
-              </button>
-            </div>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M19.5 8.25l-7.5 7.5-7.5-7.5"
+                />
+              </svg>
+            </button>
           </div>
 
+          {filtersExpanded ? (
           <div className="min-w-0 border-b border-slate-100 bg-white px-5 py-4 sm:px-6">
             <div className="mb-4 flex min-w-0 flex-col gap-3">
               <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
@@ -951,88 +1136,63 @@ const AddTask = () => {
               </div>
             </div>
           </div>
+          ) : null}
 
-          <div className="w-0 min-w-full overflow-x-auto overscroll-x-contain">
-            <table className="w-full min-w-[720px] text-left text-sm lg:min-w-[980px]">
+          <div className="w-0 min-w-full overflow-x-auto overscroll-x-contain bg-slate-50/30 p-2 sm:p-3">
+            <table className="w-full min-w-[720px] border-separate border-spacing-y-2 text-left text-sm lg:min-w-[980px]">
               <thead>
-                <tr className="border-b border-slate-100 bg-slate-50/80">
-                  <th className="whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500 sm:px-6">
+                <tr>
+                  <th className="whitespace-nowrap rounded-l-xl bg-slate-900 px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-white sm:px-6">
                     Date
                   </th>
-                  <th className="whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500 sm:px-6">
+                  <th className="whitespace-nowrap bg-slate-900 px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-white sm:px-6">
                     Priority
                   </th>
-                  <th className="whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500 sm:px-6">
+                  <th className="whitespace-nowrap bg-slate-900 px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-white sm:px-6">
                     Program
                   </th>
-                  <th className="whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500 sm:px-6">
+                  <th className="whitespace-nowrap bg-slate-900 px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-white sm:px-6">
                     Agenda
                   </th>
-                  <th className="whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500 sm:px-6">
+                  <th className="whitespace-nowrap bg-slate-900 px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-white sm:px-6">
                     Activities
                   </th>
-                  <th className="whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500 sm:px-6">
+                  <th className="whitespace-nowrap bg-slate-900 px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-white sm:px-6">
                     Deadline
                   </th>
-                  <th className="whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500 sm:px-6">
+                  <th className="whitespace-nowrap bg-slate-900 px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-white sm:px-6">
                     Person responsible
                   </th>
-                  <th className="whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500 sm:px-6">
+                  <th className="whitespace-nowrap bg-slate-900 px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-white sm:px-6">
                     Status
                   </th>
-                  <th className="whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500 sm:px-6">
+                  <th className="whitespace-nowrap bg-slate-900 px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-white sm:px-6">
                     Remarks
                   </th>
-                  <th className="w-[1%] whitespace-nowrap px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-slate-500 sm:px-6">
+                  <th className="w-[1%] whitespace-nowrap rounded-r-xl bg-slate-900 px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-white sm:px-6">
                     Actions
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody>
                 {loadingTasks ? (
-                  <tr>
-                    <td colSpan={10} className="px-6 py-16">
-                      <div className="flex flex-col items-center justify-center gap-3 text-center">
-                        <div
-                          className="h-10 w-10 animate-spin rounded-full border-2 border-slate-200 border-t-blue-600"
-                          aria-hidden
-                        />
-                        <p className="text-sm font-medium text-slate-600">
-                          Loading tasks…
-                        </p>
-                      </div>
-                    </td>
-                  </tr>
+                  <TableSkeleton colSpan={10} />
                 ) : groupedTasks.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="px-6 py-16">
+                    <td colSpan={10} className="px-6 py-20">
                       <div className="mx-auto flex max-w-md flex-col items-center text-center">
-                        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 ring-1 ring-blue-100">
-                          <svg
-                            className="h-7 w-7"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            strokeWidth={1.5}
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z"
-                            />
-                          </svg>
-                        </div>
-                        <p className="mt-4 text-base font-semibold text-slate-900">
+                        <EmptyIllustration />
+                        <p className="mt-6 text-lg font-bold text-slate-900">
                           No tasks yet
                         </p>
-                        <p className="mt-2 text-sm text-slate-500 leading-relaxed">
-                          Start by adding a task and assigning it to someone’s
-                          code name.
+                        <p className="mt-2 text-sm leading-relaxed text-slate-500">
+                          Start by adding a task and assigning it to a code
+                          name.
                         </p>
                         <button
                           type="button"
                           onClick={() => setAddModalOpen(true)}
-                          className="mt-6 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-blue-600/20 hover:bg-blue-700"
+                          className="mt-6 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-600/25 hover:from-blue-700 hover:to-indigo-700"
                         >
                           Create first task
                         </button>
@@ -1041,35 +1201,21 @@ const AddTask = () => {
                   </tr>
                 ) : filteredGroupedTasks.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="px-6 py-16">
+                    <td colSpan={10} className="px-6 py-20">
                       <div className="mx-auto flex max-w-md flex-col items-center text-center">
-                        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-50 text-slate-500 ring-1 ring-slate-200">
-                          <svg
-                            className="h-7 w-7"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            strokeWidth={1.5}
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M12 6v12m6-6H6"
-                            />
-                          </svg>
-                        </div>
-                        <p className="mt-4 text-base font-semibold text-slate-900">
-                          No matches
+                        <EmptyIllustration variant="filter" />
+                        <p className="mt-6 text-lg font-bold text-slate-900">
+                          No matches found
                         </p>
-                        <p className="mt-2 text-sm text-slate-500 leading-relaxed">
-                          Try adjusting your filters or clearing them to see all
-                          tasks.
+                        <p className="mt-2 text-sm leading-relaxed text-slate-500">
+                          Try adjusting your filters or clearing them to see
+                          all tasks.
                         </p>
                         {hasActiveFilters ? (
                           <button
                             type="button"
                             onClick={() => setFilters(DEFAULT_FILTERS)}
-                            className="mt-6 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-blue-600/20 hover:bg-blue-700"
+                            className="mt-6 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-blue-600/20 hover:from-blue-700 hover:to-indigo-700"
                           >
                             Clear filters
                           </button>
@@ -1081,8 +1227,10 @@ const AddTask = () => {
                   paginatedGroupedTasks.map((task) => (
                     <tr
                       key={task.groupKey || task.id}
-                      className={`transition-colors hover:bg-slate-50/90 ${
-                        isTaskPriority(task) ? "bg-rose-50/35" : ""
+                      className={`group transition-all duration-200 ${
+                        isTaskPriority(task)
+                          ? "[&_td]:!border-rose-200/80 [&_td]:!bg-rose-50/40"
+                          : "hover:[&_td]:shadow-md"
                       }`}
                     >
                       <td className="whitespace-nowrap px-5 py-4 font-medium text-slate-900 sm:px-6">
