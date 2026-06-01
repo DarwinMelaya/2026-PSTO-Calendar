@@ -2,16 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import Layout from "../../components/Layout/Layout";
 import { getSession } from "../../utils/session";
-import { listTasksForUser, TASK_STATUSES } from "../../utils/task";
-
-const formatDate = (value) => {
-  if (!value) return "—";
-  return new Date(`${value}T00:00:00`).toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-};
+import { formatTaskDeadline, listTasksForUser, TASK_STATUSES } from "../../utils/task";
 
 const daysBetween = (a, b) => Math.floor((a - b) / (1000 * 60 * 60 * 24));
 
@@ -223,7 +214,7 @@ const UserDashboard = () => {
                           </span>
                           <span>•</span>
                           <span className="font-medium">
-                            {formatDate(t.deadline)}
+                            {formatTaskDeadline(t.deadline, t.deadline_time)}
                           </span>
                         </p>
                       </div>

@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import Layout from "../../components/Layout/Layout";
-import { hasDeadline, isTaskPriority, listTasks } from "../../utils/task";
+import {
+  formatTaskDeadline,
+  hasDeadline,
+  isTaskPriority,
+  listTasks,
+} from "../../utils/task";
 
 const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const monthNames = [
@@ -738,7 +743,10 @@ const AdminCalendar = ({ readOnly = false }) => {
                 <p className="text-slate-700">
                   <span className="font-semibold">Due date:</span>{" "}
                   {selectedSchedule?._task?.deadline
-                    ? new Date(`${selectedSchedule._task.deadline}T00:00:00`).toLocaleDateString()
+                    ? formatTaskDeadline(
+                        selectedSchedule._task.deadline,
+                        selectedSchedule._task.deadline_time,
+                      )
                     : "—"}
                 </p>
                 <p className="text-slate-700">

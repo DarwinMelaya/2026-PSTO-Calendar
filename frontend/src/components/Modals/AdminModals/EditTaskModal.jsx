@@ -4,6 +4,7 @@ import SubTasksField from "../../Task/SubTasksField";
 import {
   TASK_STATUSES,
   deadlineForForm,
+  deadlineTimeForForm,
   listAssignableProfiles,
   normalizeSubTasks,
   parseTaskActivities,
@@ -25,6 +26,7 @@ const initialForm = {
   activities: "",
   subTasks: [],
   deadline: "",
+  deadlineTime: "",
   responsibleId: [],
   program: "GIA",
   status: "pending",
@@ -44,6 +46,7 @@ function taskToForm(task) {
     activities: cleanActivities,
     subTasks,
     deadline: deadlineForForm(task.deadline),
+    deadlineTime: deadlineTimeForForm(task.deadline_time),
     responsibleId: Array.isArray(task.responsible_ids)
       ? task.responsible_ids.map((id) => String(id))
       : task.responsible_id != null
@@ -105,6 +108,16 @@ const EditTaskModal = ({ isOpen, onClose, onSuccess, task }) => {
   const setField = (field) => (e) =>
     setForm((prev) => ({ ...prev, [field]: e.target.value }));
 
+  const handleDeadlineChange = (e) => {
+    const deadline = e.target.value;
+    setForm((prev) => ({
+      ...prev,
+      deadline,
+      // If deadline is cleared, also clear deadline time to keep the form consistent.
+      deadlineTime: deadline ? prev.deadlineTime : "",
+    }));
+  };
+
   const setPriority = (e) =>
     setForm((prev) => ({ ...prev, isPriority: e.target.checked }));
 
@@ -133,6 +146,7 @@ const EditTaskModal = ({ isOpen, onClose, onSuccess, task }) => {
       activities,
       subTasks,
       deadline,
+      deadlineTime,
       responsibleId,
       program,
       status,
@@ -163,6 +177,7 @@ const EditTaskModal = ({ isOpen, onClose, onSuccess, task }) => {
       activities,
       subTasks: normalizeSubTasks(subTasks),
       deadline,
+      deadlineTime,
       responsibleId,
       program,
       status,
@@ -264,7 +279,23 @@ const EditTaskModal = ({ isOpen, onClose, onSuccess, task }) => {
                 type="date"
                 min={form.taskDate || undefined}
                 value={form.deadline}
-                onChange={setField("deadline")}
+                onChange={handleDeadlineChange}
+                className={inputClass}
+              />
+
+              <label
+                htmlFor="edit-modal-task-deadline-time"
+                className="mt-2 mb-1.5 block text-sm font-medium text-slate-700"
+              >
+                Deadline time{" "}
+                <span className="font-normal text-slate-400">(optional)</span>
+              </label>
+              <input
+                id="edit-modal-task-deadline-time"
+                type="time"
+                step={900}
+                value={form.deadlineTime}
+                onChange={setField("deadlineTime")}
                 className={inputClass}
               />
             </div>

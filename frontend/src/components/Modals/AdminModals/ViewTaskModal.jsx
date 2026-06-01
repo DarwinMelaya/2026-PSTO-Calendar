@@ -65,7 +65,7 @@ const ViewTaskModal = ({ isOpen, onClose, task }) => {
             <p className="mt-1 text-sm text-slate-500">
               {formatDate(task.task_date)}
               {" · "}
-              {formatTaskDeadline(task.deadline)}
+              {formatTaskDeadline(task.deadline, task.deadline_time)}
             </p>
           </div>
           <button

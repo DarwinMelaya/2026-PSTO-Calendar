@@ -7,6 +7,7 @@ create table if not exists public.tasks (
   agenda text not null,
   activities text not null,
   deadline date not null,
+  deadline_time time without time zone null,
   responsible_id bigint not null,
   status text not null default 'pending'::text,
   program text not null default 'Other'::text,
@@ -30,6 +31,10 @@ create table if not exists public.tasks (
 
 create index if not exists tasks_responsible_id_idx on public.tasks (responsible_id);
 create index if not exists tasks_task_date_idx on public.tasks (task_date);
+
+-- Optional time portion for `deadline`
+alter table public.tasks
+  add column if not exists deadline_time time without time zone null;
 
 alter table public.tasks disable row level security;
 

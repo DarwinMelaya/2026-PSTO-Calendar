@@ -133,7 +133,7 @@ const DashboardTaskListModal = ({
                       <p className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-500">
                         {withDeadline ? (
                           <span className="font-medium">
-                            Deadline: {formatTaskDeadline(t.deadline)}
+                            Deadline: {formatTaskDeadline(t.deadline, t.deadline_time)}
                           </span>
                         ) : null}
                         {isOverdue ? (

@@ -23,6 +23,7 @@ const initialForm = {
   activities: "",
   subTasks: [],
   deadline: "",
+  deadlineTime: "",
   responsibleId: [],
   program: "GIA",
   status: "pending",
@@ -63,6 +64,16 @@ const AddTaskModal = ({ isOpen, onClose, onSuccess }) => {
   const setField = (field) => (e) =>
     setForm((prev) => ({ ...prev, [field]: e.target.value }));
 
+  const handleDeadlineChange = (e) => {
+    const deadline = e.target.value;
+    setForm((prev) => ({
+      ...prev,
+      deadline,
+      // If deadline is cleared, also clear deadline time to keep the form consistent.
+      deadlineTime: deadline ? prev.deadlineTime : "",
+    }));
+  };
+
   const setPriority = (e) =>
     setForm((prev) => ({ ...prev, isPriority: e.target.checked }));
 
@@ -91,6 +102,7 @@ const AddTaskModal = ({ isOpen, onClose, onSuccess }) => {
       activities,
       subTasks,
       deadline,
+      deadlineTime,
       responsibleId,
       program,
       status,
@@ -121,6 +133,7 @@ const AddTaskModal = ({ isOpen, onClose, onSuccess }) => {
       activities,
       subTasks: normalizeSubTasks(subTasks),
       deadline,
+      deadlineTime,
       responsibleId,
       program,
       status,
@@ -219,7 +232,23 @@ const AddTaskModal = ({ isOpen, onClose, onSuccess }) => {
                 type="date"
                 min={form.taskDate || undefined}
                 value={form.deadline}
-                onChange={setField("deadline")}
+                onChange={handleDeadlineChange}
+                className={inputClass}
+              />
+
+              <label
+                htmlFor="modal-task-deadline-time"
+                className="mt-2 mb-1.5 block text-sm font-medium text-slate-700"
+              >
+                Deadline time{" "}
+                <span className="font-normal text-slate-400">(optional)</span>
+              </label>
+              <input
+                id="modal-task-deadline-time"
+                type="time"
+                step={900}
+                value={form.deadlineTime}
+                onChange={setField("deadlineTime")}
                 className={inputClass}
               />
             </div>

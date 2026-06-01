@@ -1090,7 +1090,7 @@ const AddTask = () => {
                         </div>
                       </td>
                       <td className="whitespace-nowrap px-5 py-4 text-slate-800 sm:px-6">
-                        {formatTaskDeadline(task.deadline)}
+                        {formatTaskDeadline(task.deadline, task.deadline_time)}
                       </td>
                       <td className="whitespace-nowrap px-5 py-4 sm:px-6">
                         <div className="flex flex-wrap gap-1.5">

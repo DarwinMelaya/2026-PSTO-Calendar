@@ -6,6 +6,7 @@ import AddUserTaskModal from "../../components/Modals/UserModals/AddUserTaskModa
 import { getSession } from "../../utils/session";
 import {
   TASK_STATUSES,
+  formatTaskDeadline,
   isTaskPriority,
   listTasksForUser,
   parseTaskRemarks,
@@ -411,7 +412,7 @@ const UserTask = () => {
                         </div>
                       </td>
                       <td className="whitespace-nowrap px-5 py-4 text-slate-800 sm:px-6">
-                        {formatDate(task.deadline)}
+                        {formatTaskDeadline(task.deadline, task.deadline_time)}
                       </td>
                       <td className="whitespace-nowrap px-5 py-4 sm:px-6">
                         <span

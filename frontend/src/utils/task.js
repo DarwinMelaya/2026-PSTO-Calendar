@@ -212,18 +212,44 @@ export const resolveDeadlineForDb = (deadline) => {
   return NO_DEADLINE;
 };
 
+export const deadlineTimeForForm = (value) => {
+  if (!value) return "";
+  const str = String(value).trim();
+  if (!str) return "";
+  // Supabase may return `HH:MM:SS` for `time` columns.
+  return str.slice(0, 5);
+};
+
+export const normalizeDeadlineTimeForDb = (deadline, deadlineTime) => {
+  if (!hasDeadline(deadline)) return null;
+  if (!deadlineTime) return null;
+
+  const str = String(deadlineTime).trim();
+  if (!str) return null;
+
+  // Accept `HH:MM` or `HH:MM:SS`, normalize to `HH:MM:SS`.
+  if (/^\d{2}:\d{2}$/.test(str)) return `${str}:00`;
+  if (/^\d{2}:\d{2}:\d{2}$/.test(str)) return str;
+
+  return null;
+};
+
 export const normalizeActivities = (activities, subTasks) =>
   composeTaskActivities({ activities, subTasks });
 
 export const deadlineForForm = (value) => (hasDeadline(value) ? value : "");
 
-export const formatTaskDeadline = (value) => {
+export const formatTaskDeadline = (value, deadlineTime) => {
   if (!hasDeadline(value)) return "—";
-  return new Date(`${value}T00:00:00`).toLocaleDateString(undefined, {
+
+  const dateStr = new Date(`${value}T00:00:00`).toLocaleDateString(undefined, {
     year: "numeric",
     month: "short",
     day: "numeric",
   });
+
+  const timeStr = deadlineTime ? String(deadlineTime).trim().slice(0, 5) : "";
+  return timeStr ? `${dateStr} • ${timeStr}` : dateStr;
 };
 
 export const createTask = async ({
@@ -232,6 +258,7 @@ export const createTask = async ({
   activities,
   subTasks,
   deadline,
+  deadlineTime,
   responsibleId,
   status,
   program,
@@ -239,6 +266,10 @@ export const createTask = async ({
   isPriority = false,
 }) => {
   const resolvedDeadline = resolveDeadlineForDb(deadline);
+  const resolvedDeadlineTime = normalizeDeadlineTimeForDb(
+    resolvedDeadline,
+    deadlineTime,
+  );
   const responsibleIds = normalizeResponsibleIds(responsibleId);
   if (responsibleIds.length === 0) {
     return {
@@ -262,6 +293,7 @@ export const createTask = async ({
         agenda: agenda.trim(),
         activities: normalizeActivities(activities, subTasks),
         deadline: resolvedDeadline,
+        deadline_time: resolvedDeadlineTime,
         responsible_id: id,
         status,
         program: program || "Other",
@@ -270,7 +302,7 @@ export const createTask = async ({
       })),
     )
     .select(
-      "id, task_date, agenda, activities, deadline, status, program, is_priority, remarks, created_at, responsible_id",
+      "id, task_date, agenda, activities, deadline, deadline_time, status, program, is_priority, remarks, created_at, responsible_id",
     );
 
   return { data, error };
@@ -284,6 +316,7 @@ export const updateTask = async (
     activities,
     subTasks,
     deadline,
+    deadlineTime,
     responsibleId,
     status,
     program,
@@ -302,6 +335,10 @@ export const updateTask = async (
     };
   }
   const resolvedDeadline = resolveDeadlineForDb(deadline);
+  const resolvedDeadlineTime = normalizeDeadlineTimeForDb(
+    resolvedDeadline,
+    deadlineTime,
+  );
   const existingMeta = parseTaskRemarks(existingRemarks ?? null);
   const effectiveGroupKey =
     groupKey || existingMeta.groupKey || parseTaskRemarks(remarks).groupKey || createGroupKey();
@@ -321,6 +358,7 @@ export const updateTask = async (
     agenda: agenda.trim(),
     activities: normalizeActivities(activities, subTasks),
     deadline: resolvedDeadline,
+    deadline_time: resolvedDeadlineTime,
     status,
     program: program || "Other",
     is_priority: Boolean(isPriority),
@@ -348,7 +386,7 @@ export const updateTask = async (
       })
       .eq("id", rowId)
       .select(
-        "id, task_date, agenda, activities, deadline, status, program, is_priority, remarks, created_at, responsible_id",
+        "id, task_date, agenda, activities, deadline, deadline_time, status, program, is_priority, remarks, created_at, responsible_id",
       )
       .single();
     if (updateError) {
@@ -368,7 +406,7 @@ export const updateTask = async (
         })),
       )
       .select(
-        "id, task_date, agenda, activities, deadline, status, program, is_priority, remarks, created_at, responsible_id",
+        "id, task_date, agenda, activities, deadline, deadline_time, status, program, is_priority, remarks, created_at, responsible_id",
       );
     if (createError) {
       return { data: updatedRows, error: createError };
@@ -504,6 +542,7 @@ export const listTasks = async () => {
       agenda,
       activities,
       deadline,
+      deadline_time,
       status,
       program,
       is_priority,
@@ -523,7 +562,7 @@ export const listTasksForUser = async (responsibleId) => {
   const { data, error } = await supabase
     .from("tasks")
     .select(
-      "id, task_date, agenda, activities, deadline, status, program, is_priority, remarks, created_at, responsible_id",
+      "id, task_date, agenda, activities, deadline, deadline_time, status, program, is_priority, remarks, created_at, responsible_id",
     )
     .eq("responsible_id", Number(responsibleId))
     .order("created_at", { ascending: false });

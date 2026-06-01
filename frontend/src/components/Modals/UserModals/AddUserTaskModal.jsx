@@ -11,6 +11,7 @@ const buildInitialForm = (currentUserId) => ({
   agenda: "",
   activities: "",
   deadline: "",
+  deadlineTime: "",
   responsibleId: currentUserId ? [String(currentUserId)] : [],
   program: "GIA",
   isPriority: false,
@@ -78,6 +79,7 @@ const AddUserTaskModal = ({ isOpen, onClose, onSuccess, currentUserId }) => {
       agenda,
       activities,
       deadline,
+      deadlineTime,
       responsibleId,
       program,
       isPriority,
@@ -111,6 +113,7 @@ const AddUserTaskModal = ({ isOpen, onClose, onSuccess, currentUserId }) => {
       agenda,
       activities,
       deadline,
+      deadlineTime,
       responsibleId,
       program,
       status: "pending",
@@ -211,6 +214,22 @@ const AddUserTaskModal = ({ isOpen, onClose, onSuccess, currentUserId }) => {
                 min={form.taskDate || undefined}
                 value={form.deadline}
                 onChange={setField("deadline")}
+                className={inputClass}
+              />
+
+              <label
+                htmlFor="user-modal-task-deadline-time"
+                className="mt-3 mb-1.5 block text-sm font-medium text-slate-700"
+              >
+                Deadline time{" "}
+                <span className="font-normal text-slate-400">(optional)</span>
+              </label>
+              <input
+                id="user-modal-task-deadline-time"
+                type="time"
+                step={1800}
+                value={form.deadlineTime}
+                onChange={setField("deadlineTime")}
                 className={inputClass}
               />
             </div>
