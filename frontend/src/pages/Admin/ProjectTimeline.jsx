@@ -7,7 +7,6 @@ import EditTimelineEntryModal from "../../components/Modals/AdminModals/EditTime
 import Layout from "../../components/Layout/Layout";
 import {
   EmptyIllustration,
-  getGreeting,
   PanelHeader,
   StatCard,
   TableSkeleton,
@@ -493,52 +492,42 @@ const ProjectTimeline = () => {
   return (
     <Layout>
       <div className="mx-auto w-full min-w-0 max-w-7xl space-y-6 overflow-x-hidden bg-gradient-to-b from-slate-50/80 via-transparent to-blue-50/40 pb-10 sm:space-y-8 lg:max-w-[min(80rem,calc(100vw-19rem))]">
-        <section className="ut-animate-in relative overflow-hidden rounded-3xl border border-blue-400/20 bg-gradient-to-br from-blue-600 via-indigo-700 to-slate-900 px-6 py-8 shadow-2xl shadow-blue-900/30 sm:px-8 sm:py-10">
+        <section className="ut-animate-in relative overflow-hidden rounded-2xl border border-blue-400/20 bg-gradient-to-br from-blue-600 via-indigo-700 to-slate-900 px-4 py-4 shadow-lg shadow-blue-900/20 sm:px-5 sm:py-5">
           <div
-            className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-cyan-400/20 blur-3xl"
+            className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-cyan-400/15 blur-2xl"
             aria-hidden
           />
           <div
-            className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-indigo-400/25 blur-3xl"
-            aria-hidden
-          />
-          <div
-            className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.12),_transparent_55%)]"
+            className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.1),_transparent_55%)]"
             aria-hidden
           />
 
-          <div className="relative z-10 flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
-            <div className="max-w-2xl space-y-4">
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold text-blue-50 backdrop-blur-sm">
+          <div className="relative z-10 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <div className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-2.5 py-0.5 text-[10px] font-semibold text-blue-50 backdrop-blur-sm sm:text-xs">
                 PSTO Calendar · Project monitoring
               </div>
-              <div>
-                <p className="text-sm font-medium text-blue-100/90">
-                  {getGreeting()}
-                </p>
-                <h1 className="mt-1 text-3xl font-bold tracking-tight text-white sm:text-4xl lg:text-[2.35rem] lg:leading-tight">
-                  Project timeline
-                </h1>
-                <p className="mt-3 text-sm leading-relaxed text-blue-100/85 sm:text-base">
-                  Monitor kung ano na ang nangyayari sa bawat project — hal.
-                  CEST, SETUP, GIA, SSCP. Tingnan ang report per period (last
-                  month, this month).{" "}
-                  <span className="text-white/90">{todayLabel}</span>
-                </p>
-              </div>
+              <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
+                Project timeline
+              </h1>
+              <p className="max-w-xl text-xs leading-relaxed text-blue-100/85 sm:text-sm">
+                Track progress for each project — CEST, SETUP, GIA, SSCP. View
+                reports by period (last month, this month).{" "}
+                <span className="text-white/90">{todayLabel}</span>
+              </p>
 
               {!selectedProject ? (
-                <label className="relative block max-w-xl">
+                <label className="relative mt-2 block max-w-md">
                   <span className="sr-only">Search projects</span>
                   <input
                     type="search"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Search project title, location…"
-                    className="w-full rounded-xl border border-white/20 bg-white/95 py-3 pl-10 pr-10 text-sm text-slate-800 shadow-lg outline-none placeholder:text-slate-400 focus:border-white focus:ring-2 focus:ring-white/40"
+                    className="w-full rounded-lg border border-white/20 bg-white/95 py-2 pl-9 pr-8 text-sm text-slate-800 outline-none placeholder:text-slate-400 focus:border-white focus:ring-2 focus:ring-white/40"
                   />
                   <svg
-                    className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                    className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
                     fill="none"
                     viewBox="0 0 24 24"
                     strokeWidth={2}
@@ -556,14 +545,14 @@ const ProjectTimeline = () => {
             </div>
 
             {!selectedProject ? (
-              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+              <div className="flex shrink-0 gap-2">
                 <button
                   type="button"
                   onClick={() => setAddProjectOpen(true)}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-blue-700 shadow-lg shadow-blue-950/20 transition hover:bg-blue-50 hover:shadow-xl"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-white px-3.5 py-2 text-xs font-bold text-blue-700 shadow transition hover:bg-blue-50 sm:text-sm"
                 >
                   <svg
-                    className="h-5 w-5"
+                    className="h-4 w-4"
                     fill="none"
                     viewBox="0 0 24 24"
                     strokeWidth={2}
@@ -582,7 +571,7 @@ const ProjectTimeline = () => {
                   type="button"
                   onClick={loadProjects}
                   disabled={loading}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/25 bg-white/10 px-5 py-3 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20 disabled:opacity-50"
+                  className="inline-flex items-center justify-center rounded-lg border border-white/25 bg-white/10 px-3.5 py-2 text-xs font-semibold text-white backdrop-blur-sm transition hover:bg-white/20 disabled:opacity-50 sm:text-sm"
                 >
                   Refresh
                 </button>

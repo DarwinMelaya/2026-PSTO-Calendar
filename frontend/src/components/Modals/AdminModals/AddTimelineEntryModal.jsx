@@ -1,6 +1,10 @@
 import { useRef, useState } from "react";
 import toast from "react-hot-toast";
 import {
+  formatFileSize,
+  MAX_UPLOAD_INPUT_BYTES,
+} from "../../../utils/compressImage";
+import {
   createTimelineEntry,
   uploadProjectTimelinePhoto,
 } from "../../../utils/projectTimeline";
@@ -44,8 +48,8 @@ const AddTimelineEntryModal = ({ isOpen, project, onClose, onSuccess }) => {
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Photo must be 5 MB or smaller.");
+    if (file.size > MAX_UPLOAD_INPUT_BYTES) {
+      toast.error("Photo must be 20 MB or smaller.");
       return;
     }
 
@@ -72,7 +76,7 @@ const AddTimelineEntryModal = ({ isOpen, project, onClose, onSuccess }) => {
 
     let photoUrl = null;
     if (photoFile) {
-      const { url, error: uploadError } =
+      const { url, error: uploadError, originalSize, compressedSize } =
         await uploadProjectTimelinePhoto(photoFile);
       if (uploadError) {
         setLoading(false);
@@ -80,6 +84,16 @@ const AddTimelineEntryModal = ({ isOpen, project, onClose, onSuccess }) => {
         return;
       }
       photoUrl = url;
+      if (
+        originalSize &&
+        compressedSize &&
+        compressedSize < originalSize
+      ) {
+        toast.success(
+          `Photo compressed: ${formatFileSize(originalSize)} → ${formatFileSize(compressedSize)}`,
+          { duration: 4000 },
+        );
+      }
     }
 
     const { error } = await createTimelineEntry({
@@ -167,7 +181,10 @@ const AddTimelineEntryModal = ({ isOpen, project, onClose, onSuccess }) => {
               htmlFor="te-photo"
               className="mb-1.5 block text-sm font-medium text-slate-700"
             >
-              Photo <span className="font-normal text-slate-400">(optional)</span>
+              Photo{" "}
+              <span className="font-normal text-slate-400">
+                (optional — large files are auto-compressed to KB)
+              </span>
             </label>
             <input
               ref={fileInputRef}

@@ -1,4 +1,5 @@
 import supabase from "./supabaseClient";
+import { compressImage } from "./compressImage";
 
 export const PROJECT_PROGRAMS = [
   { value: "SETUP", label: "SETUP" },
@@ -85,25 +86,50 @@ const photoPathFromUrl = (url) => {
 
 export const uploadProjectTimelinePhoto = async (file) => {
   if (!file) {
-    return { url: null, error: null };
+    return { url: null, error: null, originalSize: null, compressedSize: null };
   }
 
-  const safeName = file.name.replace(/[^\w.\-]+/g, "_");
+  const originalSize = file.size;
+  let uploadFile = file;
+
+  try {
+    uploadFile = await compressImage(file);
+  } catch (compressionError) {
+    return {
+      url: null,
+      error: {
+        message:
+          compressionError?.message ?? "Failed to compress image before upload.",
+      },
+      originalSize,
+      compressedSize: null,
+    };
+  }
+
+  const safeName = uploadFile.name.replace(/[^\w.\-]+/g, "_");
   const path = `${Date.now()}-${Math.random().toString(36).slice(2)}-${safeName}`;
 
   const { data, error } = await supabase.storage
     .from(PHOTO_BUCKET)
-    .upload(path, file, { upsert: false });
+    .upload(path, uploadFile, {
+      upsert: false,
+      contentType: uploadFile.type,
+    });
 
   if (error) {
-    return { url: null, error };
+    return { url: null, error, originalSize, compressedSize: uploadFile.size };
   }
 
   const { data: urlData } = supabase.storage
     .from(PHOTO_BUCKET)
     .getPublicUrl(data.path);
 
-  return { url: urlData.publicUrl, error: null };
+  return {
+    url: urlData.publicUrl,
+    error: null,
+    originalSize,
+    compressedSize: uploadFile.size,
+  };
 };
 
 export const deleteProjectTimelinePhoto = async (photoUrl) => {
