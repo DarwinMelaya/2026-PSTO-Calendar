@@ -1,0 +1,273 @@
+import supabase from "./supabaseClient";
+
+export const PROJECT_PROGRAMS = [
+  { value: "SETUP", label: "SETUP" },
+  { value: "GIA", label: "GIA" },
+  { value: "SSCP", label: "SSCP" },
+  { value: "CEST", label: "CEST" },
+];
+
+export const PERIOD_FILTERS = [
+  { value: "all", label: "All time" },
+  { value: "this_month", label: "This month" },
+  { value: "last_month", label: "Last month" },
+  { value: "last_3_months", label: "Last 3 months" },
+];
+
+const PHOTO_BUCKET = "project-timeline-photos";
+
+export const projectProgramLabel = (value) =>
+  PROJECT_PROGRAMS.find((p) => p.value === value)?.label ?? value ?? "—";
+
+export const formatEntryDate = (value) => {
+  if (!value) return "—";
+  return new Date(`${value}T00:00:00`).toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+};
+
+const parseDateOnly = (value) => {
+  if (!value) return null;
+  const d = new Date(`${value}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? null : d;
+};
+
+const startOfDay = (date) => {
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+
+export const getPeriodRange = (period) => {
+  if (period === "all") return null;
+
+  const now = new Date();
+  const today = startOfDay(now);
+
+  if (period === "this_month") {
+    const start = new Date(today.getFullYear(), today.getMonth(), 1);
+    const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    return { start: startOfDay(start), end: startOfDay(end) };
+  }
+
+  if (period === "last_month") {
+    const start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    const end = new Date(today.getFullYear(), today.getMonth(), 0);
+    return { start: startOfDay(start), end: startOfDay(end) };
+  }
+
+  if (period === "last_3_months") {
+    const start = new Date(today.getFullYear(), today.getMonth() - 2, 1);
+    return { start: startOfDay(start), end: today };
+  }
+
+  return null;
+};
+
+export const isDateInPeriod = (value, period) => {
+  const range = getPeriodRange(period);
+  if (!range) return true;
+  const d = parseDateOnly(value);
+  if (!d) return false;
+  const t = startOfDay(d).getTime();
+  return t >= range.start.getTime() && t <= range.end.getTime();
+};
+
+const photoPathFromUrl = (url) => {
+  if (!url) return null;
+  const marker = `/storage/v1/object/public/${PHOTO_BUCKET}/`;
+  const index = url.indexOf(marker);
+  if (index === -1) return null;
+  return url.slice(index + marker.length);
+};
+
+export const uploadProjectTimelinePhoto = async (file) => {
+  if (!file) {
+    return { url: null, error: null };
+  }
+
+  const safeName = file.name.replace(/[^\w.\-]+/g, "_");
+  const path = `${Date.now()}-${Math.random().toString(36).slice(2)}-${safeName}`;
+
+  const { data, error } = await supabase.storage
+    .from(PHOTO_BUCKET)
+    .upload(path, file, { upsert: false });
+
+  if (error) {
+    return { url: null, error };
+  }
+
+  const { data: urlData } = supabase.storage
+    .from(PHOTO_BUCKET)
+    .getPublicUrl(data.path);
+
+  return { url: urlData.publicUrl, error: null };
+};
+
+export const deleteProjectTimelinePhoto = async (photoUrl) => {
+  const path = photoPathFromUrl(photoUrl);
+  if (!path) return { error: null };
+
+  const { error } = await supabase.storage.from(PHOTO_BUCKET).remove([path]);
+  return { error };
+};
+
+export const createMonitoringProject = async ({
+  program,
+  title,
+  location,
+  createdBy,
+}) => {
+  const { data, error } = await supabase
+    .from("monitoring_projects")
+    .insert({
+      program,
+      title: title.trim(),
+      location: location?.trim() || null,
+      created_by: createdBy ?? null,
+    })
+    .select("id, program, title, location, created_by, created_at")
+    .single();
+
+  return { data, error };
+};
+
+export const updateMonitoringProject = async (
+  id,
+  { program, title, location },
+) => {
+  const { data, error } = await supabase
+    .from("monitoring_projects")
+    .update({
+      program,
+      title: title.trim(),
+      location: location?.trim() || null,
+    })
+    .eq("id", id)
+    .select("id, program, title, location, created_by, created_at")
+    .single();
+
+  return { data, error };
+};
+
+export const deleteMonitoringProject = async (id) => {
+  const { data: entries } = await supabase
+    .from("project_timeline_entries")
+    .select("photo_url")
+    .eq("project_id", id);
+
+  const { error } = await supabase
+    .from("monitoring_projects")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    return { error };
+  }
+
+  for (const entry of entries ?? []) {
+    if (entry.photo_url) {
+      await deleteProjectTimelinePhoto(entry.photo_url);
+    }
+  }
+
+  return { error: null };
+};
+
+export const listMonitoringProjects = async () => {
+  const { data, error } = await supabase
+    .from("monitoring_projects")
+    .select(
+      `
+      id,
+      program,
+      title,
+      location,
+      created_by,
+      created_at,
+      project_timeline_entries (
+        id,
+        entry_date,
+        remarks,
+        photo_url,
+        created_at
+      )
+    `,
+    )
+    .order("created_at", { ascending: false });
+
+  return { data, error };
+};
+
+export const createTimelineEntry = async ({
+  projectId,
+  entryDate,
+  remarks,
+  photoUrl,
+}) => {
+  const { data, error } = await supabase
+    .from("project_timeline_entries")
+    .insert({
+      project_id: projectId,
+      entry_date: entryDate,
+      remarks: remarks?.trim() || null,
+      photo_url: photoUrl || null,
+    })
+    .select("id, project_id, entry_date, remarks, photo_url, created_at")
+    .single();
+
+  return { data, error };
+};
+
+export const updateTimelineEntry = async (
+  id,
+  { entryDate, remarks, photoUrl },
+) => {
+  const { data, error } = await supabase
+    .from("project_timeline_entries")
+    .update({
+      entry_date: entryDate,
+      remarks: remarks?.trim() || null,
+      photo_url: photoUrl || null,
+    })
+    .eq("id", id)
+    .select("id, project_id, entry_date, remarks, photo_url, created_at")
+    .single();
+
+  return { data, error };
+};
+
+export const deleteTimelineEntry = async (id, { photoUrl } = {}) => {
+  const { error } = await supabase
+    .from("project_timeline_entries")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    return { error };
+  }
+
+  if (photoUrl) {
+    await deleteProjectTimelinePhoto(photoUrl);
+  }
+
+  return { error: null };
+};
+
+export const getProjectSummary = (project) => {
+  const entries = project?.project_timeline_entries ?? [];
+  const sorted = [...entries].sort((a, b) => {
+    const da = parseDateOnly(a.entry_date)?.getTime() ?? 0;
+    const db = parseDateOnly(b.entry_date)?.getTime() ?? 0;
+    if (db !== da) return db - da;
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
+
+  return {
+    entryCount: entries.length,
+    lastEntryDate: sorted[0]?.entry_date ?? null,
+    lastRemarks: sorted[0]?.remarks ?? null,
+  };
+};
