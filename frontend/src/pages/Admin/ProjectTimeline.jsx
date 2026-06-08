@@ -4,6 +4,7 @@ import AddMonitoringProjectModal from "../../components/Modals/AdminModals/AddMo
 import EditMonitoringProjectModal from "../../components/Modals/AdminModals/EditMonitoringProjectModal";
 import AddTimelineEntryModal from "../../components/Modals/AdminModals/AddTimelineEntryModal";
 import EditTimelineEntryModal from "../../components/Modals/AdminModals/EditTimelineEntryModal";
+import ProjectTimelinePresentation from "../../components/ProjectTimeline/ProjectTimelinePresentation";
 import Layout from "../../components/Layout/Layout";
 import {
   EmptyIllustration,
@@ -54,6 +55,7 @@ const ProjectTimeline = () => {
   const [deletingProjectId, setDeletingProjectId] = useState(null);
   const [deletingEntryId, setDeletingEntryId] = useState(null);
   const [viewPhotoUrl, setViewPhotoUrl] = useState(null);
+  const [presentationOpen, setPresentationOpen] = useState(false);
 
   const loadProjects = useCallback(async () => {
     setLoading(true);
@@ -119,6 +121,11 @@ const ProjectTimeline = () => {
     );
   }, [selectedProject, periodFilter]);
 
+  const allProjectEntries = useMemo(() => {
+    if (!selectedProject) return [];
+    return sortEntriesAsc(selectedProject.project_timeline_entries ?? []);
+  }, [selectedProject]);
+
   const periodEntryCount = projectEntries.length;
 
   const todayLabel = useMemo(
@@ -140,6 +147,7 @@ const ProjectTimeline = () => {
   const handleBackToList = () => {
     setSelectedProject(null);
     setPeriodFilter("all");
+    setPresentationOpen(false);
   };
 
   const handleDeleteProject = async (project) => {
@@ -362,6 +370,28 @@ const ProjectTimeline = () => {
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
+                  onClick={() => setPresentationOpen(true)}
+                  disabled={allProjectEntries.length === 0}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-indigo-600 to-blue-600 px-3 py-2 text-xs font-semibold text-white shadow-md transition hover:from-indigo-700 hover:to-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={2}
+                    stroke="currentColor"
+                    aria-hidden
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5"
+                    />
+                  </svg>
+                  Present timeline
+                </button>
+                <button
+                  type="button"
                   onClick={() => setEditProjectOpen(true)}
                   className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                 >
@@ -408,7 +438,7 @@ const ProjectTimeline = () => {
               title="No entries for this period"
               description={
                 periodFilter === "last_month"
-                  ? "Walang naitalang update noong nakaraang buwan. Subukan ang ibang period o mag-add ng entry."
+                  ? "No entries recorded last month. Try another period or add a new entry."
                   : "Add a timeline entry to log what happened on this project."
               }
             />
@@ -651,9 +681,18 @@ const ProjectTimeline = () => {
         onSuccess={loadProjects}
       />
 
+      {presentationOpen && selectedProject ? (
+        <ProjectTimelinePresentation
+          project={selectedProject}
+          entries={allProjectEntries}
+          onClose={() => setPresentationOpen(false)}
+          onViewPhoto={setViewPhotoUrl}
+        />
+      ) : null}
+
       {viewPhotoUrl ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 p-4"
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/70 p-4"
           role="dialog"
           aria-modal="true"
           aria-label="Photo preview"

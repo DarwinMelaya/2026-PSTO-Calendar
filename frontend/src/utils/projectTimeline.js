@@ -297,3 +297,91 @@ export const getProjectSummary = (project) => {
     lastRemarks: sorted[0]?.remarks ?? null,
   };
 };
+
+export const sortTimelineEntriesAsc = (entries) =>
+  [...(entries ?? [])].sort((a, b) => {
+    const da = parseDateOnly(a.entry_date)?.getTime() ?? 0;
+    const db = parseDateOnly(b.entry_date)?.getTime() ?? 0;
+    if (da !== db) return da - db;
+    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+  });
+
+export const groupEntriesByMonth = (entries) => {
+  const groups = [];
+  let current = null;
+
+  for (const entry of sortTimelineEntriesAsc(entries)) {
+    const d = parseDateOnly(entry.entry_date);
+    if (!d) continue;
+
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const label = d.toLocaleDateString(undefined, {
+      month: "long",
+      year: "numeric",
+    });
+
+    if (!current || current.key !== key) {
+      current = { key, label, entries: [] };
+      groups.push(current);
+    }
+    current.entries.push(entry);
+  }
+
+  return groups;
+};
+
+export const inferEntryStatus = (remarks) => {
+  const text = (remarks ?? "").toLowerCase();
+  if (
+    /problem|issue|delay|concern|failed|error|stuck|cannot|unable|pending|blocked|hindi|walang/.test(
+      text,
+    )
+  ) {
+    return "issue";
+  }
+  if (
+    /resolved|fixed|completed|approved|solution|naayos|done|finished|success|implemented|signed/.test(
+      text,
+    )
+  ) {
+    return "resolved";
+  }
+  return "update";
+};
+
+export const ENTRY_STATUS_META = {
+  issue: {
+    label: "Issue",
+    dotClass: "bg-amber-500 ring-amber-200",
+    badgeClass: "bg-amber-100 text-amber-900 ring-amber-300/60",
+    cardBorder: "border-amber-200/80",
+  },
+  resolved: {
+    label: "Resolved",
+    dotClass: "bg-emerald-500 ring-emerald-200",
+    badgeClass: "bg-emerald-100 text-emerald-900 ring-emerald-300/60",
+    cardBorder: "border-emerald-200/80",
+  },
+  update: {
+    label: "Update",
+    dotClass: "bg-blue-500 ring-blue-200",
+    badgeClass: "bg-blue-100 text-blue-900 ring-blue-300/60",
+    cardBorder: "border-slate-200/80",
+  },
+};
+
+export const summarizeMonth = (entries) => {
+  const counts = { issue: 0, resolved: 0, update: 0 };
+  for (const entry of entries) {
+    counts[inferEntryStatus(entry.remarks)] += 1;
+  }
+
+  const parts = [];
+  if (counts.update) parts.push(`${counts.update} update${counts.update === 1 ? "" : "s"}`);
+  if (counts.issue) parts.push(`${counts.issue} issue${counts.issue === 1 ? "" : "s"}`);
+  if (counts.resolved) {
+    parts.push(`${counts.resolved} resolved`);
+  }
+
+  return parts.join(" · ") || `${entries.length} entr${entries.length === 1 ? "y" : "ies"}`;
+};
