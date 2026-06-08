@@ -18,6 +18,7 @@ import {
   UserProfile,
   ViewerDashboard,
   ViewerCalendar,
+  ProjectTimeline,
 } from "../pages";
 
 export const Routers = () => {
@@ -65,6 +66,14 @@ export const Routers = () => {
           element={
             <ProtectedRoutes adminOnly>
               <UserProfile />
+            </ProtectedRoutes>
+          }
+        />
+        <Route
+          path="/admin-project-timeline"
+          element={
+            <ProtectedRoutes adminOnly>
+              <ProjectTimeline />
             </ProtectedRoutes>
           }
         />

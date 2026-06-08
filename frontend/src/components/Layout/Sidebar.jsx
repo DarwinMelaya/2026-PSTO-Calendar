@@ -85,6 +85,22 @@ const CalendarIcon = () => (
   </svg>
 );
 
+const ProjectTimelineIcon = () => (
+  <svg
+    className={iconClass}
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={1.5}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M8.25 3.75v16.5M8.25 7.5h10.5M8.25 12h7.5M8.25 16.5h12"
+    />
+  </svg>
+);
+
 const SearchIcon = () => (
   <svg
     className="h-4 w-4 text-slate-500"
@@ -175,6 +191,10 @@ const Sidebar = () => {
           <ProfileIcon />
           <span className="truncate">Profile</span>
         </NavLink>
+        <NavLink to="/admin-project-timeline" className={mobileNavLinkClass}>
+          <ProjectTimelineIcon />
+          <span className="truncate">Project Timeline</span>
+        </NavLink>
       </nav>
 
       <aside
@@ -218,49 +238,39 @@ const Sidebar = () => {
         >
           <CollapsibleSection title="Dashboard" defaultOpen>
             {navFilter("Overview") ? (
-              <NavLink
-                to="/admin-dashboard"
-                end
-                className={panelLinkClass}
-              >
+              <NavLink to="/admin-dashboard" end className={panelLinkClass}>
                 <HomeIcon />
                 Dashboard
               </NavLink>
             ) : null}
             {navFilter("Tasks") ? (
-              <NavLink
-                to="/admin-add-task"
-                className={panelLinkClass}
-              >
+              <NavLink to="/admin-add-task" className={panelLinkClass}>
                 <TaskIcon />
                 Tasks
               </NavLink>
             ) : null}
             {navFilter("Users") ? (
-              <NavLink
-                to="/admin-add-users"
-                className={panelLinkClass}
-              >
+              <NavLink to="/admin-add-users" className={panelLinkClass}>
                 <UsersIcon />
                 Users
               </NavLink>
             ) : null}
             {navFilter("Calendar") ? (
-              <NavLink
-                to="/admin-calendar"
-                className={panelLinkClass}
-              >
+              <NavLink to="/admin-calendar" className={panelLinkClass}>
                 <CalendarIcon />
                 Calendar
               </NavLink>
             ) : null}
             {navFilter("Profile") ? (
-              <NavLink
-                to="/admin-profile"
-                className={panelLinkClass}
-              >
+              <NavLink to="/admin-profile" className={panelLinkClass}>
                 <ProfileIcon />
                 Profile
+              </NavLink>
+            ) : null}
+            {navFilter("Project Timeline") ? (
+              <NavLink to="/admin-project-timeline" className={panelLinkClass}>
+                <ProjectTimelineIcon />
+                Project Timeline
               </NavLink>
             ) : null}
             {query.trim() &&
@@ -268,7 +278,8 @@ const Sidebar = () => {
             !navFilter("Tasks") &&
             !navFilter("Users") &&
             !navFilter("Calendar") &&
-            !navFilter("Profile") ? (
+            !navFilter("Profile") &&
+            !navFilter("Project Timeline") ? (
               <p className="px-3 py-2 text-xs text-slate-500">No matches</p>
             ) : null}
           </CollapsibleSection>
