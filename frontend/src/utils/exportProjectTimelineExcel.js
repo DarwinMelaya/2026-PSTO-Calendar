@@ -3,7 +3,7 @@ import {
   ENTRY_STATUS_META,
   formatEntryDate,
   groupEntriesByMonth,
-  inferEntryStatus,
+  getEntryStatus,
   projectProgramLabel,
   summarizeMonth,
 } from "./projectTimeline";
@@ -184,7 +184,7 @@ export const exportProjectTimelineExcel = async ({ project, entries }) => {
       row += 1;
 
       for (const entry of group.entries) {
-        const status = inferEntryStatus(entry.remarks);
+        const status = getEntryStatus(entry);
         const statusLabel = ENTRY_STATUS_META[status].label;
         const remarks = entry.remarks?.trim() || "No remarks recorded.";
         const dateText = formatEntryDate(entry.entry_date);

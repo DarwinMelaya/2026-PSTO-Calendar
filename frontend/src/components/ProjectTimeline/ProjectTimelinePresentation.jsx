@@ -1,12 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import {
+  ENTRY_STATUSES,
   ENTRY_STATUS_META,
   formatEntryDate,
+  getEntryStatus,
   groupEntriesByMonth,
-  inferEntryStatus,
   projectProgramLabel,
   summarizeMonth,
+  updateTimelineEntryStatus,
 } from "../../utils/projectTimeline";
 
 const programAccent = (program) => {
@@ -30,9 +32,17 @@ const ProjectTimelinePresentation = ({
   entries,
   onClose,
   onViewPhoto,
+  onEntryUpdated,
 }) => {
   const [exportingExcel, setExportingExcel] = useState(false);
-  const monthGroups = groupEntriesByMonth(entries, { newestFirst: true });
+  const [localEntries, setLocalEntries] = useState(entries);
+  const [updatingEntryId, setUpdatingEntryId] = useState(null);
+
+  useEffect(() => {
+    setLocalEntries(entries);
+  }, [entries]);
+
+  const monthGroups = groupEntriesByMonth(localEntries, { newestFirst: true });
   const generatedAt = new Date().toLocaleDateString(undefined, {
     weekday: "long",
     month: "long",
@@ -46,7 +56,7 @@ const ProjectTimelinePresentation = ({
 
   const handleExportExcel = async () => {
     if (exportingExcel) return;
-    if (entries.length === 0) {
+    if (localEntries.length === 0) {
       toast.error("No timeline entries to export.");
       return;
     }
@@ -56,13 +66,36 @@ const ProjectTimelinePresentation = ({
       const { exportProjectTimelineExcel } = await import(
         "../../utils/exportProjectTimelineExcel"
       );
-      const { filename } = await exportProjectTimelineExcel({ project, entries });
+      const { filename } = await exportProjectTimelineExcel({
+        project,
+        entries: localEntries,
+      });
       toast.success(`Excel downloaded: ${filename}`);
     } catch (err) {
       toast.error(err?.message ?? "Failed to export Excel file.");
     } finally {
       setExportingExcel(false);
     }
+  };
+
+  const handleStatusChange = async (entry, nextStatus) => {
+    const currentStatus = getEntryStatus(entry);
+    if (nextStatus === currentStatus || updatingEntryId === entry.id) return;
+
+    setUpdatingEntryId(entry.id);
+    const { data, error } = await updateTimelineEntryStatus(entry.id, nextStatus);
+    setUpdatingEntryId(null);
+
+    if (error) {
+      toast.error(error.message ?? "Failed to update status.");
+      return;
+    }
+
+    setLocalEntries((prev) =>
+      prev.map((item) => (item.id === entry.id ? { ...item, ...data } : item)),
+    );
+    onEntryUpdated?.(data);
+    toast.success("Status updated.");
   };
 
   return (
@@ -86,7 +119,7 @@ const ProjectTimelinePresentation = ({
             <button
               type="button"
               onClick={handleExportExcel}
-              disabled={exportingExcel || entries.length === 0}
+              disabled={exportingExcel || localEntries.length === 0}
               className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <svg
@@ -154,8 +187,8 @@ const ProjectTimelinePresentation = ({
               </p>
               <p className="text-sm font-medium">{generatedAt}</p>
               <p className="mt-1 text-xs text-white/80">
-                {entries.length} timeline entr
-                {entries.length === 1 ? "y" : "ies"}
+                {localEntries.length} timeline entr
+                {localEntries.length === 1 ? "y" : "ies"}
               </p>
             </div>
           </div>
@@ -199,8 +232,9 @@ const ProjectTimelinePresentation = ({
 
                 <div className="space-y-4">
                   {group.entries.map((entry) => {
-                    const status = inferEntryStatus(entry.remarks);
+                    const status = getEntryStatus(entry);
                     const meta = ENTRY_STATUS_META[status];
+                    const isUpdating = updatingEntryId === entry.id;
 
                     return (
                       <article
@@ -225,10 +259,28 @@ const ProjectTimelinePresentation = ({
                             </time>
                           </div>
                           <span
-                            className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ring-1 ring-inset ${meta.badgeClass}`}
+                            className={`hidden print:inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ring-1 ring-inset ${meta.badgeClass}`}
                           >
                             {meta.label}
                           </span>
+                          <label className="print:hidden">
+                            <span className="sr-only">Entry status</span>
+                            <select
+                              value={status}
+                              disabled={isUpdating}
+                              onChange={(e) =>
+                                handleStatusChange(entry, e.target.value)
+                              }
+                              className={`cursor-pointer rounded-full border-0 py-0.5 pl-2.5 pr-7 text-[10px] font-bold uppercase tracking-wide ring-1 ring-inset focus:outline-none focus:ring-2 focus:ring-blue-400/50 disabled:cursor-wait disabled:opacity-60 ${meta.badgeClass}`}
+                              aria-label={`Status for ${formatEntryDate(entry.entry_date)}`}
+                            >
+                              {ENTRY_STATUSES.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
                         </div>
 
                         <div className="flex flex-col gap-4 p-4 sm:flex-row">

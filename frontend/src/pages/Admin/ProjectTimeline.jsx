@@ -680,6 +680,7 @@ const ProjectTimeline = () => {
           entries={allProjectEntries}
           onClose={() => setPresentationOpen(false)}
           onViewPhoto={setViewPhotoUrl}
+          onEntryUpdated={loadProjects}
         />
       ) : null}
 

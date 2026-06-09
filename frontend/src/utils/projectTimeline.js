@@ -218,6 +218,7 @@ export const listMonitoringProjects = async () => {
         entry_date,
         remarks,
         photo_url,
+        status,
         created_at
       )
     `,
@@ -227,21 +228,32 @@ export const listMonitoringProjects = async () => {
   return { data, error };
 };
 
+export const ENTRY_STATUSES = [
+  { value: "update", label: "Update" },
+  { value: "issue", label: "Issue" },
+  { value: "resolved", label: "Resolved" },
+];
+
 export const createTimelineEntry = async ({
   projectId,
   entryDate,
   remarks,
   photoUrl,
+  status,
 }) => {
+  const trimmedRemarks = remarks?.trim() || null;
   const { data, error } = await supabase
     .from("project_timeline_entries")
     .insert({
       project_id: projectId,
       entry_date: entryDate,
-      remarks: remarks?.trim() || null,
+      remarks: trimmedRemarks,
       photo_url: photoUrl || null,
+      status: status ?? inferEntryStatus(trimmedRemarks),
     })
-    .select("id, project_id, entry_date, remarks, photo_url, created_at")
+    .select(
+      "id, project_id, entry_date, remarks, photo_url, status, created_at",
+    )
     .single();
 
   return { data, error };
@@ -249,17 +261,37 @@ export const createTimelineEntry = async ({
 
 export const updateTimelineEntry = async (
   id,
-  { entryDate, remarks, photoUrl },
+  { entryDate, remarks, photoUrl, status },
 ) => {
+  const payload = {
+    entry_date: entryDate,
+    remarks: remarks?.trim() || null,
+    photo_url: photoUrl || null,
+  };
+  if (status !== undefined) {
+    payload.status = status;
+  }
+
   const { data, error } = await supabase
     .from("project_timeline_entries")
-    .update({
-      entry_date: entryDate,
-      remarks: remarks?.trim() || null,
-      photo_url: photoUrl || null,
-    })
+    .update(payload)
     .eq("id", id)
-    .select("id, project_id, entry_date, remarks, photo_url, created_at")
+    .select(
+      "id, project_id, entry_date, remarks, photo_url, status, created_at",
+    )
+    .single();
+
+  return { data, error };
+};
+
+export const updateTimelineEntryStatus = async (id, status) => {
+  const { data, error } = await supabase
+    .from("project_timeline_entries")
+    .update({ status })
+    .eq("id", id)
+    .select(
+      "id, project_id, entry_date, remarks, photo_url, status, created_at",
+    )
     .single();
 
   return { data, error };
@@ -381,10 +413,18 @@ export const ENTRY_STATUS_META = {
   },
 };
 
+export const getEntryStatus = (entry) => {
+  const status = entry?.status;
+  if (status === "issue" || status === "resolved" || status === "update") {
+    return status;
+  }
+  return inferEntryStatus(entry?.remarks);
+};
+
 export const summarizeMonth = (entries) => {
   const counts = { issue: 0, resolved: 0, update: 0 };
   for (const entry of entries) {
-    counts[inferEntryStatus(entry.remarks)] += 1;
+    counts[getEntryStatus(entry)] += 1;
   }
 
   const parts = [];

@@ -34,10 +34,20 @@ create table if not exists public.project_timeline_entries (
   entry_date date not null,
   remarks text null,
   photo_url text null,
+  status text not null default 'update'::text,
   created_at timestamp with time zone null default now(),
   constraint project_timeline_entries_pkey primary key (id),
   constraint project_timeline_entries_project_id_fkey foreign key (project_id)
-    references public.monitoring_projects (id) on delete cascade
+    references public.monitoring_projects (id) on delete cascade,
+  constraint project_timeline_entries_status_check check (
+    status = any (
+      array[
+        'update'::text,
+        'issue'::text,
+        'resolved'::text
+      ]
+    )
+  )
 ) tablespace pg_default;
 
 create index if not exists project_timeline_entries_project_id_idx
