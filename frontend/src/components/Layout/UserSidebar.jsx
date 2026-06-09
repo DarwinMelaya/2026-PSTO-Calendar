@@ -37,6 +37,22 @@ const TaskIcon = () => (
   </svg>
 );
 
+const ProjectTimelineIcon = () => (
+  <svg
+    className={iconClass}
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={1.5}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M8.25 3.75v16.5M8.25 7.5h10.5M8.25 12h7.5M8.25 16.5h12"
+    />
+  </svg>
+);
+
 const ProfileIcon = () => (
   <svg
     className={iconClass}
@@ -131,6 +147,10 @@ const UserSidebar = () => {
           <TaskIcon />
           <span>My tasks</span>
         </NavLink>
+        <NavLink to="/user-project-timeline" className={mobileNavLinkClass}>
+          <ProjectTimelineIcon />
+          <span>Timeline</span>
+        </NavLink>
         <NavLink to="/user-profile" className={mobileNavLinkClass}>
           <ProfileIcon />
           <span>Profile</span>
@@ -196,6 +216,15 @@ const UserSidebar = () => {
               My tasks
             </NavLink>
           ) : null}
+          {navFilter("Project Timeline") ? (
+            <NavLink
+              to="/user-project-timeline"
+              className={panelLinkClass}
+            >
+              <ProjectTimelineIcon />
+              Project Timeline
+            </NavLink>
+          ) : null}
           {navFilter("Profile") ? (
             <NavLink
               to="/user-profile"
@@ -208,6 +237,7 @@ const UserSidebar = () => {
           {query.trim() &&
           !navFilter("Dashboard") &&
           !navFilter("My tasks") &&
+          !navFilter("Project Timeline") &&
           !navFilter("Profile") ? (
             <p className="px-3 py-2 text-xs text-slate-500">No matches</p>
           ) : null}

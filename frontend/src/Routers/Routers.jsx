@@ -129,6 +129,14 @@ export const Routers = () => {
             </ProtectedRoutes>
           }
         />
+        <Route
+          path="/user-project-timeline"
+          element={
+            <ProtectedRoutes userOnly>
+              <ProjectTimeline />
+            </ProtectedRoutes>
+          }
+        />
       </Routes>
     </Router>
   );
