@@ -9,6 +9,8 @@ import {
   ProgressRing,
   StatCard,
 } from "../../components/User/UserWorkspaceUI";
+import FollowUpAlertModal from "../../components/Notifications/FollowUpAlertModal";
+import { useFollowUpAlerts } from "../../hooks/useFollowUpAlerts";
 import { getSession } from "../../utils/session";
 import {
   formatTaskDeadline,
@@ -73,6 +75,13 @@ const UserDashboard = () => {
   const session = getSession();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const {
+    activeFollowUp,
+    pendingFollowUpCount,
+    acknowledging,
+    acknowledgeFollowUp,
+  } = useFollowUpAlerts(session?.id);
 
   const codeName = session?.code_name?.trim();
 
@@ -154,6 +163,13 @@ const UserDashboard = () => {
 
   return (
     <Layout>
+      <FollowUpAlertModal
+        notification={activeFollowUp}
+        pendingCount={pendingFollowUpCount}
+        acknowledging={acknowledging}
+        onAcknowledge={acknowledgeFollowUp}
+      />
+
       <div className="mx-auto max-w-7xl space-y-6 bg-gradient-to-b from-slate-50/80 via-transparent to-blue-50/40 pb-10 sm:space-y-8">
         {/* Hero */}
         <section className="ut-animate-in relative overflow-hidden rounded-3xl border border-blue-400/20 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-900 px-6 py-8 shadow-2xl shadow-blue-900/30 sm:px-8 sm:py-10">

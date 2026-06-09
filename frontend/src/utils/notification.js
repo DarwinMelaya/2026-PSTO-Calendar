@@ -63,6 +63,36 @@ export const sendTaskFollowUpNotifications = async (
   return { data, error };
 };
 
+export const parseFollowUpNotification = (notification) => {
+  const message = notification?.message ?? "";
+  const agendaMatch = message.match(/"([^"]+)"/);
+  const senderMatch = message.match(/^(.+?) sent a follow-up/);
+
+  return {
+    agenda: agendaMatch?.[1] ?? null,
+    senderLabel: senderMatch?.[1] ?? null,
+    message,
+  };
+};
+
+export const listUnreadFollowUpNotifications = async (userId, { limit = 20 } = {}) => {
+  const id = Number(userId);
+  if (!Number.isFinite(id) || id <= 0) {
+    return { data: [], error: { message: "Invalid user." } };
+  }
+
+  const { data, error } = await supabase
+    .from("notifications")
+    .select("id, recipient_id, task_id, type, title, message, is_read, created_at")
+    .eq("recipient_id", id)
+    .eq("type", NOTIFICATION_TYPES.TASK_FOLLOW_UP)
+    .eq("is_read", false)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  return { data, error };
+};
+
 export const listNotificationsForUser = async (userId, { limit = 30 } = {}) => {
   const id = Number(userId);
   if (!Number.isFinite(id) || id <= 0) {
@@ -110,11 +140,17 @@ export const markNotificationRead = async (id) => {
   return { data, error };
 };
 
-export const subscribeToUserNotifications = (userId, { onInsert, onUpdate } = {}) => {
+/** One realtime channel per user; multiple components can listen safely. */
+const userNotificationStreams = new Map();
+
+const getUserNotificationStream = (userId) => {
   const id = Number(userId);
-  if (!Number.isFinite(id) || id <= 0) {
-    return () => {};
-  }
+  if (!Number.isFinite(id) || id <= 0) return null;
+
+  const existing = userNotificationStreams.get(id);
+  if (existing) return existing;
+
+  const listeners = new Set();
 
   const channel = supabase
     .channel(`notifications-user-${id}`)
@@ -127,7 +163,9 @@ export const subscribeToUserNotifications = (userId, { onInsert, onUpdate } = {}
         filter: `recipient_id=eq.${id}`,
       },
       (payload) => {
-        onInsert?.(payload.new);
+        for (const listener of listeners) {
+          listener.onInsert?.(payload.new);
+        }
       },
     )
     .on(
@@ -139,13 +177,31 @@ export const subscribeToUserNotifications = (userId, { onInsert, onUpdate } = {}
         filter: `recipient_id=eq.${id}`,
       },
       (payload) => {
-        onUpdate?.(payload.new);
+        for (const listener of listeners) {
+          listener.onUpdate?.(payload.new);
+        }
       },
     )
     .subscribe();
 
+  const stream = { channel, listeners };
+  userNotificationStreams.set(id, stream);
+  return stream;
+};
+
+export const subscribeToUserNotifications = (userId, { onInsert, onUpdate } = {}) => {
+  const stream = getUserNotificationStream(userId);
+  if (!stream) return () => {};
+
+  const listener = { onInsert, onUpdate };
+  stream.listeners.add(listener);
+
   return () => {
-    supabase.removeChannel(channel);
+    stream.listeners.delete(listener);
+    if (stream.listeners.size === 0) {
+      supabase.removeChannel(stream.channel);
+      userNotificationStreams.delete(Number(userId));
+    }
   };
 };
 

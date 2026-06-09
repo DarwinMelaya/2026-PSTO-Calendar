@@ -104,9 +104,12 @@ const NotificationBell = ({ userId }) => {
           setUnreadCount((prev) => prev + (isNew ? 1 : 0));
           if (isNew) {
             setHasNewAlert(true);
-            if (row.type === NOTIFICATION_TYPES.TASK_FOLLOW_UP) {
+            if (
+              row.type === NOTIFICATION_TYPES.TASK_FOLLOW_UP &&
+              !window.location.pathname.includes("/user-dashboard")
+            ) {
               showFollowUpToast(row);
-            } else {
+            } else if (row.type !== NOTIFICATION_TYPES.TASK_FOLLOW_UP) {
               toast(row.message, { icon: "🔔", duration: 8000 });
             }
           }
