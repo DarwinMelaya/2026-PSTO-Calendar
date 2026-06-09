@@ -1,3 +1,5 @@
+import { useState } from "react";
+import toast from "react-hot-toast";
 import {
   ENTRY_STATUS_META,
   formatEntryDate,
@@ -29,6 +31,7 @@ const ProjectTimelinePresentation = ({
   onClose,
   onViewPhoto,
 }) => {
+  const [exportingExcel, setExportingExcel] = useState(false);
   const monthGroups = groupEntriesByMonth(entries, { newestFirst: true });
   const generatedAt = new Date().toLocaleDateString(undefined, {
     weekday: "long",
@@ -39,6 +42,27 @@ const ProjectTimelinePresentation = ({
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleExportExcel = async () => {
+    if (exportingExcel) return;
+    if (entries.length === 0) {
+      toast.error("No timeline entries to export.");
+      return;
+    }
+
+    setExportingExcel(true);
+    try {
+      const { exportProjectTimelineExcel } = await import(
+        "../../utils/exportProjectTimelineExcel"
+      );
+      const { filename } = await exportProjectTimelineExcel({ project, entries });
+      toast.success(`Excel downloaded: ${filename}`);
+    } catch (err) {
+      toast.error(err?.message ?? "Failed to export Excel file.");
+    } finally {
+      setExportingExcel(false);
+    }
   };
 
   return (
@@ -59,6 +83,28 @@ const ProjectTimelinePresentation = ({
             </p>
           </div>
           <div className="flex shrink-0 gap-2">
+            <button
+              type="button"
+              onClick={handleExportExcel}
+              disabled={exportingExcel || entries.length === 0}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={2}
+                stroke="currentColor"
+                aria-hidden
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M7.5 11.25L12 15.75m0 0l4.5-4.5M12 15.75V3"
+                />
+              </svg>
+              {exportingExcel ? "Exporting…" : "Export Excel"}
+            </button>
             <button
               type="button"
               onClick={handlePrint}
