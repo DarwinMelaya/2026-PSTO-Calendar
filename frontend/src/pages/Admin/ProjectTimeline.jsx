@@ -22,6 +22,7 @@ import {
   isDateInPeriod,
   listMonitoringProjects,
   projectProgramLabel,
+  sortTimelineEntriesDesc,
 } from "../../utils/projectTimeline";
 
 const programBadgeClass = (program) => {
@@ -31,14 +32,6 @@ const programBadgeClass = (program) => {
   if (program === "CEST") return "bg-amber-50 text-amber-800 ring-amber-600/15";
   return "bg-slate-100 text-slate-700 ring-slate-600/10";
 };
-
-const sortEntriesAsc = (entries) =>
-  [...entries].sort((a, b) => {
-    const da = new Date(`${a.entry_date}T00:00:00`).getTime();
-    const db = new Date(`${b.entry_date}T00:00:00`).getTime();
-    if (da !== db) return da - db;
-    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-  });
 
 const ProjectTimeline = () => {
   const [projects, setProjects] = useState([]);
@@ -116,14 +109,14 @@ const ProjectTimeline = () => {
   const projectEntries = useMemo(() => {
     if (!selectedProject) return [];
     const entries = selectedProject.project_timeline_entries ?? [];
-    return sortEntriesAsc(
+    return sortTimelineEntriesDesc(
       entries.filter((entry) => isDateInPeriod(entry.entry_date, periodFilter)),
     );
   }, [selectedProject, periodFilter]);
 
   const allProjectEntries = useMemo(() => {
     if (!selectedProject) return [];
-    return sortEntriesAsc(selectedProject.project_timeline_entries ?? []);
+    return selectedProject.project_timeline_entries ?? [];
   }, [selectedProject]);
 
   const periodEntryCount = projectEntries.length;

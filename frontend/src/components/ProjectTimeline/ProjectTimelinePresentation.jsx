@@ -29,7 +29,7 @@ const ProjectTimelinePresentation = ({
   onClose,
   onViewPhoto,
 }) => {
-  const monthGroups = groupEntriesByMonth(entries);
+  const monthGroups = groupEntriesByMonth(entries, { newestFirst: true });
   const generatedAt = new Date().toLocaleDateString(undefined, {
     weekday: "long",
     month: "long",

@@ -306,7 +306,10 @@ export const sortTimelineEntriesAsc = (entries) =>
     return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
   });
 
-export const groupEntriesByMonth = (entries) => {
+export const sortTimelineEntriesDesc = (entries) =>
+  sortTimelineEntriesAsc(entries).reverse();
+
+export const groupEntriesByMonth = (entries, { newestFirst = false } = {}) => {
   const groups = [];
   let current = null;
 
@@ -327,7 +330,15 @@ export const groupEntriesByMonth = (entries) => {
     current.entries.push(entry);
   }
 
-  return groups;
+  if (!newestFirst) return groups;
+
+  return groups
+    .slice()
+    .reverse()
+    .map((group) => ({
+      ...group,
+      entries: [...group.entries].reverse(),
+    }));
 };
 
 export const inferEntryStatus = (remarks) => {
