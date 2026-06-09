@@ -3,6 +3,8 @@ import toast from "react-hot-toast";
 import EditTaskModal from "../EditTaskModal";
 import DashboardTaskListModal from "./DashboardTaskListModal";
 import { groupDashboardTasks } from "./groupDashboardTasks";
+import { sendTaskFollowUpNotifications } from "../../../../utils/notification";
+import { getSession } from "../../../../utils/session";
 import {
   TASK_STATUSES,
   approveTaskStatusRequest,
@@ -23,11 +25,19 @@ const DashboardTaskListWithActions = ({
   getSubtitle,
   emptyMessage,
   modalId,
+  enableFollowUp = false,
 }) => {
   const [resolvingRequestId, setResolvingRequestId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+  const [followingUpId, setFollowingUpId] = useState(null);
+  const [followingUpAll, setFollowingUpAll] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [taskToEdit, setTaskToEdit] = useState(null);
+
+  const senderLabel = useMemo(() => {
+    const session = getSession();
+    return session?.code_name || session?.name || session?.email || "Admin";
+  }, []);
 
   const groupedTasks = useMemo(() => groupDashboardTasks(tasks), [tasks]);
   const subtitle = getSubtitle?.(groupedTasks) ?? "";
@@ -111,13 +121,88 @@ const DashboardTaskListWithActions = ({
     onRefresh?.();
   };
 
+  const handleFollowUp = async (task) => {
+    setFollowingUpId(task.id);
+    const { data, error } = await sendTaskFollowUpNotifications(task, {
+      senderLabel,
+    });
+    setFollowingUpId(null);
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    const count = data?.length ?? 0;
+    toast.success(
+      count === 1
+        ? "Follow-up sent to 1 assignee."
+        : `Follow-up sent to ${count} assignees.`,
+    );
+  };
+
+  const handleFollowUpAll = async () => {
+    if (groupedTasks.length === 0) return;
+
+    const ok = window.confirm(
+      `Send follow-up notifications for all ${groupedTasks.length} overdue task${groupedTasks.length === 1 ? "" : "s"}?`,
+    );
+    if (!ok) return;
+
+    setFollowingUpAll(true);
+    const { data, error } = await sendTaskFollowUpNotifications(groupedTasks, {
+      senderLabel,
+    });
+    setFollowingUpAll(false);
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    const count = data?.length ?? 0;
+    toast.success(
+      count === 1
+        ? "Follow-up sent to 1 assignee."
+        : `Follow-up sent to ${count} assignees.`,
+    );
+  };
+
+  const renderHeaderActions =
+    enableFollowUp && !readOnly && groupedTasks.length > 0
+      ? () => (
+          <button
+            type="button"
+            onClick={handleFollowUpAll}
+            disabled={followingUpAll || followingUpId !== null}
+            className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-800 shadow-sm transition hover:border-violet-300 hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {followingUpAll ? "Sending…" : "Follow up all"}
+          </button>
+        )
+      : undefined;
+
   const renderActions = readOnly
     ? undefined
     : (task) => {
-        const busy = resolvingRequestId === task.id || deletingId === task.id;
+        const busy =
+          resolvingRequestId === task.id ||
+          deletingId === task.id ||
+          followingUpId === task.id ||
+          followingUpAll;
 
         return (
           <>
+            {enableFollowUp ? (
+              <button
+                type="button"
+                onClick={() => handleFollowUp(task)}
+                disabled={busy}
+                className="rounded-lg border border-violet-100 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 shadow-sm transition hover:border-violet-200 hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {followingUpId === task.id ? "Sending…" : "Follow up"}
+              </button>
+            ) : null}
             {task.requestedStatus ? (
               <>
                 <button
@@ -169,6 +254,7 @@ const DashboardTaskListWithActions = ({
         emptyMessage={emptyMessage}
         modalId={modalId}
         renderActions={renderActions}
+        renderHeaderActions={renderHeaderActions}
         getItemKey={(t) => t.groupKey || String(t.id)}
       />
 

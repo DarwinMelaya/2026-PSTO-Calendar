@@ -27,6 +27,7 @@ const DashboardTaskListModal = ({
   emptyMessage,
   modalId = "dashboard-task-list-modal",
   renderActions,
+  renderHeaderActions,
   getItemKey = (t) => String(t.id),
 }) => {
   if (!isOpen) return null;
@@ -50,7 +51,7 @@ const DashboardTaskListModal = ({
 
       <div className="relative z-10 flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
         <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h2
               id={`${modalId}-title`}
               className="text-xl font-semibold text-slate-900"
@@ -61,6 +62,11 @@ const DashboardTaskListModal = ({
               <p className="mt-1 text-sm text-slate-500">{subtitle}</p>
             ) : null}
           </div>
+          {renderHeaderActions ? (
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+              {renderHeaderActions()}
+            </div>
+          ) : null}
           <button
             type="button"
             onClick={onClose}

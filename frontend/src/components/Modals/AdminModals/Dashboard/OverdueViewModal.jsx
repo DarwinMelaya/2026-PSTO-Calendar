@@ -19,6 +19,7 @@ const OverdueViewModal = ({
     }
     emptyMessage="No overdue tasks."
     modalId="overdue-tasks-modal"
+    enableFollowUp={!readOnly}
   />
 );
 

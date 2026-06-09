@@ -1,3 +1,4 @@
+import NotificationBell from "../Notifications/NotificationBell";
 import { getSession } from "../../utils/session";
 
 const UserNavbar = () => {
@@ -8,7 +9,10 @@ const UserNavbar = () => {
     <header className="border-b border-slate-200 bg-white px-6 py-4">
       <div className="flex items-center justify-between gap-4">
         <p className="text-sm text-slate-500">Welcome back</p>
-        <p className="text-sm font-semibold text-slate-900">{displayName}</p>
+        <div className="flex items-center gap-3">
+          <NotificationBell userId={user?.id} />
+          <p className="text-sm font-semibold text-slate-900">{displayName}</p>
+        </div>
       </div>
     </header>
   );
