@@ -1,3 +1,4 @@
+import { sendFollowUpEmails } from "./followUpEmail";
 import supabase from "./supabaseClient";
 import { formatTaskDeadline } from "./task";
 
@@ -60,7 +61,13 @@ export const sendTaskFollowUpNotifications = async (
     .insert(rows)
     .select("id, recipient_id, task_id, type, title, message, is_read, created_at");
 
-  return { data, error };
+  if (error) {
+    return { data, error, email: null };
+  }
+
+  const email = await sendFollowUpEmails(list, { senderLabel });
+
+  return { data, error: null, email };
 };
 
 export const parseFollowUpNotification = (notification) => {

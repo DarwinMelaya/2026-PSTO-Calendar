@@ -122,9 +122,23 @@ const DashboardTaskListWithActions = ({
     onRefresh?.();
   };
 
+  const followUpSuccessMessage = (notificationCount, emailResult) => {
+    const base =
+      notificationCount === 1
+        ? "Follow-up sent to 1 assignee"
+        : `Follow-up sent to ${notificationCount} assignees`;
+
+    const sent = emailResult?.sent ?? 0;
+    if (sent > 0) {
+      return `${base} and ${sent} email${sent === 1 ? "" : "s"}.`;
+    }
+
+    return `${base}.`;
+  };
+
   const handleFollowUp = async (task) => {
     setFollowingUpId(task.id);
-    const { data, error } = await sendTaskFollowUpNotifications(task, {
+    const { data, error, email } = await sendTaskFollowUpNotifications(task, {
       senderLabel,
     });
     setFollowingUpId(null);
@@ -135,11 +149,12 @@ const DashboardTaskListWithActions = ({
     }
 
     const count = data?.length ?? 0;
-    toast.success(
-      count === 1
-        ? "Follow-up sent to 1 assignee."
-        : `Follow-up sent to ${count} assignees.`,
-    );
+    if (email?.error) {
+      toast.error(`Notifications sent, but email failed: ${email.error.message}`);
+      return;
+    }
+
+    toast.success(followUpSuccessMessage(count, email));
   };
 
   const handleFollowUpAll = async () => {
@@ -151,7 +166,7 @@ const DashboardTaskListWithActions = ({
     if (!ok) return;
 
     setFollowingUpAll(true);
-    const { data, error } = await sendTaskFollowUpNotifications(groupedTasks, {
+    const { data, error, email } = await sendTaskFollowUpNotifications(groupedTasks, {
       senderLabel,
     });
     setFollowingUpAll(false);
@@ -162,11 +177,12 @@ const DashboardTaskListWithActions = ({
     }
 
     const count = data?.length ?? 0;
-    toast.success(
-      count === 1
-        ? "Follow-up sent to 1 assignee."
-        : `Follow-up sent to ${count} assignees.`,
-    );
+    if (email?.error) {
+      toast.error(`Notifications sent, but email failed: ${email.error.message}`);
+      return;
+    }
+
+    toast.success(followUpSuccessMessage(count, email));
   };
 
   const renderHeaderActions =
