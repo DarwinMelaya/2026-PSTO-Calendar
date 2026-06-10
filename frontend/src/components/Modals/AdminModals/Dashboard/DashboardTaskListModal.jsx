@@ -1,6 +1,7 @@
 import { useState } from "react";
 import PriorityBadge from "../../../Task/PriorityBadge";
 import {
+  formatActivitiesPreview,
   formatTaskDeadline,
   hasDeadline,
   isTaskPriority,
@@ -167,7 +168,7 @@ const DashboardTaskListModal = ({
                       </span>
                     </div>
                     <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                      {t.activities || "—"}
+                      {formatActivitiesPreview(t.activities) || "—"}
                     </p>
                     {withDeadline || isOverdue || t.requestedStatus ? (
                       <p className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-500">

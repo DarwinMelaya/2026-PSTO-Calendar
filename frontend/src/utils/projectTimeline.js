@@ -1,5 +1,6 @@
 import supabase from "./supabaseClient";
 import { compressImage } from "./compressImage";
+import { stripHtmlTags } from "./richText";
 
 export const PROJECT_PROGRAMS = [
   { value: "SETUP", label: "SETUP" },
@@ -374,7 +375,7 @@ export const groupEntriesByMonth = (entries, { newestFirst = false } = {}) => {
 };
 
 export const inferEntryStatus = (remarks) => {
-  const text = (remarks ?? "").toLowerCase();
+  const text = stripHtmlTags(remarks).toLowerCase();
   if (
     /problem|issue|delay|concern|failed|error|stuck|cannot|unable|pending|blocked|hindi|walang/.test(
       text,

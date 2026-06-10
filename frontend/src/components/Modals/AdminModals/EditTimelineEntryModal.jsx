@@ -4,6 +4,7 @@ import {
   formatFileSize,
   MAX_UPLOAD_INPUT_BYTES,
 } from "../../../utils/compressImage";
+import RichTextField from "../../Forms/RichTextField";
 import {
   deleteProjectTimelinePhoto,
   updateTimelineEntry,
@@ -175,12 +176,11 @@ const EditTimelineEntryModal = ({ isOpen, entry, onClose, onSuccess }) => {
             >
               Remarks
             </label>
-            <textarea
+            <RichTextField
               id="edit-te-remarks"
               value={remarks}
               onChange={(e) => setRemarks(e.target.value)}
-              rows={5}
-              className={inputClass}
+              minHeight="7rem"
             />
           </div>
 

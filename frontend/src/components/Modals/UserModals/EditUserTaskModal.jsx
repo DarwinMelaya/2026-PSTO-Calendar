@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
+import RichTextField from "../../Forms/RichTextField";
 import {
   TASK_PROGRAMS,
   deadlineForForm,
@@ -319,13 +320,12 @@ const EditUserTaskModal = ({ isOpen, onClose, onSuccess, task, currentUserId }) 
                 Activities{" "}
                 <span className="font-normal text-slate-400">(optional)</span>
               </label>
-              <textarea
+              <RichTextField
                 id="user-edit-modal-task-activities"
-                rows={3}
                 value={form.activities}
                 onChange={setField("activities")}
                 placeholder="Describe the activities"
-                className={inputClass}
+                minHeight="5rem"
               />
             </div>
 

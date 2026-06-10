@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import RichTextContent from "../Forms/RichTextContent";
 import {
   ENTRY_STATUSES,
   ENTRY_STATUS_META,
@@ -285,9 +286,16 @@ const ProjectTimelinePresentation = ({
 
                         <div className="flex flex-col gap-4 p-4 sm:flex-row">
                           <div className="min-w-0 flex-1">
-                            <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
-                              {entry.remarks || "No remarks recorded."}
-                            </p>
+                            {entry.remarks ? (
+                              <RichTextContent
+                                html={entry.remarks}
+                                className="text-sm leading-relaxed text-slate-700"
+                              />
+                            ) : (
+                              <p className="text-sm leading-relaxed text-slate-700">
+                                No remarks recorded.
+                              </p>
+                            )}
                           </div>
                           {entry.photo_url ? (
                             <button

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import RichTextContent from "../../Forms/RichTextContent";
 import {
   TASK_STATUSES,
   formatTaskDeadline,
@@ -115,7 +116,11 @@ const ViewTaskModal = ({ isOpen, onClose, task }) => {
           </DetailBlock>
           <DetailBlock label="Agenda">{task.agenda || "—"}</DetailBlock>
           <DetailBlock label="Activities">
-            {cleanActivities || "—"}
+            {cleanActivities ? (
+              <RichTextContent html={cleanActivities} />
+            ) : (
+              "—"
+            )}
           </DetailBlock>
           {subTasks.length > 0 ? (
             <div>

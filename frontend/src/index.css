@@ -205,3 +205,100 @@ body.intro-active {
     animation-duration: 0.2s;
   }
 }
+
+/* Rich text editor (Tiptap) */
+.rich-text-editor .tiptap {
+  outline: none;
+}
+
+.rich-text-editor__body {
+  min-height: 6rem;
+  padding: 0.625rem 1rem;
+  color: #1e293b;
+  font-size: 0.875rem;
+  line-height: 1.625;
+}
+
+.rich-text-editor__body p {
+  margin: 0.25rem 0;
+}
+
+.rich-text-editor__body p:first-child {
+  margin-top: 0;
+}
+
+.rich-text-editor__body p:last-child {
+  margin-bottom: 0;
+}
+
+.rich-text-editor__body ul,
+.rich-text-editor__body ol {
+  margin: 0.35rem 0;
+  padding-left: 1.75rem;
+}
+
+.rich-text-editor__body ul {
+  list-style-type: disc;
+}
+
+.rich-text-editor__body ol {
+  list-style-type: decimal;
+}
+
+.rich-text-editor__body li {
+  display: list-item;
+  margin: 0.15rem 0;
+}
+
+.rich-text-editor__body li p {
+  margin: 0;
+}
+
+.rich-text-editor__body p.is-editor-empty:first-child::before {
+  color: #94a3b8;
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.rich-text-content {
+  font-size: 0.875rem;
+  line-height: 1.625;
+  color: #1e293b;
+}
+
+.rich-text-content p {
+  margin: 0.25rem 0;
+}
+
+.rich-text-content p:first-child {
+  margin-top: 0;
+}
+
+.rich-text-content p:last-child {
+  margin-bottom: 0;
+}
+
+.rich-text-content ul,
+.rich-text-content ol {
+  margin: 0.35rem 0;
+  padding-left: 1.75rem;
+}
+
+.rich-text-content ul {
+  list-style-type: disc;
+}
+
+.rich-text-content ol {
+  list-style-type: decimal;
+}
+
+.rich-text-content li {
+  display: list-item;
+  margin: 0.15rem 0;
+}
+
+.rich-text-content li p {
+  margin: 0;
+}

@@ -4,6 +4,7 @@ import AddMonitoringProjectModal from "../../components/Modals/AdminModals/AddMo
 import EditMonitoringProjectModal from "../../components/Modals/AdminModals/EditMonitoringProjectModal";
 import AddTimelineEntryModal from "../../components/Modals/AdminModals/AddTimelineEntryModal";
 import EditTimelineEntryModal from "../../components/Modals/AdminModals/EditTimelineEntryModal";
+import RichTextContent from "../../components/Forms/RichTextContent";
 import ProjectTimelinePresentation from "../../components/ProjectTimeline/ProjectTimelinePresentation";
 import Layout from "../../components/Layout/Layout";
 import {
@@ -458,9 +459,14 @@ const ProjectTimeline = () => {
                         {formatEntryDate(entry.entry_date)}
                       </td>
                       <td className="px-4 py-4 text-slate-700 sm:px-6">
-                        <p className="whitespace-pre-wrap leading-relaxed">
-                          {entry.remarks || "—"}
-                        </p>
+                        {entry.remarks ? (
+                          <RichTextContent
+                            html={entry.remarks}
+                            className="leading-relaxed"
+                          />
+                        ) : (
+                          <span>—</span>
+                        )}
                       </td>
                       <td className="px-4 py-4 sm:px-6">
                         {entry.photo_url ? (

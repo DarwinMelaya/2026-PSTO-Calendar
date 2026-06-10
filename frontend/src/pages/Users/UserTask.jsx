@@ -19,6 +19,7 @@ import { getSession } from "../../utils/session";
 import {
   TASK_PROGRAMS,
   TASK_STATUSES,
+  formatActivitiesPreview,
   formatTaskDeadline,
   hasDeadline,
   isTaskPriority,
@@ -249,7 +250,7 @@ const UserTask = () => {
 
       const haystack = [
         task.agenda,
-        task.activities,
+        formatActivitiesPreview(task.activities),
         meta.cleanRemarks,
         task.program,
         taskProgramLabel(task.program),
@@ -1105,9 +1106,9 @@ const UserTask = () => {
                         <div className="flex flex-col gap-2">
                           <span
                             className="line-clamp-2"
-                            title={task.activities}
+                            title={formatActivitiesPreview(task.activities)}
                           >
-                            {task.activities || "—"}
+                            {formatActivitiesPreview(task.activities) || "—"}
                           </span>
                           <div className="flex flex-wrap gap-1.5 opacity-90 transition group-hover:opacity-100">
                             <button

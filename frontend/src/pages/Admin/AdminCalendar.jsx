@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import Layout from "../../components/Layout/Layout";
 import {
+  formatActivitiesPreview,
   formatTaskDeadline,
   hasDeadline,
   isTaskPriority,
@@ -498,7 +499,7 @@ const AdminCalendar = ({ readOnly = false }) => {
       map[key].push({
         id: task.id,
         event_name: task.agenda ?? "",
-        department: task.activities ?? "",
+        department: formatActivitiesPreview(task.activities) ?? "",
         start_time: "08:00",
         venue_id: null,
         venues: { name: task.profiles?.code_name ?? "No Venue" },

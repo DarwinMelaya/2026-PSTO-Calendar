@@ -20,6 +20,7 @@ import OwnerOpenTasksModal from "../../components/Modals/AdminModals/OwnerOpenTa
 import PriorityBadge from "../../components/Task/PriorityBadge";
 import { listProfiles } from "../../utils/profile";
 import {
+  formatActivitiesPreview,
   isTaskPriority,
   listTasks,
   parseTaskRemarks,
@@ -230,7 +231,7 @@ const Dashboard = ({ readOnly = false }) => {
       const searchBlob = normalizeText(
         [
           t.agenda,
-          t.activities,
+          formatActivitiesPreview(t.activities),
           t.status,
           t.requestedStatus,
           t.task_date,
@@ -859,9 +860,9 @@ const Dashboard = ({ readOnly = false }) => {
                               {formatDate(t.deadline)}
                             </span>
                           </p>
-                          {t.activities ? (
+                          {formatActivitiesPreview(t.activities) ? (
                             <p className="mt-2 line-clamp-2 text-sm text-slate-600">
-                              {t.activities}
+                              {formatActivitiesPreview(t.activities)}
                             </p>
                           ) : null}
                         </div>

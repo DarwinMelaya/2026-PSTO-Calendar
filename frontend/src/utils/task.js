@@ -1,5 +1,6 @@
 import supabase from "./supabaseClient";
 import { compressImage } from "./compressImage";
+import { stripHtmlTags } from "./richText";
 
 export const TASK_STATUSES = [
   { value: "pending", label: "Pending" },
@@ -47,43 +48,42 @@ export const normalizeSubTasks = (subTasks) => {
     .filter((item) => item.title || item.remarks);
 };
 
+const extractSubTasksMarker = (raw) => {
+  const markerLine = `${SUB_TASKS_PREFIX}[\\s\\S]*${SUB_TASKS_SUFFIX}`;
+  const match = raw.match(new RegExp(`\\n?${markerLine}$`));
+  if (!match) {
+    return { cleanActivities: raw, subTasks: [] };
+  }
+
+  const marker = match[0].trim();
+  let subTasks = [];
+  const payload = marker.slice(
+    SUB_TASKS_PREFIX.length,
+    marker.length - SUB_TASKS_SUFFIX.length,
+  );
+
+  try {
+    const parsed = JSON.parse(payload);
+    if (Array.isArray(parsed)) {
+      subTasks = normalizeSubTasks(parsed);
+    }
+  } catch {
+    // ignore malformed marker
+  }
+
+  return {
+    cleanActivities: raw.slice(0, raw.length - match[0].length).trim(),
+    subTasks,
+  };
+};
+
 export const parseTaskActivities = (activities) => {
   const raw = (activities ?? "").trim();
   if (!raw) {
     return { cleanActivities: "", subTasks: [] };
   }
 
-  const lines = raw.split("\n");
-  let subTasks = [];
-  const cleanLines = [];
-
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (
-      trimmed.startsWith(SUB_TASKS_PREFIX) &&
-      trimmed.endsWith(SUB_TASKS_SUFFIX)
-    ) {
-      const payload = trimmed.slice(
-        SUB_TASKS_PREFIX.length,
-        trimmed.length - SUB_TASKS_SUFFIX.length,
-      );
-      try {
-        const parsed = JSON.parse(payload);
-        if (Array.isArray(parsed)) {
-          subTasks = normalizeSubTasks(parsed);
-        }
-      } catch {
-        // ignore malformed marker
-      }
-      continue;
-    }
-    cleanLines.push(line);
-  }
-
-  return {
-    cleanActivities: cleanLines.join("\n").trim(),
-    subTasks,
-  };
+  return extractSubTasksMarker(raw);
 };
 
 const composeTaskActivities = ({ activities, subTasks }) => {
@@ -100,11 +100,12 @@ const composeTaskActivities = ({ activities, subTasks }) => {
 
 export const formatActivitiesPreview = (activities) => {
   const { cleanActivities, subTasks } = parseTaskActivities(activities);
+  const activityText = stripHtmlTags(cleanActivities);
   const subLines = subTasks.map((item, index) => {
     const title = item.title || `Sub-task ${index + 1}`;
     return item.remarks ? `${title} — ${item.remarks}` : title;
   });
-  const parts = [cleanActivities, ...subLines].filter(Boolean);
+  const parts = [activityText, ...subLines].filter(Boolean);
   return parts.join("\n");
 };
 

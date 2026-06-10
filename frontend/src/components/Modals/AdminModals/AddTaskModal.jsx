@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import RichTextField from "../../Forms/RichTextField";
 import SubTasksField from "../../Task/SubTasksField";
 import {
   TASK_STATUSES,
@@ -301,13 +302,12 @@ const AddTaskModal = ({ isOpen, onClose, onSuccess }) => {
                 Activities{" "}
                 <span className="font-normal text-slate-400">(optional)</span>
               </label>
-              <textarea
+              <RichTextField
                 id="modal-task-activities"
-                rows={3}
                 value={form.activities}
                 onChange={setField("activities")}
                 placeholder="General activity notes (optional)"
-                className={inputClass}
+                minHeight="5rem"
               />
             </div>
 

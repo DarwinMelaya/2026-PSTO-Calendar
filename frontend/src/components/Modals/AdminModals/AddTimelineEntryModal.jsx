@@ -4,6 +4,7 @@ import {
   formatFileSize,
   MAX_UPLOAD_INPUT_BYTES,
 } from "../../../utils/compressImage";
+import RichTextField from "../../Forms/RichTextField";
 import {
   createTimelineEntry,
   uploadProjectTimelinePhoto,
@@ -166,13 +167,12 @@ const AddTimelineEntryModal = ({ isOpen, project, onClose, onSuccess }) => {
             >
               Remarks
             </label>
-            <textarea
+            <RichTextField
               id="te-remarks"
               value={remarks}
               onChange={(e) => setRemarks(e.target.value)}
-              rows={5}
               placeholder="e.g. Meeting with MSC President regarding project status…"
-              className={inputClass}
+              minHeight="7rem"
             />
           </div>
 

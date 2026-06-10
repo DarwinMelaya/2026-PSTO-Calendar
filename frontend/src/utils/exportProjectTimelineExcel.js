@@ -1,4 +1,5 @@
 import ExcelJS from "exceljs";
+import { stripHtmlTags } from "./richText";
 import {
   ENTRY_STATUS_META,
   formatEntryDate,
@@ -186,7 +187,8 @@ export const exportProjectTimelineExcel = async ({ project, entries }) => {
       for (const entry of group.entries) {
         const status = getEntryStatus(entry);
         const statusLabel = ENTRY_STATUS_META[status].label;
-        const remarks = entry.remarks?.trim() || "No remarks recorded.";
+        const remarks =
+          stripHtmlTags(entry.remarks)?.trim() || "No remarks recorded.";
         const dateText = formatEntryDate(entry.entry_date);
         const hasPhoto = Boolean(entry.photo_url);
 

@@ -13,6 +13,7 @@ import FollowUpAlertModal from "../../components/Notifications/FollowUpAlertModa
 import { useFollowUpAlerts } from "../../hooks/useFollowUpAlerts";
 import { getSession } from "../../utils/session";
 import {
+  formatActivitiesPreview,
   formatTaskDeadline,
   isTaskPriority,
   listTasksForUser,
@@ -448,9 +449,9 @@ const UserDashboard = () => {
                               {formatTaskDeadline(t.deadline, t.deadline_time)}
                             </span>
                           </p>
-                          {t.activities ? (
+                          {formatActivitiesPreview(t.activities) ? (
                             <p className="mt-3 line-clamp-2 text-sm text-slate-600">
-                              {t.activities}
+                              {formatActivitiesPreview(t.activities)}
                             </p>
                           ) : null}
                         </div>
