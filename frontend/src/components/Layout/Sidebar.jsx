@@ -187,13 +187,13 @@ const Sidebar = () => {
           <CalendarIcon />
           <span className="truncate">Calendar</span>
         </NavLink>
-        <NavLink to="/admin-profile" className={mobileNavLinkClass}>
-          <ProfileIcon />
-          <span className="truncate">Profile</span>
-        </NavLink>
         <NavLink to="/admin-project-timeline" className={mobileNavLinkClass}>
           <ProjectTimelineIcon />
           <span className="truncate">Project Timeline</span>
+        </NavLink>
+        <NavLink to="/admin-profile" className={mobileNavLinkClass}>
+          <ProfileIcon />
+          <span className="truncate">Profile</span>
         </NavLink>
       </nav>
 
@@ -261,16 +261,16 @@ const Sidebar = () => {
                 Calendar
               </NavLink>
             ) : null}
-            {navFilter("Profile") ? (
-              <NavLink to="/admin-profile" className={panelLinkClass}>
-                <ProfileIcon />
-                Profile
-              </NavLink>
-            ) : null}
             {navFilter("Project Timeline") ? (
               <NavLink to="/admin-project-timeline" className={panelLinkClass}>
                 <ProjectTimelineIcon />
                 Project Timeline
+              </NavLink>
+            ) : null}
+            {navFilter("Profile") ? (
+              <NavLink to="/admin-profile" className={panelLinkClass}>
+                <ProfileIcon />
+                Profile
               </NavLink>
             ) : null}
             {query.trim() &&
