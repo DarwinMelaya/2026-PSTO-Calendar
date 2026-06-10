@@ -1,4 +1,5 @@
 import supabase from "./supabaseClient";
+import { compressImage } from "./compressImage";
 
 export const TASK_STATUSES = [
   { value: "pending", label: "Pending" },
@@ -28,8 +29,11 @@ const TASK_GROUP_PREFIX = "[[TASK_GROUP:";
 const TASK_GROUP_SUFFIX = "]]";
 const COMPLETED_AT_PREFIX = "[[COMPLETED_AT:";
 const COMPLETED_AT_SUFFIX = "]]";
+const PROOF_URL_PREFIX = "[[PROOF_URL:";
+const PROOF_URL_SUFFIX = "]]";
 const SUB_TASKS_PREFIX = "[[SUB_TASKS:";
 const SUB_TASKS_SUFFIX = "]]";
+const PROOF_BUCKET = "task-completion-proofs";
 
 export const emptySubTask = () => ({ title: "", remarks: "" });
 
@@ -112,6 +116,7 @@ export const parseTaskRemarks = (remarks) => {
       requestedStatus: null,
       groupKey: null,
       completedAt: null,
+      proofUrl: null,
     };
 
   const lines = raw
@@ -122,6 +127,7 @@ export const parseTaskRemarks = (remarks) => {
   let requestedStatus = null;
   let groupKey = null;
   let completedAt = null;
+  let proofUrl = null;
   const cleanLines = [];
 
   for (const line of lines) {
@@ -155,6 +161,14 @@ export const parseTaskRemarks = (remarks) => {
       completedAt = value || null;
       continue;
     }
+    if (line.startsWith(PROOF_URL_PREFIX) && line.endsWith(PROOF_URL_SUFFIX)) {
+      const value = line.slice(
+        PROOF_URL_PREFIX.length,
+        line.length - PROOF_URL_SUFFIX.length,
+      );
+      proofUrl = value || null;
+      continue;
+    }
     cleanLines.push(line);
   }
 
@@ -163,10 +177,17 @@ export const parseTaskRemarks = (remarks) => {
     requestedStatus,
     groupKey,
     completedAt,
+    proofUrl,
   };
 };
 
-const composeTaskRemarks = ({ remarks, requestedStatus, groupKey, completedAt }) => {
+const composeTaskRemarks = ({
+  remarks,
+  requestedStatus,
+  groupKey,
+  completedAt,
+  proofUrl,
+}) => {
   const { cleanRemarks } = parseTaskRemarks(remarks);
   const marker = requestedStatus
     ? `${STATUS_REQUEST_PREFIX}${requestedStatus}${STATUS_REQUEST_SUFFIX}`
@@ -177,11 +198,66 @@ const composeTaskRemarks = ({ remarks, requestedStatus, groupKey, completedAt })
   const completedMarker = completedAt
     ? `${COMPLETED_AT_PREFIX}${completedAt}${COMPLETED_AT_SUFFIX}`
     : "";
+  const proofMarker = proofUrl
+    ? `${PROOF_URL_PREFIX}${proofUrl}${PROOF_URL_SUFFIX}`
+    : "";
 
-  const parts = [cleanRemarks.trim(), marker, groupMarker, completedMarker].filter(
-    Boolean,
-  );
+  const parts = [
+    cleanRemarks.trim(),
+    marker,
+    groupMarker,
+    completedMarker,
+    proofMarker,
+  ].filter(Boolean);
   return parts.length > 0 ? parts.join("\n") : null;
+};
+
+export const uploadTaskCompletionProof = async (file) => {
+  if (!file) {
+    return { url: null, error: null, originalSize: null, compressedSize: null };
+  }
+
+  const originalSize = file.size;
+  let uploadFile = file;
+
+  try {
+    uploadFile = await compressImage(file);
+  } catch (compressionError) {
+    return {
+      url: null,
+      error: {
+        message:
+          compressionError?.message ?? "Failed to compress image before upload.",
+      },
+      originalSize,
+      compressedSize: null,
+    };
+  }
+
+  const safeName = uploadFile.name.replace(/[^\w.\-]+/g, "_");
+  const path = `${Date.now()}-${Math.random().toString(36).slice(2)}-${safeName}`;
+
+  const { data, error } = await supabase.storage
+    .from(PROOF_BUCKET)
+    .upload(path, uploadFile, {
+      upsert: false,
+      contentType: uploadFile.type,
+    });
+
+  if (error) {
+    return { url: null, error, originalSize, compressedSize: uploadFile.size };
+  }
+
+  const { data: urlData } = supabase.storage
+    .from(PROOF_BUCKET)
+    .getPublicUrl(data.path);
+
+  return {
+    url: urlData.publicUrl,
+    error: null,
+    originalSize,
+    compressedSize: uploadFile.size,
+  };
 };
 
 const createGroupKey = () =>
@@ -283,6 +359,7 @@ export const createTask = async ({
     requestedStatus: null,
     groupKey,
     completedAt: status === "completed" ? new Date().toISOString() : null,
+    proofUrl: null,
   });
 
   const { data, error } = await supabase
@@ -354,6 +431,7 @@ export const updateTask = async (
       : null,
     groupKey: effectiveGroupKey,
     completedAt: effectiveCompletedAt,
+    proofUrl: existingMeta.proofUrl,
   });
 
   const basePayload = {
@@ -446,6 +524,7 @@ export const updateTaskRemarks = async (id, { cleanRemarks, existingRemarks }) =
         requestedStatus: meta.requestedStatus,
         groupKey: meta.groupKey,
         completedAt: meta.completedAt,
+        proofUrl: meta.proofUrl,
       }),
     })
     .eq("id", id)
@@ -459,7 +538,7 @@ export const updateTaskRemarks = async (id, { cleanRemarks, existingRemarks }) =
 
 export const requestTaskStatusChange = async (
   id,
-  { requestedStatus, remarks, groupKey, existingRemarks },
+  { requestedStatus, remarks, groupKey, existingRemarks, proofUrl },
 ) => {
   const existingMeta = parseTaskRemarks(existingRemarks ?? remarks);
   const { data, error } = await supabase
@@ -470,6 +549,7 @@ export const requestTaskStatusChange = async (
         requestedStatus,
         groupKey: groupKey ?? existingMeta.groupKey,
         completedAt: existingMeta.completedAt,
+        proofUrl: proofUrl ?? existingMeta.proofUrl,
       }),
     })
     .eq("id", id)
@@ -482,7 +562,7 @@ export const requestTaskStatusChange = async (
 };
 
 export const approveTaskStatusRequest = async ({ id, remarks }) => {
-  const { requestedStatus, cleanRemarks, groupKey, completedAt } =
+  const { requestedStatus, cleanRemarks, groupKey, completedAt, proofUrl } =
     parseTaskRemarks(remarks);
   if (!requestedStatus) {
     return {
@@ -503,6 +583,7 @@ export const approveTaskStatusRequest = async ({ id, remarks }) => {
           requestedStatus === "completed"
             ? completedAt || new Date().toISOString()
             : null,
+        proofUrl,
       }),
     })
     .eq("id", id)
@@ -515,7 +596,8 @@ export const approveTaskStatusRequest = async ({ id, remarks }) => {
 };
 
 export const rejectTaskStatusRequest = async ({ id, remarks }) => {
-  const { cleanRemarks, groupKey, completedAt } = parseTaskRemarks(remarks);
+  const { cleanRemarks, groupKey, completedAt, proofUrl } =
+    parseTaskRemarks(remarks);
   const { data, error } = await supabase
     .from("tasks")
     .update({
@@ -524,6 +606,7 @@ export const rejectTaskStatusRequest = async ({ id, remarks }) => {
         requestedStatus: null,
         groupKey,
         completedAt,
+        proofUrl,
       }),
     })
     .eq("id", id)

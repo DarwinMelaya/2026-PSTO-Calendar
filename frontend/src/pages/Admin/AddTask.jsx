@@ -263,9 +263,8 @@ const AddTask = () => {
   const groupedTasks = useMemo(() => {
     const groups = new Map();
     for (const task of tasks) {
-      const { cleanRemarks, requestedStatus, groupKey } = parseTaskRemarks(
-        task.remarks,
-      );
+      const { cleanRemarks, requestedStatus, groupKey, proofUrl } =
+        parseTaskRemarks(task.remarks);
       const key = groupKey || `single-${task.id}`;
       const current = groups.get(key);
       const { cleanActivities, subTasks } = parseTaskActivities(task.activities);
@@ -276,6 +275,7 @@ const AddTask = () => {
         cleanRemarks,
         requestedStatus,
         groupKey,
+        proofUrl,
       };
       if (!current) {
         groups.set(key, {
@@ -1302,6 +1302,32 @@ const AddTask = () => {
                             <span className="inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 ring-1 ring-inset ring-amber-600/15">
                               Requested: {statusLabel(task.requestedStatus)}
                             </span>
+                          ) : null}
+                          {(task.proofUrl ||
+                            task.members?.some((m) => m.proofUrl)) &&
+                          (task.status === "completed" ||
+                            task.requestedStatus === "completed") ? (
+                            <button
+                              type="button"
+                              onClick={() => setTaskToView(task)}
+                              className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800 ring-1 ring-inset ring-emerald-600/15 transition hover:bg-emerald-100"
+                            >
+                              <svg
+                                className="h-3.5 w-3.5"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                strokeWidth={2}
+                                stroke="currentColor"
+                                aria-hidden
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H5.25A2.25 2.25 0 003 5.25v13.5A2.25 2.25 0 005.25 21z"
+                                />
+                              </svg>
+                              View proof
+                            </button>
                           ) : null}
                         </div>
                       </td>

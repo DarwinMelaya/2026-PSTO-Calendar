@@ -1,8 +1,10 @@
+import { useState } from "react";
 import PriorityBadge from "../../../Task/PriorityBadge";
 import {
   formatTaskDeadline,
   hasDeadline,
   isTaskPriority,
+  parseTaskRemarks,
   TASK_STATUSES,
 } from "../../../../utils/task";
 
@@ -18,6 +20,27 @@ const formatDate = (value) => {
   });
 };
 
+const collectProofEntries = (task) => {
+  const members = task.members?.length ? task.members : [task];
+  const labels = task.responsibleLabels ?? [];
+
+  return members
+    .map((member, index) => {
+      const proofUrl =
+        member.proofUrl ?? parseTaskRemarks(member.remarks).proofUrl ?? null;
+      if (!proofUrl) return null;
+      return {
+        label:
+          labels[index] ??
+          member.profile?.code_name ??
+          member.profiles?.code_name ??
+          "Assignee",
+        proofUrl,
+      };
+    })
+    .filter(Boolean);
+};
+
 const DashboardTaskListModal = ({
   isOpen,
   onClose,
@@ -28,9 +51,17 @@ const DashboardTaskListModal = ({
   modalId = "dashboard-task-list-modal",
   renderActions,
   renderHeaderActions,
+  showCompletionProof = false,
   getItemKey = (t) => String(t.id),
 }) => {
+  const [expandedProofUrl, setExpandedProofUrl] = useState(null);
+
   if (!isOpen) return null;
+
+  const handleClose = () => {
+    setExpandedProofUrl(null);
+    onClose();
+  };
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -45,7 +76,7 @@ const DashboardTaskListModal = ({
       <button
         type="button"
         className="absolute inset-0 bg-slate-900/50"
-        onClick={onClose}
+        onClick={handleClose}
         aria-label="Close modal"
       />
 
@@ -69,7 +100,7 @@ const DashboardTaskListModal = ({
           ) : null}
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="shrink-0 rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
             aria-label="Close"
           >
@@ -101,6 +132,9 @@ const DashboardTaskListModal = ({
                   deadlineDate &&
                   !Number.isNaN(deadlineDate.getTime()) &&
                   deadlineDate < today;
+                const proofEntries = showCompletionProof
+                  ? collectProofEntries(t)
+                  : [];
 
                 return (
                   <li
@@ -154,6 +188,45 @@ const DashboardTaskListModal = ({
                         ) : null}
                       </p>
                     ) : null}
+                    {proofEntries.length > 0 ? (
+                      <div className="mt-3 rounded-xl border border-emerald-200/80 bg-emerald-50/50 p-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-900">
+                          Proof of completion
+                        </p>
+                        <div className="mt-2 space-y-2">
+                          {proofEntries.map((entry) => (
+                            <div key={`${entry.label}-${entry.proofUrl}`}>
+                              {proofEntries.length > 1 ? (
+                                <p className="mb-1 text-xs font-semibold text-emerald-900">
+                                  {entry.label}
+                                </p>
+                              ) : null}
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setExpandedProofUrl(entry.proofUrl)
+                                }
+                                className="block overflow-hidden rounded-lg ring-2 ring-emerald-200/80 transition hover:ring-emerald-400"
+                              >
+                                <img
+                                  src={entry.proofUrl}
+                                  alt={`Proof of completion${proofEntries.length > 1 ? ` — ${entry.label}` : ""}`}
+                                  className="max-h-36 w-full object-cover sm:max-h-40 sm:w-auto sm:max-w-full"
+                                />
+                              </button>
+                              <a
+                                href={entry.proofUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="mt-1.5 inline-block text-xs font-semibold text-emerald-800 underline-offset-2 hover:underline"
+                              >
+                                Open full size
+                              </a>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
                     {renderActions ? (
                       <div className="mt-3 flex flex-wrap justify-end gap-2 border-t border-slate-200/80 pt-3">
                         {renderActions(t)}
@@ -169,13 +242,29 @@ const DashboardTaskListModal = ({
         <div className="border-t border-slate-100 px-6 py-4">
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
           >
             Close
           </button>
         </div>
       </div>
+
+      {expandedProofUrl ? (
+        <button
+          type="button"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 p-4"
+          onClick={() => setExpandedProofUrl(null)}
+          aria-label="Close proof preview"
+        >
+          <img
+            src={expandedProofUrl}
+            alt="Proof of completion"
+            className="max-h-[90vh] max-w-full rounded-lg object-contain shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </button>
+      ) : null}
     </div>
   );
 };

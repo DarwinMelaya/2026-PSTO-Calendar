@@ -11,6 +11,10 @@ import {
   StatCard,
   TableSkeleton,
 } from "../../components/User/UserWorkspaceUI";
+import {
+  formatFileSize,
+  MAX_UPLOAD_INPUT_BYTES,
+} from "../../utils/compressImage";
 import { getSession } from "../../utils/session";
 import {
   TASK_PROGRAMS,
@@ -23,6 +27,7 @@ import {
   requestTaskStatusChange,
   taskProgramLabel,
   updateTaskRemarks,
+  uploadTaskCompletionProof,
 } from "../../utils/task";
 
 const toIsoDate = (date) => {
@@ -154,6 +159,7 @@ const UserTask = () => {
   const [remarksDrafts, setRemarksDrafts] = useState({});
   const [requestingId, setRequestingId] = useState(null);
   const [savingRemarksId, setSavingRemarksId] = useState(null);
+  const [proofDrafts, setProofDrafts] = useState({});
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [taskToEdit, setTaskToEdit] = useState(null);
@@ -331,8 +337,58 @@ const UserTask = () => {
       ...task,
       cleanRemarks: remarksForTask(task).trim() || meta.cleanRemarks,
       requestedStatus: meta.requestedStatus,
+      proofUrl: meta.proofUrl,
       responsibleLabels: codeName ? [codeName] : ["—"],
     };
+  };
+
+  const proofForTask = (task) => {
+    const saved = parseTaskRemarks(task.remarks).proofUrl;
+    return proofDrafts[task.id] ?? (saved ? { preview: saved, saved: true } : null);
+  };
+
+  const handleProofChange = (task, event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please choose an image file.");
+      event.target.value = "";
+      return;
+    }
+
+    if (file.size > MAX_UPLOAD_INPUT_BYTES) {
+      toast.error("Photo must be 20 MB or smaller.");
+      event.target.value = "";
+      return;
+    }
+
+    setProofDrafts((prev) => {
+      const existing = prev[task.id];
+      if (existing?.preview && !existing.saved) {
+        URL.revokeObjectURL(existing.preview);
+      }
+      return {
+        ...prev,
+        [task.id]: {
+          file,
+          preview: URL.createObjectURL(file),
+          saved: false,
+        },
+      };
+    });
+  };
+
+  const clearProofDraft = (task) => {
+    setProofDrafts((prev) => {
+      const existing = prev[task.id];
+      if (existing?.preview && !existing.saved) {
+        URL.revokeObjectURL(existing.preview);
+      }
+      const next = { ...prev };
+      delete next[task.id];
+      return next;
+    });
   };
 
   const openEdit = (task) => {
@@ -395,12 +451,48 @@ const UserTask = () => {
       return;
     }
 
+    let proofUrl = meta.proofUrl;
+    const proofDraft = proofDrafts[task.id];
+
+    if (selectedStatus === "completed") {
+      if (!proofUrl && !proofDraft?.file) {
+        toast.error("Please upload a photo as proof of completion.");
+        return;
+      }
+    }
+
     setRequestingId(task.id);
+
+    if (proofDraft?.file) {
+      const { url, error: uploadError, originalSize, compressedSize } =
+        await uploadTaskCompletionProof(proofDraft.file);
+
+      if (uploadError) {
+        setRequestingId(null);
+        toast.error(uploadError.message ?? "Failed to upload proof photo.");
+        return;
+      }
+
+      proofUrl = url;
+
+      if (
+        originalSize &&
+        compressedSize &&
+        compressedSize < originalSize
+      ) {
+        toast.success(
+          `Photo compressed: ${formatFileSize(originalSize)} → ${formatFileSize(compressedSize)}`,
+          { duration: 4000 },
+        );
+      }
+    }
+
     const { error } = await requestTaskStatusChange(task.id, {
       requestedStatus: selectedStatus,
       remarks: cleanRemarks,
       groupKey: meta.groupKey,
       existingRemarks: task.remarks,
+      proofUrl,
     });
     setRequestingId(null);
 
@@ -419,6 +511,7 @@ const UserTask = () => {
       delete next[task.id];
       return next;
     });
+    clearProofDraft(task);
     loadTasks();
   };
 
@@ -979,12 +1072,14 @@ const UserTask = () => {
                   </tr>
                 ) : (
                   filteredTasks.map((task) => {
-                    const pendingRequest = parseTaskRemarks(task.remarks)
-                      .requestedStatus;
+                    const taskMeta = parseTaskRemarks(task.remarks);
+                    const pendingRequest = taskMeta.requestedStatus;
                     const selectedRequestStatus =
                       requestDrafts[task.id] ??
                       pendingRequest ??
                       task.status;
+                    const proof = proofForTask(task);
+                    const showProofUpload = selectedRequestStatus === "completed";
 
                     return (
                     <tr
@@ -1113,6 +1208,42 @@ const UserTask = () => {
                               : "Request"}
                           </button>
                         </div>
+                        {showProofUpload ? (
+                          <div className="mt-2 w-full min-w-[12rem] rounded-lg border border-emerald-200/80 bg-emerald-50/60 p-2 text-left">
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-900">
+                              Proof of completion
+                            </p>
+                            {proof?.preview ? (
+                              <div className="mt-1.5 space-y-1.5">
+                                <img
+                                  src={proof.preview}
+                                  alt="Proof preview"
+                                  className="h-16 w-full rounded-md border border-emerald-200 object-cover"
+                                />
+                                {!proof.saved ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => clearProofDraft(task)}
+                                    disabled={requestingId === task.id}
+                                    className="text-[10px] font-semibold text-emerald-800 underline-offset-2 hover:underline disabled:opacity-50"
+                                  >
+                                    Remove
+                                  </button>
+                                ) : null}
+                              </div>
+                            ) : null}
+                            <label className="mt-1.5 flex cursor-pointer items-center justify-center rounded-md border border-dashed border-emerald-300 bg-white px-2 py-1.5 text-[10px] font-semibold text-emerald-800 transition hover:bg-emerald-50/80">
+                              {proof?.preview ? "Change photo" : "Upload photo"}
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="sr-only"
+                                disabled={requestingId === task.id}
+                                onChange={(e) => handleProofChange(task, e)}
+                              />
+                            </label>
+                          </div>
+                        ) : null}
                         {pendingRequest ? (
                           <p
                             className={`mt-1 text-xs ${

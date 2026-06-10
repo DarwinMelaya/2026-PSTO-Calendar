@@ -1,8 +1,10 @@
+import { useMemo, useState } from "react";
 import {
   TASK_STATUSES,
   formatTaskDeadline,
   isTaskPriority,
   parseTaskActivities,
+  parseTaskRemarks,
   taskProgramLabel,
 } from "../../../utils/task";
 
@@ -29,7 +31,36 @@ const DetailBlock = ({ label, children }) => (
   </div>
 );
 
+const collectProofEntries = (task) => {
+  const members = task.members?.length ? task.members : [task];
+  const labels = task.responsibleLabels ?? [];
+
+  return members
+    .map((member, index) => {
+      const proofUrl =
+        member.proofUrl ?? parseTaskRemarks(member.remarks).proofUrl ?? null;
+      if (!proofUrl) return null;
+      return {
+        label: labels[index] ?? member.profiles?.code_name ?? "Assignee",
+        proofUrl,
+      };
+    })
+    .filter(Boolean);
+};
+
 const ViewTaskModal = ({ isOpen, onClose, task }) => {
+  const [expandedProofUrl, setExpandedProofUrl] = useState(null);
+
+  const proofEntries = useMemo(
+    () => (task ? collectProofEntries(task) : []),
+    [task],
+  );
+
+  const handleClose = () => {
+    setExpandedProofUrl(null);
+    onClose();
+  };
+
   if (!isOpen || !task) return null;
 
   const { cleanActivities, subTasks } = parseTaskActivities(task.activities);
@@ -44,7 +75,7 @@ const ViewTaskModal = ({ isOpen, onClose, task }) => {
       <button
         type="button"
         className="absolute inset-0 bg-slate-900/50"
-        onClick={onClose}
+        onClick={handleClose}
         aria-label="Close modal"
       />
 
@@ -70,7 +101,7 @@ const ViewTaskModal = ({ isOpen, onClose, task }) => {
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="shrink-0 rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
             aria-label="Close"
           >
@@ -114,6 +145,47 @@ const ViewTaskModal = ({ isOpen, onClose, task }) => {
           ) : null}
           <DetailBlock label="Remarks">{task.cleanRemarks || "—"}</DetailBlock>
 
+          {proofEntries.length > 0 ? (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Proof of completion
+              </p>
+              <div className="mt-2 space-y-3">
+                {proofEntries.map((entry) => (
+                  <div
+                    key={`${entry.label}-${entry.proofUrl}`}
+                    className="rounded-xl border border-emerald-200/80 bg-emerald-50/40 p-3"
+                  >
+                    {proofEntries.length > 1 ? (
+                      <p className="mb-2 text-xs font-semibold text-emerald-900">
+                        {entry.label}
+                      </p>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => setExpandedProofUrl(entry.proofUrl)}
+                      className="block overflow-hidden rounded-lg ring-2 ring-emerald-200/80 transition hover:ring-emerald-400"
+                    >
+                      <img
+                        src={entry.proofUrl}
+                        alt={`Proof of completion${proofEntries.length > 1 ? ` — ${entry.label}` : ""}`}
+                        className="max-h-48 w-full object-cover sm:max-h-56 sm:w-auto sm:max-w-full"
+                      />
+                    </button>
+                    <a
+                      href={entry.proofUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-2 inline-block text-xs font-semibold text-emerald-800 underline-offset-2 hover:underline"
+                    >
+                      Open full size
+                    </a>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -155,13 +227,29 @@ const ViewTaskModal = ({ isOpen, onClose, task }) => {
         <div className="border-t border-slate-100 px-6 py-4">
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="w-full rounded-xl border border-slate-300 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:w-auto sm:px-6"
           >
             Close
           </button>
         </div>
       </div>
+
+      {expandedProofUrl ? (
+        <button
+          type="button"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 p-4"
+          onClick={() => setExpandedProofUrl(null)}
+          aria-label="Close proof preview"
+        >
+          <img
+            src={expandedProofUrl}
+            alt="Proof of completion"
+            className="max-h-[90vh] max-w-full rounded-lg object-contain shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </button>
+      ) : null}
     </div>
   );
 };

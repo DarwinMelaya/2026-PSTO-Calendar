@@ -13,6 +13,7 @@ const ApprovalViewModal = ({
     tasks={tasks}
     onRefresh={onRefresh}
     readOnly={readOnly}
+    showCompletionProof
     title="Awaiting approval"
     getSubtitle={(grouped) =>
       `${grouped.length} status change request${grouped.length === 1 ? "" : "s"}`
