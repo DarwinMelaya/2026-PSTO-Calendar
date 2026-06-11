@@ -48,6 +48,22 @@ const TABLE_MIN_WIDTH = COL_WIDTHS.reduce((sum, width) => sum + width, 0);
 const ROWS_PER_PAGE_OPTIONS = [10, 25, 50];
 const DEFAULT_ROWS_PER_PAGE = 25;
 
+/** Extract trailing digits from project no. (e.g. "MAR-GIA - 078" → 78). */
+const getProjectNoSortValue = (projectNo) => {
+  if (!projectNo?.trim()) return -1;
+  const match = String(projectNo).match(/(\d+)\s*$/);
+  return match ? Number.parseInt(match[1], 10) : -1;
+};
+
+const compareProjectNoDesc = (a, b) => {
+  const diff = getProjectNoSortValue(b.project_no) - getProjectNoSortValue(a.project_no);
+  if (diff !== 0) return diff;
+  return String(b.project_no ?? "").localeCompare(String(a.project_no ?? ""), undefined, {
+    numeric: true,
+    sensitivity: "base",
+  });
+};
+
 const groupColors = {
   basic: "bg-emerald-700 text-white",
   extension: "bg-teal-700 text-white",
@@ -148,7 +164,7 @@ const AllProjectsMonitoring = () => {
 
   const filteredRecords = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    return records.filter((r) => {
+    const filtered = records.filter((r) => {
       if (yearFilter !== "all" && String(r.year) !== yearFilter) return false;
       if (!q) return true;
       const blob = [
@@ -167,6 +183,7 @@ const AllProjectsMonitoring = () => {
         .toLowerCase();
       return blob.includes(q);
     });
+    return [...filtered].sort(compareProjectNoDesc);
   }, [records, searchQuery, yearFilter]);
 
   const tablePageCount = Math.max(
