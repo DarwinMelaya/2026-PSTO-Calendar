@@ -110,9 +110,17 @@ const DEFAULT_FILTERS = {
   program: "all",
   awaitingApproval: false,
   priorityOnly: false,
+  lateOnly: false,
   datePeriod: "all",
   dateBasis: "task_date",
   anchorDate: toIsoDate(new Date()),
+};
+
+const isOverdueTask = (task) => {
+  if (task.status === "completed" || !hasDeadline(task.deadline)) return false;
+  const deadline = startOfDay(parseDateOnly(task.deadline));
+  const today = startOfDay(new Date());
+  return deadline.getTime() < today.getTime();
 };
 
 const DATE_PERIODS = [
@@ -227,11 +235,13 @@ const UserTask = () => {
     const program = filters.program;
     const awaitingApproval = filters.awaitingApproval;
     const priorityOnly = filters.priorityOnly;
+    const lateOnly = filters.lateOnly;
     const dateField =
       filters.dateBasis === "deadline" ? "deadline" : "task_date";
 
     return sortedTasks.filter((task) => {
       if (priorityOnly && !isTaskPriority(task)) return false;
+      if (lateOnly && !isOverdueTask(task)) return false;
 
       const meta = parseTaskRemarks(task.remarks);
       if (awaitingApproval && !meta.requestedStatus) return false;
@@ -266,6 +276,7 @@ const UserTask = () => {
   const hasActiveFilters =
     filters.awaitingApproval ||
     filters.priorityOnly ||
+    filters.lateOnly ||
     filters.status !== "all" ||
     filters.program !== "all" ||
     filters.datePeriod !== "all" ||
@@ -306,6 +317,7 @@ const UserTask = () => {
       awaitingApproval: list.filter(
         (t) => !!parseTaskRemarks(t.remarks).requestedStatus,
       ).length,
+      late: list.filter((t) => isOverdueTask(t)).length,
     };
   }, [tasks]);
 
@@ -971,6 +983,28 @@ const UserTask = () => {
                   >
                     Priority only
                   </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        lateOnly: !prev.lateOnly,
+                      }))
+                    }
+                    className={`w-full rounded-xl border px-3 py-2.5 text-sm font-semibold shadow-sm transition focus:outline-none focus:ring-2 focus:ring-blue-500/20 sm:w-auto ${
+                      filters.lateOnly
+                        ? "border-red-200 bg-red-50 text-red-900"
+                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    Late only
+                    {!loading && stats.late > 0 ? (
+                      <span className="ml-1.5 tabular-nums opacity-80">
+                        ({stats.late})
+                      </span>
+                    ) : null}
+                  </button>
                 </div>
               </div>
 
@@ -1081,11 +1115,16 @@ const UserTask = () => {
                       task.status;
                     const proof = proofForTask(task);
                     const showProofUpload = selectedRequestStatus === "completed";
+                    const overdue = isOverdueTask(task);
 
                     return (
                     <tr
                       key={task.id}
-                      className={`group transition-all duration-200 ${completedRowClass(selectedRequestStatus)}`}
+                      className={`group transition-all duration-200 ${completedRowClass(selectedRequestStatus)} ${
+                        overdue
+                          ? "[&_td]:!border-rose-200/90 [&_td:first-child]:border-l-[3px] [&_td:first-child]:!border-l-rose-500"
+                          : ""
+                      }`}
                     >
                       <td className="whitespace-nowrap rounded-l-xl border border-r-0 border-slate-200/80 bg-white px-5 py-4 font-semibold text-slate-900 shadow-sm sm:px-6">
                         {formatDate(task.task_date)}
@@ -1132,8 +1171,24 @@ const UserTask = () => {
                           </div>
                         </div>
                       </td>
-                      <td className="whitespace-nowrap border-y border-slate-200/80 bg-white px-5 py-4 text-slate-800 shadow-sm sm:px-6">
-                        {formatTaskDeadline(task.deadline, task.deadline_time)}
+                      <td className="whitespace-nowrap border-y border-slate-200/80 bg-white px-5 py-4 shadow-sm sm:px-6">
+                        <div className="flex flex-col gap-1.5">
+                          <span
+                            className={
+                              overdue
+                                ? "font-semibold text-rose-800"
+                                : "text-slate-800"
+                            }
+                          >
+                            {formatTaskDeadline(task.deadline, task.deadline_time)}
+                          </span>
+                          {overdue ? (
+                            <span className="inline-flex w-fit items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-rose-800 ring-1 ring-inset ring-rose-600/15">
+                              <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+                              Late
+                            </span>
+                          ) : null}
+                        </div>
                       </td>
                       <td className="whitespace-nowrap border-y border-slate-200/80 bg-white px-5 py-4 shadow-sm sm:px-6">
                         <span
