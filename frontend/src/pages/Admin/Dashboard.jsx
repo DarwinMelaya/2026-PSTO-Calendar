@@ -21,6 +21,7 @@ import PriorityBadge from "../../components/Task/PriorityBadge";
 import { listProfiles } from "../../utils/profile";
 import {
   formatActivitiesPreview,
+  hasDeadline,
   isTaskPriority,
   listTasks,
   parseTaskRemarks,
@@ -293,7 +294,7 @@ const Dashboard = ({ readOnly = false }) => {
     const stats = new Map();
     for (const t of filteredTasks) {
       if (t.status !== "completed") continue;
-      if (!t.completedAt || !t.deadline) continue;
+      if (!t.completedAt || !hasDeadline(t.deadline)) continue;
 
       const completedAt = new Date(t.completedAt);
       if (Number.isNaN(completedAt.getTime())) continue;
