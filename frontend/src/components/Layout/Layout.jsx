@@ -21,9 +21,9 @@ const Layout = ({ children }) => {
   return (
     <div className="min-h-screen bg-slate-50 lg:flex lg:items-start">
       {sidebar}
-      <div className="flex min-h-screen w-full flex-1 flex-col">
+      <div className="flex min-h-screen w-full min-w-0 flex-1 flex-col">
         {!isAdmin ? <UserNavbar /> : null}
-        <main className="flex-1 p-4 pb-[calc(4.75rem+env(safe-area-inset-bottom))] lg:p-6 lg:pb-6">
+        <main className="min-w-0 flex-1 p-4 pb-[calc(4.75rem+env(safe-area-inset-bottom))] lg:p-6 lg:pb-6">
           {children}
         </main>
       </div>

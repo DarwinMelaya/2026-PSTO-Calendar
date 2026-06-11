@@ -17,10 +17,34 @@ import {
   toggleAllProjectsMonitoringField,
 } from "../../utils/allProjectsMonitoring";
 
-const thBase =
-  "border border-slate-300 px-2 py-1.5 text-[10px] font-bold uppercase tracking-wide whitespace-nowrap";
+const thGroup =
+  "border border-slate-300 px-2 py-2 text-[9px] font-bold uppercase leading-tight tracking-wide text-center whitespace-normal break-words";
+const thCol =
+  "border border-slate-300 px-2 py-1.5 text-[10px] font-bold uppercase tracking-wide whitespace-nowrap overflow-hidden text-ellipsis";
 const tdBase =
-  "border border-slate-200 px-2 py-1.5 text-xs text-slate-800 align-middle whitespace-nowrap";
+  "border border-slate-200 px-2 py-1.5 text-xs text-slate-800 align-middle overflow-hidden";
+const tdCheck =
+  "border border-slate-200 px-1 py-1.5 text-xs align-middle overflow-hidden text-center";
+const tdWrap =
+  "border border-slate-200 px-2 py-1.5 text-xs text-slate-800 align-top overflow-hidden whitespace-normal break-words leading-snug";
+const stickyLeftCell = (idx) =>
+  idx % 2 === 0 ? "bg-white" : "bg-slate-50";
+const stickyRightCell = (idx) =>
+  idx % 2 === 0 ? "bg-white" : "bg-slate-50";
+
+const CellText = ({ children, title, className = "" }) => (
+  <span className={`block truncate ${className}`} title={title ?? (typeof children === "string" ? children : undefined)}>
+    {children}
+  </span>
+);
+
+const COL_WIDTHS = [
+  120, 56, 100, 120, 130, 200, 130, 100, 100,
+  100, 100, 52, 52, 56, 56, 64, 64, 48, 72,
+  56, 72, 96, 96, 96, 110, 48, 48, 64,
+  72, 72, 72, 72, 64, 64, 90, 90, 160, 52, 110, 88,
+];
+const TABLE_MIN_WIDTH = COL_WIDTHS.reduce((sum, width) => sum + width, 0);
 const groupColors = {
   basic: "bg-emerald-700 text-white",
   extension: "bg-teal-700 text-white",
@@ -192,7 +216,7 @@ const AllProjectsMonitoring = () => {
   };
 
   const renderCheck = (record, field) => (
-    <td key={field} className={`${tdBase} text-center`}>
+    <td key={field} className={tdCheck}>
       <CheckCell
         checked={Boolean(record[field])}
         toggling={togglingKey === `${record.id}:${field}`}
@@ -201,9 +225,28 @@ const AllProjectsMonitoring = () => {
     </td>
   );
 
+  const renderTextCell = (value, { wrap = false, className = "" } = {}) => {
+    const display =
+      value === null || value === undefined || value === ""
+        ? "—"
+        : String(value);
+    if (wrap) {
+      return (
+        <td className={`${tdWrap} ${className}`} title={display !== "—" ? display : undefined}>
+          {display}
+        </td>
+      );
+    }
+    return (
+      <td className={`${tdBase} ${className}`}>
+        <CellText title={display !== "—" ? display : undefined}>{display}</CellText>
+      </td>
+    );
+  };
+
   return (
     <Layout>
-      <div className="space-y-6 pb-8">
+      <div className="min-w-0 space-y-6 pb-8">
         <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-lg shadow-slate-200/40">
           <div className="border-b border-slate-100 bg-gradient-to-r from-emerald-600 via-teal-600 to-blue-700 px-5 py-6 sm:px-6">
             <p className="text-xs font-semibold uppercase tracking-widest text-emerald-100">
@@ -225,7 +268,7 @@ const AllProjectsMonitoring = () => {
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-lg shadow-slate-200/40">
+        <div className="min-w-0 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-lg shadow-slate-200/40">
           <PanelHeader
             title="Monitoring spreadsheet"
             subtitle="Click checkboxes to toggle inline. Use Add record for full entry."
@@ -309,108 +352,127 @@ const AllProjectsMonitoring = () => {
               ) : null}
             </div>
           ) : (
-            <div className="relative max-h-[calc(100vh-18rem)] overflow-auto border-t border-slate-200 bg-[#f8fafc]">
-              <table className="min-w-[3200px] border-collapse text-left">
+            <div className="isolate w-0 min-w-full max-h-[calc(100vh-18rem)] overflow-x-auto overflow-y-auto overscroll-x-contain border-t border-slate-200 bg-[#f8fafc]">
+              <table
+                className="w-full table-fixed border-separate border-spacing-0 text-left"
+                style={{ minWidth: TABLE_MIN_WIDTH }}
+              >
+                <colgroup>
+                  {COL_WIDTHS.map((width, i) => (
+                    <col key={i} style={{ width }} />
+                  ))}
+                </colgroup>
                 <thead className="sticky top-0 z-20">
                   <tr>
-                    <th colSpan={9} className={`${thBase} ${groupColors.basic} text-center`}>
+                    <th colSpan={9} className={`${thGroup} ${groupColors.basic}`}>
                       Project details
                     </th>
-                    <th colSpan={2} className={`${thBase} ${groupColors.extension} text-center`}>
+                    <th colSpan={2} className={`${thGroup} ${groupColors.extension}`}>
                       Extension
                     </th>
-                    <th colSpan={2} className={`${thBase} ${groupColors.realignment} text-center`}>
+                    <th colSpan={2} className={`${thGroup} ${groupColors.realignment} min-w-[160px]`}>
                       With approved request for realignment
                     </th>
-                    <th colSpan={6} className={`${thBase} ${groupColors.interventions} text-center`}>
+                    <th colSpan={6} className={`${thGroup} ${groupColors.interventions}`}>
                       Interventions
                     </th>
-                    <th colSpan={1} className={`${thBase} ${groupColors.liquidation} text-center`}>
+                    <th colSpan={1} className={`${thGroup} ${groupColors.liquidation}`}>
                       Liquidation
                     </th>
-                    <th colSpan={5} className={`${thBase} ${groupColors.documents} text-center`}>
+                    <th colSpan={5} className={`${thGroup} ${groupColors.documents}`}>
                       Documents
                     </th>
-                    <th colSpan={3} className={`${thBase} ${groupColors.reports} text-center`}>
+                    <th colSpan={3} className={`${thGroup} ${groupColors.reports}`}>
                       Status reports
                     </th>
-                    <th colSpan={6} className={`${thBase} ${groupColors.status} text-center`}>
+                    <th colSpan={6} className={`${thGroup} ${groupColors.status}`}>
                       Completion status
                     </th>
-                    <th colSpan={5} className={`${thBase} ${groupColors.refs} text-center`}>
+                    <th colSpan={5} className={`${thGroup} ${groupColors.refs}`}>
                       References
                     </th>
-                    <th rowSpan={2} className={`${thBase} ${groupColors.actions} sticky right-0 z-30 min-w-[88px]`}>
+                    <th
+                      rowSpan={2}
+                      className={`${thCol} ${groupColors.actions} sticky right-0 z-40 w-[88px] min-w-[88px] max-w-[88px] bg-slate-800 shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.25)]`}
+                    >
                       Actions
                     </th>
                   </tr>
                   <tr>
-                    <th className={`${thBase} ${groupColors.basic} sticky left-0 z-30 min-w-[120px] bg-emerald-700`}>
+                    <th className={`${thCol} ${groupColors.basic} sticky left-0 z-40 w-[120px] min-w-[120px] max-w-[120px] bg-emerald-700 shadow-[4px_0_6px_-4px_rgba(0,0,0,0.25)]`}>
                       No.
                     </th>
-                    <th className={`${thBase} ${groupColors.basic}`}>Year</th>
-                    <th className={`${thBase} ${groupColors.basic}`}>FIRM</th>
-                    <th className={`${thBase} ${groupColors.basic} min-w-[110px]`}>Total amount</th>
-                    <th className={`${thBase} ${groupColors.basic} min-w-[120px]`}>Downloaded funds</th>
-                    <th className={`${thBase} ${groupColors.basic} min-w-[180px]`}>Project title</th>
-                    <th className={`${thBase} ${groupColors.basic} min-w-[120px]`}>Proponent</th>
-                    <th className={`${thBase} ${groupColors.basic}`}>Start</th>
-                    <th className={`${thBase} ${groupColors.basic}`}>End</th>
-                    <th className={`${thBase} ${groupColors.extension} min-w-[100px]`}>Req. ext.</th>
-                    <th className={`${thBase} ${groupColors.extension}`}>Ext. date</th>
-                    <th className={`${thBase} ${groupColors.realignment}`}>1st</th>
-                    <th className={`${thBase} ${groupColors.realignment}`}>2nd</th>
-                    <th className={`${thBase} ${groupColors.interventions}`}>Equip.</th>
-                    <th className={`${thBase} ${groupColors.interventions}`}>MOOE</th>
-                    <th className={`${thBase} ${groupColors.interventions}`}>Training</th>
-                    <th className={`${thBase} ${groupColors.interventions}`}>Consult.</th>
-                    <th className={`${thBase} ${groupColors.interventions}`}>P&L</th>
-                    <th className={`${thBase} ${groupColors.interventions}`}>LAB/Others</th>
-                    <th className={`${thBase} ${groupColors.liquidation}`}>PSTO</th>
-                    <th className={`${thBase} ${groupColors.documents}`}>Recv./Appr.</th>
-                    <th className={`${thBase} ${groupColors.documents}`}>LDDAP</th>
-                    <th className={`${thBase} ${groupColors.documents}`}>MOA</th>
-                    <th className={`${thBase} ${groupColors.documents}`}>RTEC</th>
-                    <th className={`${thBase} ${groupColors.documents} min-w-[100px]`}>Cash program</th>
-                    <th className={`${thBase} ${groupColors.reports}`}>1st</th>
-                    <th className={`${thBase} ${groupColors.reports}`}>2nd</th>
-                    <th className={`${thBase} ${groupColors.reports}`}>Terminal</th>
-                    <th className={`${thBase} ${groupColors.status}`}>Completed</th>
-                    <th className={`${thBase} ${groupColors.status}`}>Terminated</th>
-                    <th className={`${thBase} ${groupColors.status}`}>Condonation</th>
-                    <th className={`${thBase} ${groupColors.status}`}>Letter ext.</th>
-                    <th className={`${thBase} ${groupColors.status}`}>Donated</th>
-                    <th className={`${thBase} ${groupColors.status}`}>Impact</th>
-                    <th className={`${thBase} ${groupColors.refs}`}>PAR No.</th>
-                    <th className={`${thBase} ${groupColors.refs}`}>PTR No.</th>
-                    <th className={`${thBase} ${groupColors.refs} min-w-[140px]`}>Remarks</th>
-                    <th className={`${thBase} ${groupColors.refs}`}>COO</th>
-                    <th className={`${thBase} ${groupColors.refs} min-w-[100px]`}>Google Drive</th>
+                    <th className={`${thCol} ${groupColors.basic} w-[56px]`}>Year</th>
+                    <th className={`${thCol} ${groupColors.basic} w-[100px]`}>FIRM</th>
+                    <th className={`${thCol} ${groupColors.basic} w-[120px]`}>Total amount</th>
+                    <th className={`${thCol} ${groupColors.basic} w-[130px]`}>Downloaded funds</th>
+                    <th className={`${thCol} ${groupColors.basic} w-[200px]`}>Project title</th>
+                    <th className={`${thCol} ${groupColors.basic} w-[130px]`}>Proponent</th>
+                    <th className={`${thCol} ${groupColors.basic} w-[100px]`}>Start</th>
+                    <th className={`${thCol} ${groupColors.basic} w-[100px]`}>End</th>
+                    <th className={`${thCol} ${groupColors.extension} w-[100px]`}>Req. ext.</th>
+                    <th className={`${thCol} ${groupColors.extension} w-[100px]`}>Ext. date</th>
+                    <th className={`${thCol} ${groupColors.realignment} w-[52px]`}>1st</th>
+                    <th className={`${thCol} ${groupColors.realignment} w-[52px]`}>2nd</th>
+                    <th className={`${thCol} ${groupColors.interventions} w-[56px]`}>Equip.</th>
+                    <th className={`${thCol} ${groupColors.interventions} w-[56px]`}>MOOE</th>
+                    <th className={`${thCol} ${groupColors.interventions} w-[64px]`}>Training</th>
+                    <th className={`${thCol} ${groupColors.interventions} w-[64px]`}>Consult.</th>
+                    <th className={`${thCol} ${groupColors.interventions} w-[48px]`}>P&L</th>
+                    <th className={`${thCol} ${groupColors.interventions} w-[72px]`}>LAB/Others</th>
+                    <th className={`${thCol} ${groupColors.liquidation} w-[56px]`}>PSTO</th>
+                    <th className={`${thCol} ${groupColors.documents} w-[72px]`}>Recv./Appr.</th>
+                    <th className={`${thCol} ${groupColors.documents} w-[96px]`}>LDDAP</th>
+                    <th className={`${thCol} ${groupColors.documents} w-[96px]`}>MOA</th>
+                    <th className={`${thCol} ${groupColors.documents} w-[96px]`}>RTEC</th>
+                    <th className={`${thCol} ${groupColors.documents} w-[110px]`}>Cash program</th>
+                    <th className={`${thCol} ${groupColors.reports} w-[48px]`}>1st</th>
+                    <th className={`${thCol} ${groupColors.reports} w-[48px]`}>2nd</th>
+                    <th className={`${thCol} ${groupColors.reports} w-[64px]`}>Terminal</th>
+                    <th className={`${thCol} ${groupColors.status} w-[72px]`}>Completed</th>
+                    <th className={`${thCol} ${groupColors.status} w-[72px]`}>Terminated</th>
+                    <th className={`${thCol} ${groupColors.status} w-[72px]`}>Condonation</th>
+                    <th className={`${thCol} ${groupColors.status} w-[72px]`}>Letter ext.</th>
+                    <th className={`${thCol} ${groupColors.status} w-[64px]`}>Donated</th>
+                    <th className={`${thCol} ${groupColors.status} w-[64px]`}>Impact</th>
+                    <th className={`${thCol} ${groupColors.refs} w-[90px]`}>PAR No.</th>
+                    <th className={`${thCol} ${groupColors.refs} w-[90px]`}>PTR No.</th>
+                    <th className={`${thCol} ${groupColors.refs} w-[160px]`}>Remarks</th>
+                    <th className={`${thCol} ${groupColors.refs} w-[52px]`}>COO</th>
+                    <th className={`${thCol} ${groupColors.refs} w-[110px]`}>Google Drive</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredRecords.map((record, idx) => (
                     <tr
                       key={record.id}
-                      className={idx % 2 === 0 ? "bg-white" : "bg-slate-50/80"}
+                      className={idx % 2 === 0 ? "bg-white" : "bg-slate-50"}
                     >
-                      <td className={`${tdBase} sticky left-0 z-10 bg-inherit font-semibold text-emerald-800`}>
-                        {record.project_no || "—"}
+                      <td
+                        className={`${tdBase} sticky left-0 z-10 font-semibold text-emerald-800 shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] ${stickyLeftCell(idx)}`}
+                      >
+                        <CellText className="text-emerald-800" title={record.project_no || undefined}>
+                          {record.project_no || "—"}
+                        </CellText>
                       </td>
-                      <td className={tdBase}>{record.year ?? "—"}</td>
-                      <td className={tdBase}>{record.firm || "—"}</td>
-                      <td className={`${tdBase} tabular-nums`}>{formatCurrency(record.total_amount)}</td>
+                      {renderTextCell(record.year)}
+                      {renderTextCell(record.firm)}
                       <td className={`${tdBase} tabular-nums`}>
-                        {formatCurrency(record.downloaded_funds_to_beneficiary)}
+                        <CellText title={formatCurrency(record.total_amount)}>
+                          {formatCurrency(record.total_amount)}
+                        </CellText>
                       </td>
-                      <td className={`${tdBase} max-w-[200px] whitespace-normal font-medium`}>
-                        {record.project_title}
+                      <td className={`${tdBase} tabular-nums`}>
+                        <CellText title={formatCurrency(record.downloaded_funds_to_beneficiary)}>
+                          {formatCurrency(record.downloaded_funds_to_beneficiary)}
+                        </CellText>
                       </td>
-                      <td className={tdBase}>{record.proponent || "—"}</td>
-                      <td className={tdBase}>{formatShortDate(record.start_date)}</td>
-                      <td className={tdBase}>{formatShortDate(record.end_date)}</td>
-                      <td className={tdBase}>{formatMonthYear(record.extension_request_3mo)}</td>
-                      <td className={tdBase}>{formatMonthYear(record.extension_date)}</td>
+                      {renderTextCell(record.project_title, { wrap: true, className: "font-medium" })}
+                      {renderTextCell(record.proponent)}
+                      {renderTextCell(formatShortDate(record.start_date))}
+                      {renderTextCell(formatShortDate(record.end_date))}
+                      {renderTextCell(formatMonthYear(record.extension_request_3mo))}
+                      {renderTextCell(formatMonthYear(record.extension_date))}
                       {renderCheck(record, "realignment_1st")}
                       {renderCheck(record, "realignment_2nd")}
                       {renderCheck(record, "intervention_equipment")}
@@ -421,10 +483,10 @@ const AllProjectsMonitoring = () => {
                       {renderCheck(record, "intervention_lab_others")}
                       {renderCheck(record, "liquidation_psto")}
                       {renderCheck(record, "received_approved")}
-                      <td className={tdBase}>{formatShortDate(record.lddap_date)}</td>
-                      <td className={tdBase}>{formatShortDate(record.moa_date)}</td>
-                      <td className={tdBase}>{formatShortDate(record.rtec_date)}</td>
-                      <td className={tdBase}>{record.cash_program || "—"}</td>
+                      {renderTextCell(formatShortDate(record.lddap_date))}
+                      {renderTextCell(formatShortDate(record.moa_date))}
+                      {renderTextCell(formatShortDate(record.rtec_date))}
+                      {renderTextCell(record.cash_program)}
                       {renderCheck(record, "status_report_1st")}
                       {renderCheck(record, "status_report_2nd")}
                       {renderCheck(record, "terminal_report")}
@@ -434,16 +496,16 @@ const AllProjectsMonitoring = () => {
                       {renderCheck(record, "with_letter_of_extension")}
                       {renderCheck(record, "donated")}
                       {renderCheck(record, "impact_assessment")}
-                      <td className={tdBase}>{record.par_no || "—"}</td>
-                      <td className={tdBase}>{record.ptr_no || "—"}</td>
-                      <td className={`${tdBase} max-w-[160px] whitespace-normal`} title={record.remarks ?? ""}>
-                        {record.remarks || "—"}
-                      </td>
+                      {renderTextCell(record.par_no)}
+                      {renderTextCell(record.ptr_no)}
+                      {renderTextCell(record.remarks, { wrap: true })}
                       {renderCheck(record, "with_coo")}
-                      <td className={tdBase}>
+                      <td className={tdWrap}>
                         <DriveLinks value={record.google_drive_links} />
                       </td>
-                      <td className={`${tdBase} sticky right-0 z-10 bg-inherit`}>
+                      <td
+                        className={`${tdCheck} sticky right-0 z-10 shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.12)] ${stickyRightCell(idx)}`}
+                      >
                         <div className="flex items-center justify-center gap-1">
                           <button
                             type="button"
