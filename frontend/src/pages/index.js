@@ -11,6 +11,7 @@ export { default as AddTask } from "./Admin/AddTask";
 export { default as AddUsers } from "./Admin/AddUsers";
 export { default as AdminCalendar } from "./Admin/AdminCalendar";
 export { default as ProjectTimeline } from "./Admin/ProjectTimeline";
+export { default as AllProjectsMonitoring } from "./Admin/AllProjectsMonitoring";
 
 // Viewer (read-only)
 export { default as ViewerDashboard } from "./Viewer/ViewerDashboard";
