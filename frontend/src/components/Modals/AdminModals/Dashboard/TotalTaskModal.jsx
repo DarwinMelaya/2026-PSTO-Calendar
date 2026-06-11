@@ -13,6 +13,7 @@ const TotalTaskModal = ({
     tasks={tasks}
     onRefresh={onRefresh}
     readOnly={readOnly}
+    showFilters
     title="Total tasks"
     getSubtitle={(grouped) =>
       `${grouped.length} task${grouped.length === 1 ? "" : "s"}`

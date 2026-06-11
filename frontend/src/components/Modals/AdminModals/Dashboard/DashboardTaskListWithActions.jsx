@@ -27,6 +27,7 @@ const DashboardTaskListWithActions = ({
   modalId,
   enableFollowUp = false,
   showCompletionProof = false,
+  showFilters = false,
 }) => {
   const [resolvingRequestId, setResolvingRequestId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
@@ -273,6 +274,7 @@ const DashboardTaskListWithActions = ({
         renderActions={renderActions}
         renderHeaderActions={renderHeaderActions}
         showCompletionProof={showCompletionProof}
+        showFilters={showFilters}
         getItemKey={(t) => t.groupKey || String(t.id)}
       />
 
