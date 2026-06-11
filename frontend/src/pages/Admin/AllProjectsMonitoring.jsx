@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import Layout from "../../components/Layout/Layout";
 import AllProjectsMonitoringModal from "../../components/Modals/AdminModals/AllProjectsMonitoringModal";
@@ -45,6 +45,9 @@ const COL_WIDTHS = [
   72, 72, 72, 72, 64, 64, 90, 90, 160, 52, 110, 88,
 ];
 const TABLE_MIN_WIDTH = COL_WIDTHS.reduce((sum, width) => sum + width, 0);
+const ROWS_PER_PAGE_OPTIONS = [10, 25, 50];
+const DEFAULT_ROWS_PER_PAGE = 25;
+
 const groupColors = {
   basic: "bg-emerald-700 text-white",
   extension: "bg-teal-700 text-white",
@@ -114,6 +117,9 @@ const AllProjectsMonitoring = () => {
   const [editingRecord, setEditingRecord] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [togglingKey, setTogglingKey] = useState(null);
+  const [tablePage, setTablePage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(DEFAULT_ROWS_PER_PAGE);
+  const tableScrollRef = useRef(null);
 
   const loadRecords = useCallback(async () => {
     setLoading(true);
@@ -162,6 +168,41 @@ const AllProjectsMonitoring = () => {
       return blob.includes(q);
     });
   }, [records, searchQuery, yearFilter]);
+
+  const tablePageCount = Math.max(
+    1,
+    Math.ceil(filteredRecords.length / rowsPerPage),
+  );
+
+  const paginatedRecords = useMemo(() => {
+    const start = (tablePage - 1) * rowsPerPage;
+    return filteredRecords.slice(start, start + rowsPerPage);
+  }, [filteredRecords, tablePage, rowsPerPage]);
+
+  const tableRangeStart =
+    filteredRecords.length === 0 ? 0 : (tablePage - 1) * rowsPerPage + 1;
+  const tableRangeEnd = Math.min(tablePage * rowsPerPage, filteredRecords.length);
+
+  useEffect(() => {
+    setTablePage(1);
+  }, [searchQuery, yearFilter, rowsPerPage]);
+
+  useEffect(() => {
+    if (tablePage > tablePageCount) {
+      setTablePage(tablePageCount);
+    }
+  }, [tablePage, tablePageCount]);
+
+  useEffect(() => {
+    tableScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+  }, [tablePage]);
+
+  const scrollTableBy = (direction) => {
+    const el = tableScrollRef.current;
+    if (!el) return;
+    const step = Math.max(el.clientHeight * 0.75, 120);
+    el.scrollBy({ top: direction * step, behavior: "smooth" });
+  };
 
   const stats = useMemo(() => {
     const completed = records.filter((r) => r.completed).length;
@@ -317,6 +358,18 @@ const AllProjectsMonitoring = () => {
                 </option>
               ))}
             </select>
+            <select
+              value={rowsPerPage}
+              onChange={(e) => setRowsPerPage(Number(e.target.value))}
+              className="rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              title="Rows per page"
+            >
+              {ROWS_PER_PAGE_OPTIONS.map((n) => (
+                <option key={n} value={n}>
+                  {n} rows / page
+                </option>
+              ))}
+            </select>
             <span className="text-sm text-slate-500">
               {filteredRecords.length} of {records.length} rows
             </span>
@@ -352,7 +405,11 @@ const AllProjectsMonitoring = () => {
               ) : null}
             </div>
           ) : (
-            <div className="isolate w-0 min-w-full max-h-[calc(100vh-18rem)] overflow-x-auto overflow-y-auto overscroll-x-contain border-t border-slate-200 bg-[#f8fafc]">
+            <div className="relative">
+              <div
+                ref={tableScrollRef}
+                className="isolate w-0 min-w-full max-h-[calc(100vh-14rem)] overflow-x-auto overflow-y-auto overscroll-x-contain border-t border-slate-200 bg-[#f8fafc] scroll-smooth"
+              >
               <table
                 className="w-full table-fixed border-separate border-spacing-0 text-left"
                 style={{ minWidth: TABLE_MIN_WIDTH }}
@@ -443,7 +500,7 @@ const AllProjectsMonitoring = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredRecords.map((record, idx) => (
+                  {paginatedRecords.map((record, idx) => (
                     <tr
                       key={record.id}
                       className={idx % 2 === 0 ? "bg-white" : "bg-slate-50"}
@@ -534,6 +591,82 @@ const AllProjectsMonitoring = () => {
                   ))}
                 </tbody>
               </table>
+              </div>
+
+              <div className="pointer-events-none absolute bottom-3 right-3 z-30 flex flex-col gap-1.5 sm:bottom-4 sm:right-4">
+                <button
+                  type="button"
+                  onClick={() => scrollTableBy(-1)}
+                  className="pointer-events-auto inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white/95 text-slate-700 shadow-md backdrop-blur-sm transition hover:bg-slate-50"
+                  title="Scroll up"
+                  aria-label="Scroll table up"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => scrollTableBy(1)}
+                  className="pointer-events-auto inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white/95 text-slate-700 shadow-md backdrop-blur-sm transition hover:bg-slate-50"
+                  title="Scroll down"
+                  aria-label="Scroll table down"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="flex flex-col gap-3 border-t border-slate-100 bg-slate-50/50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                <p className="text-sm text-slate-600">
+                  Showing{" "}
+                  <span className="font-semibold text-slate-900">
+                    {tableRangeStart}–{tableRangeEnd}
+                  </span>{" "}
+                  of{" "}
+                  <span className="font-semibold text-slate-900">
+                    {filteredRecords.length}
+                  </span>
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setTablePage(1)}
+                    disabled={tablePage <= 1}
+                    className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    First
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTablePage((p) => Math.max(1, p - 1))}
+                    disabled={tablePage <= 1}
+                    className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Previous
+                  </button>
+                  <span className="px-2 text-sm font-medium text-slate-600">
+                    Page {tablePage} of {tablePageCount}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setTablePage((p) => Math.min(tablePageCount, p + 1))}
+                    disabled={tablePage >= tablePageCount}
+                    className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Next
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTablePage(tablePageCount)}
+                    disabled={tablePage >= tablePageCount}
+                    className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Last
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </div>

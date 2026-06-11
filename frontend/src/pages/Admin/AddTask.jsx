@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import AddTaskModal from "../../components/Modals/AdminModals/AddTaskModal";
 import EditTaskModal from "../../components/Modals/AdminModals/EditTaskModal";
@@ -169,7 +169,7 @@ const DATE_PERIODS = [
   { value: "month", label: "Month" },
 ];
 
-const TASKS_PAGE_SIZE = 10;
+const TASKS_PAGE_SIZE = 6;
 
 const statusBadgeClass = (status) => {
   switch (status) {
@@ -229,7 +229,18 @@ function OwnerProgressCard({ label, completed, total, selected, onClick }) {
   );
 }
 
+const PAGE_SECTIONS = [
+  { id: "stats",   label: "1. Stats" },
+  { id: "owners",  label: "2. Owners" },
+  { id: "tasks",   label: "3. Tasks" },
+];
+
 const AddTask = () => {
+  const scrollRef = useRef(null);
+  const scrollToSection = (id) => {
+    const el = scrollRef.current?.querySelector(`#at-section-${id}`);
+    el?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
   const [tasks, setTasks] = useState([]);
   const [loadingTasks, setLoadingTasks] = useState(true);
   const [addModalOpen, setAddModalOpen] = useState(false);
@@ -589,7 +600,7 @@ const AddTask = () => {
 
   return (
     <Layout>
-      <div className="mx-auto w-full min-w-0 max-w-7xl space-y-6 overflow-x-hidden bg-gradient-to-b from-slate-50/80 via-transparent to-blue-50/40 pb-10 sm:space-y-8 lg:max-w-[min(80rem,calc(100vw-19rem))]">
+      <div ref={scrollRef} className="mx-auto w-full min-w-0 max-w-7xl space-y-6 overflow-x-hidden bg-gradient-to-b from-slate-50/80 via-transparent to-blue-50/40 pb-10 sm:space-y-8 lg:max-w-[min(80rem,calc(100vw-19rem))]">
         {/* Hero */}
         <section className="ut-animate-in relative overflow-hidden rounded-3xl border border-blue-400/20 bg-gradient-to-br from-blue-600 via-indigo-700 to-slate-900 px-6 py-8 shadow-2xl shadow-blue-900/30 sm:px-8 sm:py-10">
           <div
@@ -697,8 +708,22 @@ const AddTask = () => {
           </div>
         </section>
 
+        {/* Section nav */}
+        <div className="sticky top-2 z-20 flex flex-wrap gap-2">
+          {PAGE_SECTIONS.map((sec) => (
+            <button
+              key={sec.id}
+              type="button"
+              onClick={() => scrollToSection(sec.id)}
+              className="rounded-full border border-slate-300 bg-white/90 px-3 py-1 text-xs font-semibold text-slate-700 shadow-sm backdrop-blur-sm transition hover:border-slate-400 hover:bg-white"
+            >
+              {sec.label}
+            </button>
+          ))}
+        </div>
+
         {/* Stats */}
-        <div className="ut-animate-in ut-delay-1 grid min-w-0 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
+        <div id="at-section-stats" className="ut-animate-in ut-delay-1 grid min-w-0 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 scroll-mt-4">
           <StatCard
             label="Total tasks"
             value={loadingTasks ? "…" : stats.total}
@@ -732,7 +757,7 @@ const AddTask = () => {
         </div>
 
         {/* Owner progress */}
-        <section className="ut-animate-in ut-delay-2 min-w-0 max-w-full overflow-hidden rounded-3xl border border-slate-200/80 bg-white/90 shadow-xl shadow-slate-300/25 ring-1 ring-slate-900/[0.04] backdrop-blur-sm">
+        <section id="at-section-owners" className="ut-animate-in ut-delay-2 min-w-0 max-w-full overflow-hidden rounded-3xl border border-slate-200/80 bg-white/90 shadow-xl shadow-slate-300/25 ring-1 ring-slate-900/[0.04] backdrop-blur-sm scroll-mt-4">
           <PanelHeader
             iconGradient="bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-500/25"
             icon={
@@ -811,7 +836,7 @@ const AddTask = () => {
         </section>
 
         {/* Task board */}
-        <section className="ut-animate-in ut-delay-3 min-w-0 max-w-full overflow-hidden rounded-3xl border border-slate-200/80 bg-white/90 shadow-xl shadow-slate-300/25 ring-1 ring-slate-900/[0.04] backdrop-blur-sm">
+        <section id="at-section-tasks" className="ut-animate-in ut-delay-3 min-w-0 max-w-full overflow-hidden rounded-3xl border border-slate-200/80 bg-white/90 shadow-xl shadow-slate-300/25 ring-1 ring-slate-900/[0.04] backdrop-blur-sm scroll-mt-4">
           <PanelHeader
             iconGradient="bg-gradient-to-br from-blue-500 to-indigo-600 shadow-blue-500/25"
             icon={
