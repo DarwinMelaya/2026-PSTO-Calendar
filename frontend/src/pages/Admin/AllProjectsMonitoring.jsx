@@ -65,6 +65,37 @@ const compareProjectNoDesc = (a, b) => {
   });
 };
 
+/**
+ * Build a flat list of { type: "record" | "subtotal", ... } rows
+ * so we can render year-group subtotal rows inline in the table.
+ */
+const buildTableRows = (records) => {
+  if (records.length === 0) return [];
+
+  const rows = [];
+  let i = 0;
+
+  while (i < records.length) {
+    const currentYear = records[i].year;
+    const groupStart = i;
+
+    // Collect all records belonging to this year
+    while (i < records.length && records[i].year === currentYear) {
+      rows.push({ type: "record", record: records[i], rowIdx: i });
+      i++;
+    }
+
+    // Sum total_amount for this year group
+    const subtotal = records
+      .slice(groupStart, i)
+      .reduce((sum, r) => sum + (Number(r.total_amount) || 0), 0);
+
+    rows.push({ type: "subtotal", year: currentYear, subtotal });
+  }
+
+  return rows;
+};
+
 const groupColors = {
   basic: "bg-emerald-700 text-white",
   extension: "bg-teal-700 text-white",
@@ -612,11 +643,48 @@ const AllProjectsMonitoring = ({ projectType = null } = {}) => {
                   </tr>
                 </thead>
                 <tbody>
-                  {paginatedRecords.map((record, idx) => (
-                    <tr
-                      key={record.id}
-                      className={idx % 2 === 0 ? "bg-white" : "bg-slate-50"}
-                    >
+                  {buildTableRows(paginatedRecords).map((row) => {
+                    if (row.type === "subtotal") {
+                      return (
+                        <tr key={`subtotal-${row.year}`} className="bg-emerald-50">
+                          {/* sticky left cell — spans project no. col */}
+                          <td
+                            className="sticky left-0 z-10 border border-emerald-300 bg-emerald-100 px-2 py-1.5 shadow-[4px_0_6px_-4px_rgba(0,0,0,0.08)]"
+                            colSpan={3}
+                          >
+                            <span className="block truncate text-right text-[11px] font-bold uppercase tracking-wider text-emerald-800">
+                              {row.year ? `${row.year} Total` : "Total"}
+                            </span>
+                          </td>
+                          {/* empty col: Type */}
+                          <td className="border border-emerald-200 bg-emerald-50" />
+                          {/* empty col: FIRM */}
+                          <td className="border border-emerald-200 bg-emerald-50" />
+                          {/* Total amount — highlighted */}
+                          <td className="border border-emerald-300 bg-emerald-100 px-2 py-1.5 tabular-nums">
+                            <span className="block truncate text-center text-xs font-bold text-emerald-900">
+                              {new Intl.NumberFormat("en-PH", {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              }).format(row.subtotal)}
+                            </span>
+                          </td>
+                          {/* remaining cols — empty */}
+                          {Array.from({ length: COL_WIDTHS.length - 6 - 1 }).map((_, i) => (
+                            <td key={i} className="border border-emerald-200 bg-emerald-50" />
+                          ))}
+                          {/* sticky right actions col */}
+                          <td className="sticky right-0 z-10 border border-emerald-200 bg-emerald-50 shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.06)]" />
+                        </tr>
+                      );
+                    }
+
+                    const { record, rowIdx: idx } = row;
+                    return (
+                      <tr
+                        key={record.id}
+                        className={idx % 2 === 0 ? "bg-white" : "bg-slate-50"}
+                      >
                       <td
                         className={`${tdBase} sticky left-0 z-10 font-semibold text-emerald-800 shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] ${stickyLeftCell(idx)}`}
                       >
@@ -702,7 +770,8 @@ const AllProjectsMonitoring = ({ projectType = null } = {}) => {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
               </div>
