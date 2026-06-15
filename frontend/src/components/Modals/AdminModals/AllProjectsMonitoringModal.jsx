@@ -59,7 +59,7 @@ const CheckField = ({ label, checked, onChange, className = "" }) => (
   </label>
 );
 
-const AllProjectsMonitoringModal = ({ isOpen, onClose, onSuccess, record }) => {
+const AllProjectsMonitoringModal = ({ isOpen, onClose, onSuccess, record, defaultProjectType = null }) => {
   const isEdit = Boolean(record?.id);
   const [form, setForm] = useState(EMPTY_RECORD_FORM);
   const [loading, setLoading] = useState(false);
@@ -67,8 +67,13 @@ const AllProjectsMonitoringModal = ({ isOpen, onClose, onSuccess, record }) => {
 
   useEffect(() => {
     if (!isOpen) return;
-    setForm(recordToForm(record));
-  }, [isOpen, record]);
+    const base = recordToForm(record);
+    if (!record?.id && defaultProjectType) {
+      setForm({ ...base, project_type: defaultProjectType });
+      return;
+    }
+    setForm(base);
+  }, [isOpen, record, defaultProjectType]);
 
   if (!isOpen) return null;
 

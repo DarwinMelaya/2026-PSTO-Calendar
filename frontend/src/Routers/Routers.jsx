@@ -20,6 +20,10 @@ import {
   ViewerCalendar,
   ProjectTimeline,
   AllProjectsMonitoring,
+  Cest,
+  Setup,
+  GIA,
+  Sscp,
 } from "../pages";
 
 export const Routers = () => {
@@ -86,7 +90,38 @@ export const Routers = () => {
             </ProtectedRoutes>
           }
         />
-
+        <Route
+          path="/admin-cest"
+          element={
+            <ProtectedRoutes adminOnly>
+              <Cest />
+            </ProtectedRoutes>
+          }
+        />
+        <Route
+          path="/admin-setup"
+          element={
+            <ProtectedRoutes adminOnly>
+              <Setup />
+            </ProtectedRoutes>
+          }
+        />
+        <Route
+          path="/admin-gia"
+          element={
+            <ProtectedRoutes adminOnly>
+              <GIA />
+            </ProtectedRoutes>
+          }
+        />
+        <Route
+          path="/admin-sscp"
+          element={
+            <ProtectedRoutes adminOnly>
+              <Sscp />
+            </ProtectedRoutes>
+          }
+        />
         {/* Viewer (read-only dashboard & calendar) */}
         <Route
           path="/viewer-dashboard"

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { clearSession } from "../../utils/session";
 
@@ -168,6 +168,98 @@ const CollapsibleSection = ({ title, defaultOpen = true, children }) => {
   );
 };
 
+const MONITORING_NAV = [
+  {
+    label: "All Projects",
+    to: "/admin-all-projects-monitoring",
+    searchTerms: ["All Projects", "All Projects Monitoring", "Monitoring"],
+  },
+  { label: "GIA", to: "/admin-gia", searchTerms: ["GIA"] },
+  { label: "SETUP", to: "/admin-setup", searchTerms: ["SETUP", "Setup"] },
+  { label: "CEST", to: "/admin-cest", searchTerms: ["CEST", "Cest"] },
+  { label: "SSCP", to: "/admin-sscp", searchTerms: ["SSCP", "Sscp"] },
+];
+
+const monitoringSubLinkClass = ({ isActive }) =>
+  `flex w-full items-center rounded-lg py-2 pl-10 pr-3 text-left text-sm font-medium transition-colors ${
+    isActive
+      ? "bg-slate-600/70 text-white"
+      : "text-slate-400 hover:bg-slate-800/80 hover:text-white"
+  }`;
+
+const ChevronIcon = ({ open }) => (
+  <svg
+    className={`h-3.5 w-3.5 shrink-0 transition-transform duration-200 ${open ? "rotate-90" : ""}`}
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={2.5}
+  >
+    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+  </svg>
+);
+
+const MonitoringNavGroup = ({ query, navFilter }) => {
+  const location = useLocation();
+  const isActiveSection = MONITORING_NAV.some(
+    (item) => location.pathname === item.to,
+  );
+  // Auto-open when a sub-route is active; stay open/closed otherwise based on user toggle
+  const [open, setOpen] = useState(isActiveSection);
+
+  // When navigating to a monitoring sub-route from outside, expand the group
+  const prevActive = useRef(isActiveSection);
+  useEffect(() => {
+    if (isActiveSection && !prevActive.current) {
+      setOpen(true);
+    }
+    prevActive.current = isActiveSection;
+  }, [isActiveSection]);
+
+  const visibleItems = MONITORING_NAV.filter(
+    (item) =>
+      !query.trim() || item.searchTerms.some((term) => navFilter(term)),
+  );
+
+  // When searching, auto-expand so results are visible
+  useEffect(() => {
+    if (query.trim() && visibleItems.length > 0) setOpen(true);
+  }, [query, visibleItems.length]);
+
+  if (visibleItems.length === 0) return null;
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-colors ${
+          isActiveSection
+            ? "bg-slate-600/70 text-white"
+            : "text-slate-300 hover:bg-slate-800/80 hover:text-white"
+        }`}
+        aria-expanded={open}
+      >
+        <AllProjectsMonitoringIcon />
+        <span className="flex-1 truncate">All Projects Monitoring</span>
+        <ChevronIcon open={open} />
+      </button>
+      {open ? (
+        <div className="mt-0.5 flex flex-col gap-0.5">
+          {visibleItems.map((item) => (
+            <NavLink key={item.to} to={item.to} className={monitoringSubLinkClass}>
+              {item.label}
+            </NavLink>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+};
+
+const monitoringNavMatches = (navFilter) =>
+  MONITORING_NAV.some((item) => item.searchTerms.some((term) => navFilter(term)));
+
 const Sidebar = () => {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
@@ -290,15 +382,7 @@ const Sidebar = () => {
                 Project Timeline
               </NavLink>
             ) : null}
-            {navFilter("All Projects Monitoring") ? (
-              <NavLink
-                to="/admin-all-projects-monitoring"
-                className={panelLinkClass}
-              >
-                <AllProjectsMonitoringIcon />
-                All Projects Monitoring
-              </NavLink>
-            ) : null}
+            <MonitoringNavGroup query={query} navFilter={navFilter} />
             {navFilter("Profile") ? (
               <NavLink to="/admin-profile" className={panelLinkClass}>
                 <ProfileIcon />
@@ -312,7 +396,7 @@ const Sidebar = () => {
             !navFilter("Calendar") &&
             !navFilter("Profile") &&
             !navFilter("Project Timeline") &&
-            !navFilter("All Projects Monitoring") ? (
+            !monitoringNavMatches(navFilter) ? (
               <p className="px-3 py-2 text-xs text-slate-500">No matches</p>
             ) : null}
           </CollapsibleSection>

@@ -194,7 +194,7 @@ const ToggleConfirmModal = ({ open, field, nextValue, onConfirm, onCancel }) => 
   );
 };
 
-const AllProjectsMonitoring = () => {
+const AllProjectsMonitoring = ({ projectType = null } = {}) => {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -225,17 +225,26 @@ const AllProjectsMonitoring = () => {
     loadRecords();
   }, [loadRecords]);
 
+  const typeFilteredRecords = useMemo(() => {
+    if (!projectType) return records;
+    return records.filter((r) => r.project_type === projectType);
+  }, [records, projectType]);
+
   const years = useMemo(() => {
     const set = new Set();
-    for (const r of records) {
+    for (const r of typeFilteredRecords) {
       if (r.year != null) set.add(r.year);
     }
     return [...set].sort((a, b) => b - a);
-  }, [records]);
+  }, [typeFilteredRecords]);
+
+  const pageTitle = projectType
+    ? `${apmProjectTypeLabel(projectType)} Projects Monitoring`
+    : "All Projects Monitoring";
 
   const filteredRecords = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    const filtered = records.filter((r) => {
+    const filtered = typeFilteredRecords.filter((r) => {
       if (yearFilter !== "all" && String(r.year) !== yearFilter) return false;
       if (!q) return true;
       const blob = [
@@ -257,7 +266,7 @@ const AllProjectsMonitoring = () => {
       return blob.includes(q);
     });
     return [...filtered].sort(compareProjectNoDesc);
-  }, [records, searchQuery, yearFilter]);
+  }, [typeFilteredRecords, searchQuery, yearFilter]);
 
   const tablePageCount = Math.max(
     1,
@@ -295,11 +304,11 @@ const AllProjectsMonitoring = () => {
   };
 
   const stats = useMemo(() => {
-    const completed = records.filter((r) => r.completed).length;
-    const ongoing = records.filter((r) => !r.completed && !r.terminated).length;
-    const terminated = records.filter((r) => r.terminated).length;
-    return { total: records.length, completed, ongoing, terminated };
-  }, [records]);
+    const completed = typeFilteredRecords.filter((r) => r.completed).length;
+    const ongoing = typeFilteredRecords.filter((r) => !r.completed && !r.terminated).length;
+    const terminated = typeFilteredRecords.filter((r) => r.terminated).length;
+    return { total: typeFilteredRecords.length, completed, ongoing, terminated };
+  }, [typeFilteredRecords]);
 
   const openAdd = () => {
     setEditingRecord(null);
@@ -391,10 +400,12 @@ const AllProjectsMonitoring = () => {
               MIMAROPA RSTW
             </p>
             <h1 className="mt-1 text-2xl font-bold text-white sm:text-3xl">
-              All Projects Monitoring
+              {pageTitle}
             </h1>
             <p className="mt-2 max-w-2xl text-sm text-emerald-50/90">
-              Excel-style project tracking with funding, interventions, documents, and status reports.
+              {projectType
+                ? `${apmProjectTypeLabel(projectType)} project tracking with funding, interventions, documents, and status reports.`
+                : "Excel-style project tracking with funding, interventions, documents, and status reports."}
             </p>
           </div>
 
@@ -468,7 +479,7 @@ const AllProjectsMonitoring = () => {
               ))}
             </select>
             <span className="text-sm text-slate-500">
-              {filteredRecords.length} of {records.length} rows
+              {filteredRecords.length} of {typeFilteredRecords.length} rows
             </span>
           </div>
 
@@ -484,14 +495,16 @@ const AllProjectsMonitoring = () => {
             <div className="px-6 py-16 text-center">
               <EmptyIllustration variant={searchQuery || yearFilter !== "all" ? "filter" : "empty"} />
               <p className="mt-6 text-lg font-bold text-slate-900">
-                {records.length === 0 ? "No monitoring records yet" : "No matches found"}
+                {typeFilteredRecords.length === 0 ? "No monitoring records yet" : "No matches found"}
               </p>
               <p className="mt-2 text-sm text-slate-500">
-                {records.length === 0
-                  ? "Add your first project record to populate the spreadsheet."
+                {typeFilteredRecords.length === 0
+                  ? projectType
+                    ? `Add your first ${apmProjectTypeLabel(projectType)} project record to populate the spreadsheet.`
+                    : "Add your first project record to populate the spreadsheet."
                   : "Try a different search or year filter."}
               </p>
-              {records.length === 0 ? (
+              {typeFilteredRecords.length === 0 ? (
                 <button
                   type="button"
                   onClick={openAdd}
@@ -784,6 +797,7 @@ const AllProjectsMonitoring = () => {
       <AllProjectsMonitoringModal
         isOpen={modalOpen}
         record={editingRecord}
+        defaultProjectType={projectType}
         onClose={() => {
           setModalOpen(false);
           setEditingRecord(null);
