@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import {
+  APM_PROJECT_TYPES,
   EMPTY_RECORD_FORM,
   createAllProjectsMonitoringRecord,
   recordToForm,
@@ -193,6 +194,40 @@ const AllProjectsMonitoringModal = ({ isOpen, onClose, onSuccess, record }) => {
                     placeholder="2026"
                     className={inputClass}
                   />
+                </Field>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="Municipality" htmlFor="apm-municipality">
+                  <select
+                    id="apm-municipality"
+                    value={form.municipality}
+                    onChange={setField("municipality")}
+                    className={inputClass}
+                  >
+                    <option value="">— Select municipality —</option>
+                    <option value="Boac">Boac</option>
+                    <option value="Gasan">Gasan</option>
+                    <option value="Buenavista">Buenavista</option>
+                    <option value="Torrijos">Torrijos</option>
+                    <option value="Sta. Cruz">Sta. Cruz</option>
+                    <option value="Mogpog">Mogpog</option>
+                  </select>
+                </Field>
+                <Field label="Type of project" htmlFor="apm-project-type">
+                  <select
+                    id="apm-project-type"
+                    value={form.project_type}
+                    onChange={setField("project_type")}
+                    className={inputClass}
+                  >
+                    <option value="">— Select —</option>
+                    {APM_PROJECT_TYPES.map((type) => (
+                      <option key={type.value} value={type.value}>
+                        {type.label}
+                      </option>
+                    ))}
+                  </select>
                 </Field>
               </div>
 

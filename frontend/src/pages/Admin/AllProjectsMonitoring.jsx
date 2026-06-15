@@ -15,6 +15,7 @@ import {
   formatShortDate,
   listAllProjectsMonitoring,
   toggleAllProjectsMonitoringField,
+  apmProjectTypeLabel,
 } from "../../utils/allProjectsMonitoring";
 
 const thGroup =
@@ -39,7 +40,7 @@ const CellText = ({ children, title, className = "" }) => (
 );
 
 const COL_WIDTHS = [
-  120, 56, 100, 120, 130, 200, 130, 100, 100,
+  120, 56, 110, 80, 100, 120, 130, 200, 130, 100, 100,
   100, 100, 52, 52, 56, 56, 64, 64, 48, 72,
   56, 72, 96, 96, 96, 110, 48, 48, 64,
   72, 72, 72, 72, 64, 64, 90, 90, 160, 52, 110, 88,
@@ -240,6 +241,8 @@ const AllProjectsMonitoring = () => {
       const blob = [
         r.project_no,
         r.year,
+        r.municipality,
+        r.project_type,
         r.firm,
         r.project_title,
         r.proponent,
@@ -515,7 +518,7 @@ const AllProjectsMonitoring = () => {
                 </colgroup>
                 <thead className="sticky top-0 z-20">
                   <tr>
-                    <th colSpan={9} className={`${thGroup} ${groupColors.basic}`}>
+                    <th colSpan={11} className={`${thGroup} ${groupColors.basic}`}>
                       Project details
                     </th>
                     <th colSpan={2} className={`${thGroup} ${groupColors.extension}`}>
@@ -554,6 +557,8 @@ const AllProjectsMonitoring = () => {
                       No.
                     </th>
                     <th className={`${thCol} ${groupColors.basic} w-[56px]`}>Year</th>
+                    <th className={`${thCol} ${groupColors.basic} w-[110px]`}>Municipality</th>
+                    <th className={`${thCol} ${groupColors.basic} w-[80px]`}>Type</th>
                     <th className={`${thCol} ${groupColors.basic} w-[100px]`}>FIRM</th>
                     <th className={`${thCol} ${groupColors.basic} w-[120px]`}>Total amount</th>
                     <th className={`${thCol} ${groupColors.basic} w-[130px]`}>Downloaded funds</th>
@@ -607,7 +612,9 @@ const AllProjectsMonitoring = () => {
                         </CellText>
                       </td>
                       {renderTextCell(record.year)}
-                      {renderTextCell(record.firm)}
+                      {renderTextCell(record.municipality)}
+                      {renderTextCell(apmProjectTypeLabel(record.project_type))}
+                      {renderTextCell(record.firm, { wrap: true })}
                       <td className={`${tdBase} tabular-nums`}>
                         <CellText title={formatCurrency(record.total_amount)}>
                           {formatCurrency(record.total_amount)}

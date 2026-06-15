@@ -1,5 +1,119 @@
 import supabase from "./supabaseClient";
 
+export const APM_PROJECT_TYPES = [
+  { value: "GIA", label: "GIA" },
+  { value: "SETUP", label: "SETUP" },
+  { value: "CEST", label: "CEST" },
+  { value: "SSCP", label: "SSCP" },
+];
+
+export const apmProjectTypeLabel = (value) =>
+  APM_PROJECT_TYPES.find((p) => p.value === value)?.label ?? value ?? "—";
+
+/** MIMAROPA municipalities grouped by province (for dropdown). */
+export const APM_MUNICIPALITY_GROUPS = [
+  {
+    province: "Marinduque",
+    municipalities: [
+      "Boac",
+      "Buenavista",
+      "Gasan",
+      "Mogpog",
+      "Santa Cruz",
+      "Torrijos",
+    ],
+  },
+  {
+    province: "Occidental Mindoro",
+    municipalities: [
+      "Abra de Ilog",
+      "Calintaan",
+      "Looc",
+      "Lubang",
+      "Magsaysay",
+      "Mamburao",
+      "Paluan",
+      "Rizal",
+      "Sablayan",
+      "San Jose",
+      "Santa Cruz",
+    ],
+  },
+  {
+    province: "Oriental Mindoro",
+    municipalities: [
+      "Baco",
+      "Bansud",
+      "Bongabong",
+      "Bulalacao",
+      "Calapan",
+      "Gloria",
+      "Mansalay",
+      "Naujan",
+      "Pinamalayan",
+      "Pola",
+      "Puerto Galera",
+      "Roxas",
+      "San Teodoro",
+      "Socorro",
+      "Victoria",
+    ],
+  },
+  {
+    province: "Palawan",
+    municipalities: [
+      "Aborlan",
+      "Agutaya",
+      "Araceli",
+      "Balabac",
+      "Bataraza",
+      "Brooke's Point",
+      "Busuanga",
+      "Cagayancillo",
+      "Coron",
+      "Culion",
+      "Cuyo",
+      "Dumaran",
+      "El Nido",
+      "Kalayaan",
+      "Linapacan",
+      "Magsaysay",
+      "Narra",
+      "Puerto Princesa",
+      "Quezon",
+      "Rizal",
+      "Roxas",
+      "San Vicente",
+      "Sofronio Española",
+      "Taytay",
+    ],
+  },
+  {
+    province: "Romblon",
+    municipalities: [
+      "Alcantara",
+      "Banton",
+      "Cajidiocan",
+      "Calatrava",
+      "Concepcion",
+      "Corcuera",
+      "Ferrol",
+      "Looc",
+      "Magdiwang",
+      "Odiongan",
+      "Romblon",
+      "San Agustin",
+      "San Andres",
+      "San Fernando",
+      "San Jose",
+      "Santa Fe",
+      "Santa Maria",
+    ],
+  },
+];
+
+export const apmMunicipalityLabel = (value) => value?.trim() || "—";
+
 export const BOOLEAN_FIELDS = [
   "realignment_1st",
   "realignment_2nd",
@@ -36,6 +150,8 @@ export const DATE_FIELDS = [
 export const EMPTY_RECORD_FORM = {
   project_no: "",
   year: "",
+  municipality: "",
+  project_type: "",
   firm: "",
   total_amount: "",
   downloaded_funds_to_beneficiary: "",
@@ -116,6 +232,8 @@ export const recordToForm = (record) => {
 export const formToPayload = (form) => ({
   project_no: trimOrNull(form.project_no),
   year: parseYear(form.year),
+  municipality: trimOrNull(form.municipality),
+  project_type: trimOrNull(form.project_type),
   firm: trimOrNull(form.firm),
   total_amount: parseAmount(form.total_amount),
   downloaded_funds_to_beneficiary: parseAmount(form.downloaded_funds_to_beneficiary),
