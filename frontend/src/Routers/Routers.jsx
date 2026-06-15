@@ -24,6 +24,7 @@ import {
   Setup,
   GIA,
   Sscp,
+  AddCto,
 } from "../pages";
 
 export const Routers = () => {
@@ -119,6 +120,14 @@ export const Routers = () => {
           element={
             <ProtectedRoutes adminOnly>
               <Sscp />
+            </ProtectedRoutes>
+          }
+        />
+        <Route
+          path="/admin-add-cto"
+          element={
+            <ProtectedRoutes adminOnly>
+              <AddCto />
             </ProtectedRoutes>
           }
         />

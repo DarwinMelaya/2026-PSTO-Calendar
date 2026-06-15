@@ -12,6 +12,7 @@ export { default as AddUsers } from "./Admin/AddUsers";
 export { default as AdminCalendar } from "./Admin/AdminCalendar";
 export { default as ProjectTimeline } from "./Admin/ProjectTimeline";
 export { default as AllProjectsMonitoring } from "./Admin/AllProjectsMonitoring";
+export { default as AddCto } from "./Admin/AddCto";
 // Project Monitoring
 export { default as Cest } from "./Admin/ProjectMonitoring/Cest";
 export { default as Setup } from "./Admin/ProjectMonitoring/Setup";
