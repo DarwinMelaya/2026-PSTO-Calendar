@@ -20,7 +20,7 @@ import {
 const thGroup =
   "border border-slate-300 px-2 py-2 text-[9px] font-bold uppercase leading-tight tracking-wide text-center whitespace-normal break-words";
 const thCol =
-  "border border-slate-300 px-2 py-1.5 text-[10px] font-bold uppercase tracking-wide whitespace-nowrap overflow-hidden text-ellipsis";
+  "border border-slate-300 px-2 py-1.5 text-[10px] font-bold uppercase tracking-wide whitespace-normal break-words leading-tight text-center";
 const tdBase =
   "border border-slate-200 px-2 py-1.5 text-xs text-slate-800 align-middle overflow-hidden";
 const tdCheck =
@@ -124,6 +124,75 @@ const DriveLinks = ({ value }) => {
   );
 };
 
+/** Confirmation modal for checkbox toggles */
+const ToggleConfirmModal = ({ open, field, nextValue, onConfirm, onCancel }) => {
+  if (!open) return null;
+
+  const action = nextValue ? "mark as checked" : "uncheck";
+  const fieldLabel = field
+    ? field
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, (c) => c.toUpperCase())
+    : "";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={onCancel}
+      />
+      <div className="relative w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
+        <div className="mb-4 flex items-center gap-3">
+          <div
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
+              nextValue ? "bg-emerald-100 text-emerald-600" : "bg-rose-100 text-rose-600"
+            }`}
+          >
+            {nextValue ? (
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+              </svg>
+            ) : (
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            )}
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-slate-900">Confirm change</p>
+            <p className="mt-0.5 text-xs text-slate-500 capitalize">
+              {fieldLabel}
+            </p>
+          </div>
+        </div>
+        <p className="text-sm text-slate-700">
+          Are you sure you want to <strong>{action}</strong> this field?
+        </p>
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            className={`rounded-xl px-4 py-2 text-sm font-semibold text-white ${
+              nextValue
+                ? "bg-emerald-600 hover:bg-emerald-700"
+                : "bg-rose-600 hover:bg-rose-700"
+            }`}
+          >
+            {nextValue ? "Confirm check" : "Confirm uncheck"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const AllProjectsMonitoring = () => {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -133,6 +202,7 @@ const AllProjectsMonitoring = () => {
   const [editingRecord, setEditingRecord] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [togglingKey, setTogglingKey] = useState(null);
+  const [toggleConfirm, setToggleConfirm] = useState(null); // { record, field, nextValue }
   const [tablePage, setTablePage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(DEFAULT_ROWS_PER_PAGE);
   const tableScrollRef = useRef(null);
@@ -256,13 +326,18 @@ const AllProjectsMonitoring = () => {
     setRecords((prev) => prev.filter((r) => r.id !== record.id));
   };
 
-  const handleToggle = async (record, field) => {
-    const key = `${record.id}:${field}`;
+  const handleToggle = (record, field) => {
     if (togglingKey) return;
+    setToggleConfirm({ record, field, nextValue: !record[field] });
+  };
 
-    const next = !record[field];
+  const confirmToggle = async () => {
+    if (!toggleConfirm) return;
+    const { record, field, nextValue } = toggleConfirm;
+    const key = `${record.id}:${field}`;
+    setToggleConfirm(null);
     setTogglingKey(key);
-    const { data, error } = await toggleAllProjectsMonitoringField(record.id, field, next);
+    const { data, error } = await toggleAllProjectsMonitoringField(record.id, field, nextValue);
     setTogglingKey(null);
 
     if (error) {
@@ -272,6 +347,8 @@ const AllProjectsMonitoring = () => {
 
     setRecords((prev) => prev.map((r) => (r.id === record.id ? data : r)));
   };
+
+  const cancelToggle = () => setToggleConfirm(null);
 
   const renderCheck = (record, field) => (
     <td key={field} className={tdCheck}>
@@ -425,7 +502,7 @@ const AllProjectsMonitoring = () => {
             <div className="relative">
               <div
                 ref={tableScrollRef}
-                className="isolate w-0 min-w-full max-h-[calc(100vh-14rem)] overflow-x-auto overflow-y-auto overscroll-x-contain border-t border-slate-200 bg-[#f8fafc] scroll-smooth"
+                className="isolate w-0 min-w-full max-h-[calc(100vh-6rem)] overflow-x-auto overflow-y-auto overscroll-x-contain border-t border-slate-200 bg-[#f8fafc] scroll-smooth"
               >
               <table
                 className="w-full table-fixed border-separate border-spacing-0 text-left"
@@ -688,6 +765,14 @@ const AllProjectsMonitoring = () => {
           )}
         </div>
       </div>
+
+      <ToggleConfirmModal
+        open={!!toggleConfirm}
+        field={toggleConfirm?.field}
+        nextValue={toggleConfirm?.nextValue}
+        onConfirm={confirmToggle}
+        onCancel={cancelToggle}
+      />
 
       <AllProjectsMonitoringModal
         isOpen={modalOpen}
