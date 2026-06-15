@@ -3,6 +3,13 @@ import toast from "react-hot-toast";
 import Layout from "../../components/Layout/Layout";
 import AllProjectsMonitoringModal from "../../components/Modals/AdminModals/AllProjectsMonitoringModal";
 import {
+  BudgetByYearChart,
+  DocumentCompletionChart,
+  ProjectsByTypeChart,
+  StatusByYearChart,
+  TopMunicipalitiesChart,
+} from "../../components/Graphs";
+import {
   EmptyIllustration,
   PanelHeader,
   StatCard,
@@ -447,6 +454,66 @@ const AllProjectsMonitoring = ({ projectType = null } = {}) => {
             <StatCard label="Terminated" value={stats.terminated} accent="rose" />
           </div>
         </div>
+
+        {/* ── Analytics charts ── */}
+        {!loading && typeFilteredRecords.length > 0 && (
+          <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-lg shadow-slate-200/40">
+            <div className="border-b border-slate-100 px-5 py-4 sm:px-6">
+              <h2 className="text-base font-semibold text-slate-800">Analytics</h2>
+              <p className="mt-0.5 text-xs text-slate-500">
+                Visual breakdown of {typeFilteredRecords.length} project{typeFilteredRecords.length !== 1 ? "s" : ""}
+                {projectType ? ` · ${projectType}` : ""}
+              </p>
+            </div>
+
+            <div className="grid gap-px bg-slate-100 sm:grid-cols-2 lg:grid-cols-3">
+              {/* Budget by Year */}
+              <div className="bg-white px-5 py-5">
+                <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  Budget by Year
+                </p>
+                <p className="mb-4 text-[11px] text-slate-400">Total vs downloaded funds</p>
+                <BudgetByYearChart records={typeFilteredRecords} />
+              </div>
+
+              {/* Status by Year */}
+              <div className="bg-white px-5 py-5">
+                <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  Status by Year
+                </p>
+                <p className="mb-4 text-[11px] text-slate-400">Completed · Ongoing · Terminated</p>
+                <StatusByYearChart records={typeFilteredRecords} />
+              </div>
+
+              {/* Projects by Type */}
+              <div className="bg-white px-5 py-5">
+                <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  Projects by Type
+                </p>
+                <p className="mb-4 text-[11px] text-slate-400">Distribution across program types</p>
+                <ProjectsByTypeChart records={typeFilteredRecords} />
+              </div>
+
+              {/* Top Municipalities */}
+              <div className="bg-white px-5 py-5 sm:col-span-2">
+                <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  Top Municipalities
+                </p>
+                <p className="mb-4 text-[11px] text-slate-400">Project count by beneficiary municipality</p>
+                <TopMunicipalitiesChart records={typeFilteredRecords} topN={10} />
+              </div>
+
+              {/* Document Completion */}
+              <div className="bg-white px-5 py-5">
+                <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  Checklist Completion
+                </p>
+                <p className="mb-4 text-[11px] text-slate-400">Average completion rate by category</p>
+                <DocumentCompletionChart records={typeFilteredRecords} />
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="min-w-0 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-lg shadow-slate-200/40">
           <PanelHeader
