@@ -182,7 +182,6 @@ const profileLabel = (profile) =>
   (profile?.id ? `User #${profile.id}` : "—");
 
 // ─── CTO expiry constants & helpers ──────────────────────────────────────────
-const WORK_HOURS_PER_DAY = 8;  // standard 8-hour workday
 const EXPIRY_WARN_DAYS   = 60; // start warning 60 days before expiry (2 months)
 
 /** Returns the expiry Date for a given entryDate string (YYYY-MM-DD). */
@@ -202,12 +201,12 @@ const daysUntilExpiry = (entryDate) => {
 
 /**
  * Converts total minutes into a human-readable string that includes days
- * when the balance is >= 1 workday (8 hrs).
- * Examples: 500 min → "1d 2h 20m", 90 min → "1h 30m", 30 min → "30m"
+ * when the balance is >= 1 workday.
+ * Examples (8h/day): 500 min → "1d 2h 20m", 90 min → "1h 30m", 30 min → "30m"
  */
-const formatDurationWithDays = (totalMinutes) => {
+const formatDurationWithDays = (totalMinutes, workHoursPerDay = 8) => {
   if (!totalMinutes) return "0h";
-  const minutesPerDay = WORK_HOURS_PER_DAY * 60;
+  const minutesPerDay = workHoursPerDay * 60;
   const days = Math.floor(totalMinutes / minutesPerDay);
   const rem = totalMinutes % minutesPerDay;
   const hours = Math.floor(rem / 60);
@@ -319,11 +318,11 @@ const CtoExpiryAlert = ({ expiringEntries, profiles, onSelect, loading }) => {
  */
 
 // Custom tooltip shown on hover
-const CtoBarTooltip = ({ active, payload }) => {
+const CtoBarTooltip = ({ active, payload, workHoursPerDay }) => {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
-  const dayLabel = formatDurationWithDays(d.totalMinutes);
-  const isDays = d.totalMinutes >= WORK_HOURS_PER_DAY * 60;
+  const dayLabel = formatDurationWithDays(d.totalMinutes, workHoursPerDay);
+  const isDays = d.totalMinutes >= workHoursPerDay * 60;
   return (
     <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-xl text-xs">
       <p className="font-bold text-slate-800">{d.name}</p>
@@ -366,6 +365,8 @@ const BAR_COLORS = [
 ];
 
 const CtoLeaderboard = ({ profiles, allBalances, loading, onSelect, selectedProfileId }) => {
+  const [workHoursPerDay, setWorkHoursPerDay] = useState(8);
+
   const { chartData, idMap } = useMemo(() => {
     const sorted = [...profiles]
       .map((p) => {
@@ -375,8 +376,8 @@ const CtoLeaderboard = ({ profiles, allBalances, loading, onSelect, selectedProf
           id: p.id,
           name: profileLabel(p),
           totalMinutes,
-          label: formatDuration(b.hours, b.minutes),           // e.g. "10h 30m"
-          labelDays: formatDurationWithDays(totalMinutes),      // e.g. "1d 2h 30m"
+          label: formatDuration(b.hours, b.minutes),                           // e.g. "10h 30m"
+          labelDays: formatDurationWithDays(totalMinutes, workHoursPerDay),    // e.g. "1d 2h 30m"
         };
       })
       .sort((a, b) => b.totalMinutes - a.totalMinutes);
@@ -386,7 +387,7 @@ const CtoLeaderboard = ({ profiles, allBalances, loading, onSelect, selectedProf
     sorted.forEach((d) => { map[d.name] = d.id; });
 
     return { chartData: sorted, idMap: map };
-  }, [profiles, allBalances]);
+  }, [profiles, allBalances, workHoursPerDay]);
 
   const chartHeight = Math.max(200, chartData.length * 44);
 
@@ -408,6 +409,26 @@ const CtoLeaderboard = ({ profiles, allBalances, loading, onSelect, selectedProf
     );
   };
 
+  // Work-hours toggle button
+  const WorkHoursToggle = () => (
+    <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1">
+      {[8, 10].map((h) => (
+        <button
+          key={h}
+          type="button"
+          onClick={() => setWorkHoursPerDay(h)}
+          className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+            workHoursPerDay === h
+              ? "bg-white text-teal-700 shadow-sm ring-1 ring-slate-200/80"
+              : "text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          {h}h/day
+        </button>
+      ))}
+    </div>
+  );
+
   return (
     <section className="ut-animate-in ut-delay-1 overflow-hidden rounded-3xl border border-slate-200/80 bg-white/90 shadow-xl shadow-slate-300/25 ring-1 ring-slate-900/[0.04] backdrop-blur-sm">
       <PanelHeader
@@ -418,7 +439,8 @@ const CtoLeaderboard = ({ profiles, allBalances, loading, onSelect, selectedProf
           </svg>
         }
         title="CTO Balance Overview"
-        subtitle="Ranked by total balance — click a bar or name to view their ledger"
+        subtitle={`Ranked by total balance — click a bar or name to view their ledger · ${workHoursPerDay}h workday`}
+        action={<WorkHoursToggle />}
       />
 
       <div className="p-5 sm:p-6">
@@ -481,7 +503,7 @@ const CtoLeaderboard = ({ profiles, allBalances, loading, onSelect, selectedProf
                 tickLine={false}
               />
               <Tooltip
-                content={<CtoBarTooltip />}
+                content={<CtoBarTooltip workHoursPerDay={workHoursPerDay} />}
                 cursor={{ fill: "#f1f5f9" }}
               />
               <Bar
