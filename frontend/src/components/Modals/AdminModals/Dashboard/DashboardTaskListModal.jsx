@@ -136,6 +136,67 @@ const collectProofEntries = (task) => {
     .filter(Boolean);
 };
 
+const collectRemarksEntries = (task) => {
+  const members = task.members?.length ? task.members : [task];
+  const labels = task.responsibleLabels ?? [];
+
+  return members
+    .map((member, index) => {
+      const text =
+        member.cleanRemarks?.trim() ||
+        parseTaskRemarks(member.remarks).cleanRemarks?.trim() ||
+        "";
+      if (!text) return null;
+      return {
+        label:
+          labels[index] ??
+          member.profile?.code_name ??
+          member.profiles?.code_name ??
+          "Assignee",
+        text,
+      };
+    })
+    .filter(Boolean);
+};
+
+/**
+ * Render a remarks string, turning any URLs into clickable links.
+ * Lines are preserved; URLs within each line are hyperlinked.
+ */
+const URL_SPLIT_RE = /(https?:\/\/[^\s]+)/g;
+const URL_TEST_RE = /^https?:\/\//;
+
+const RemarksText = ({ text }) => {
+  const lines = text.split(/\r?\n/);
+  return (
+    <span>
+      {lines.map((line, li) => {
+        const parts = line.split(URL_SPLIT_RE);
+        return (
+          <span key={li}>
+            {parts.map((part, pi) =>
+              URL_TEST_RE.test(part) ? (
+                <a
+                  key={pi}
+                  href={part}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="break-all font-semibold text-blue-700 underline-offset-2 hover:underline"
+                >
+                  {part}
+                </a>
+              ) : (
+                <span key={pi}>{part}</span>
+              ),
+            )}
+            {li < lines.length - 1 ? <br /> : null}
+          </span>
+        );
+      })}
+    </span>
+  );
+};
+
 const DashboardTaskListModal = ({
   isOpen,
   onClose,
@@ -623,6 +684,9 @@ const DashboardTaskListModal = ({
                 const proofEntries = showCompletionProof
                   ? collectProofEntries(t)
                   : [];
+                const remarksEntries = showCompletionProof
+                  ? collectRemarksEntries(t)
+                  : [];
 
                 return (
                   <li
@@ -675,6 +739,27 @@ const DashboardTaskListModal = ({
                           </span>
                         ) : null}
                       </p>
+                    ) : null}
+                    {remarksEntries.length > 0 ? (
+                      <div className="mt-3 rounded-xl border border-blue-200/80 bg-blue-50/50 p-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-blue-900">
+                          Remarks
+                        </p>
+                        <div className="mt-2 space-y-2">
+                          {remarksEntries.map((entry) => (
+                            <div key={`${entry.label}-remarks`}>
+                              {remarksEntries.length > 1 ? (
+                                <p className="mb-0.5 text-xs font-semibold text-blue-900">
+                                  {entry.label}
+                                </p>
+                              ) : null}
+                              <p className="text-sm leading-relaxed text-slate-700">
+                                <RemarksText text={entry.text} />
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     ) : null}
                     {proofEntries.length > 0 ? (
                       <div className="mt-3 rounded-xl border border-emerald-200/80 bg-emerald-50/50 p-3">
