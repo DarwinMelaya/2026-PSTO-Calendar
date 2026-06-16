@@ -181,12 +181,24 @@ const profileLabel = (profile) =>
   profile?.email?.trim() ||
   (profile?.id ? `User #${profile.id}` : "—");
 
-/**
- * Horizontal bar chart — all profiles ranked by total CTO balance.
- * Clicking a bar selects that person in the ledger below.
- */
+// ─── CTO expiry constants & helpers ──────────────────────────────────────────
+const WORK_HOURS_PER_DAY = 8;  // standard 8-hour workday
+const EXPIRY_WARN_DAYS   = 60; // start warning 60 days before expiry (2 months)
 
-const WORK_HOURS_PER_DAY = 8; // standard 8-hour workday
+/** Returns the expiry Date for a given entryDate string (YYYY-MM-DD). */
+const getCtoExpiry = (entryDate) => {
+  const d = new Date(`${entryDate}T00:00:00`);
+  d.setFullYear(d.getFullYear() + 1);
+  return d;
+};
+
+/** Days remaining until expiry — negative means already expired. */
+const daysUntilExpiry = (entryDate) => {
+  const expiry = getCtoExpiry(entryDate);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
+};
 
 /**
  * Converts total minutes into a human-readable string that includes days
@@ -200,13 +212,111 @@ const formatDurationWithDays = (totalMinutes) => {
   const rem = totalMinutes % minutesPerDay;
   const hours = Math.floor(rem / 60);
   const minutes = rem % 60;
-
   const parts = [];
   if (days > 0) parts.push(`${days}d`);
   if (hours > 0) parts.push(`${hours}h`);
   if (minutes > 0) parts.push(`${minutes}m`);
   return parts.join(" ") || "0h";
 };
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Alert panel — shows all entries expiring within EXPIRY_WARN_DAYS days
+ * or already expired, sorted most-urgent first.
+ */
+const CtoExpiryAlert = ({ expiringEntries, profiles, onSelect, loading }) => {
+  if (loading) return null;
+  if (!expiringEntries.length) return null;
+
+  const expired  = expiringEntries.filter((e) => e.daysLeft < 0);
+  const expiring = expiringEntries.filter((e) => e.daysLeft >= 0);
+
+  return (
+    <section className="ut-animate-in overflow-hidden rounded-3xl border border-rose-200/80 bg-rose-50/60 shadow-lg shadow-rose-100/40 ring-1 ring-rose-900/[0.06]">
+      {/* Header */}
+      <div className="flex items-start gap-3 border-b border-rose-200/60 bg-rose-50 px-5 py-4 sm:px-6">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-rose-500 to-pink-600 text-white shadow-md shadow-rose-400/30">
+          <svg className="h-4.5 w-4.5 h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+          </svg>
+        </div>
+        <div>
+          <h2 className="text-sm font-bold text-rose-900">
+            CTO Expiry Alert
+            <span className="ml-2 inline-flex items-center rounded-full bg-rose-600 px-2 py-0.5 text-xs font-bold text-white">
+              {expiringEntries.length}
+            </span>
+          </h2>
+          <p className="mt-0.5 text-xs text-rose-700">
+            CTO entries expire 1 year from their entry date.
+            {expired.length > 0 && ` ${expired.length} already expired.`}
+            {expiring.length > 0 && ` ${expiring.length} expiring within ${EXPIRY_WARN_DAYS} days (2 months).`}
+          </p>
+        </div>
+      </div>
+
+      {/* Rows */}
+      <div className="divide-y divide-rose-100/70 px-5 py-1 sm:px-6">
+        {expiringEntries.map((e) => {
+          const isExpired = e.daysLeft < 0;
+          const isUrgent  = e.daysLeft >= 0 && e.daysLeft <= 7;
+          return (
+            <div key={e.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-3">
+              {/* Status badge */}
+              <span className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                isExpired
+                  ? "bg-rose-100 text-rose-800"
+                  : isUrgent
+                  ? "bg-orange-100 text-orange-800"
+                  : "bg-amber-100 text-amber-800"
+              }`}>
+                {isExpired
+                  ? `Expired ${Math.abs(e.daysLeft)}d ago`
+                  : e.daysLeft === 0
+                  ? "Expires today"
+                  : `${e.daysLeft}d left`}
+              </span>
+
+              {/* Person name */}
+              <button
+                type="button"
+                onClick={() => onSelect(String(e.profileId))}
+                className="text-sm font-semibold text-rose-900 hover:underline"
+              >
+                {e.personName}
+              </button>
+
+              {/* Entry details */}
+              <span className="text-xs text-rose-600">
+                Entry: {formatCtoDate(e.entryDate)}
+              </span>
+              <span className="text-xs text-rose-500">
+                Expires: {formatCtoDate(e.expiryDateStr)}
+              </span>
+              {e.balanceMinutes + e.balanceHours * 60 > 0 && (
+                <span className="text-xs font-semibold text-rose-700">
+                  Balance: {formatDuration(e.balanceHours, e.balanceMinutes)}
+                </span>
+              )}
+
+              {/* Particulars snippet */}
+              {e.particulars && (
+                <span className="truncate max-w-xs text-xs text-rose-400 italic">
+                  "{e.particulars.slice(0, 60)}{e.particulars.length > 60 ? "…" : ""}"
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+};
+
+/**
+ * Horizontal bar chart — all profiles ranked by total CTO balance.
+ * Clicking a bar selects that person in the ledger below.
+ */
 
 // Custom tooltip shown on hover
 const CtoBarTooltip = ({ active, payload }) => {
@@ -418,6 +528,7 @@ const AddCto = () => {
   // allBalances: { [profileId]: { hours, minutes } } — computed once all entries are fetched
   const [allBalances, setAllBalances] = useState({});
   const [loadingAllBalances, setLoadingAllBalances] = useState(false);
+  const [expiringEntries, setExpiringEntries] = useState([]);
 
   const loadProfiles = useCallback(async () => {
     setLoadingProfiles(true);
@@ -443,9 +554,11 @@ const AddCto = () => {
       return;
     }
 
+    const recomputed = recomputeBalances(data ?? []);
+
     // Group by profileId and sum up balances per person
     const map = {};
-    for (const entry of recomputeBalances(data ?? [])) {
+    for (const entry of recomputed) {
       const pid = String(entry.profileId);
       if (!map[pid]) map[pid] = 0;
       map[pid] +=
@@ -461,6 +574,31 @@ const AddCto = () => {
       };
     }
     setAllBalances(result);
+
+    // Collect entries expiring within EXPIRY_WARN_DAYS or already expired
+    // Only flag entries that still have a non-zero balance (nothing to warn about if fully used)
+    const expiring = recomputed
+      .filter((entry) => {
+        if (!entry.entryDate) return false;
+        const remaining = (Number(entry.balanceHours) || 0) * 60 + (Number(entry.balanceMinutes) || 0);
+        if (remaining === 0) return false; // no balance left, no need to warn
+        const days = daysUntilExpiry(entry.entryDate);
+        return days <= EXPIRY_WARN_DAYS; // includes negatives (already expired)
+      })
+      .map((entry) => {
+        const expiry = getCtoExpiry(entry.entryDate);
+        return {
+          ...entry,
+          daysLeft: daysUntilExpiry(entry.entryDate),
+          expiryDateStr: expiry.toISOString().slice(0, 10),
+          personName: entry.profile
+            ? (entry.profile.code_name?.trim() || entry.profile.name?.trim() || `User #${entry.profileId}`)
+            : `User #${entry.profileId}`,
+        };
+      })
+      .sort((a, b) => a.daysLeft - b.daysLeft); // most urgent first
+
+    setExpiringEntries(expiring);
   }, []);
 
   const loadEntries = useCallback(async (profileId) => {
@@ -632,6 +770,13 @@ const AddCto = () => {
           />
         </div>
 
+        <CtoExpiryAlert
+          expiringEntries={expiringEntries}
+          profiles={profiles}
+          onSelect={setSelectedProfileId}
+          loading={loadingAllBalances}
+        />
+
         <CtoLeaderboard
           profiles={profiles}
           allBalances={allBalances}
@@ -746,10 +891,34 @@ const AddCto = () => {
                     </td>
                   </tr>
                 ) : (
-                  entries.map((entry) => (
+                  entries.map((entry) => {
+                    const days = entry.entryDate ? daysUntilExpiry(entry.entryDate) : null;
+                    const isExpired  = days !== null && days < 0;
+                    const isExpiring = days !== null && days >= 0 && days <= EXPIRY_WARN_DAYS;
+                    const hasBalance = (Number(entry.balanceHours) || 0) * 60 + (Number(entry.balanceMinutes) || 0) > 0;
+                    const showExpiry = hasBalance && (isExpired || isExpiring);
+
+                    return (
                     <tr key={entry.id}>
                       <td className="rounded-l-xl bg-white px-4 py-4 font-medium text-slate-900 ring-1 ring-slate-200/80">
-                        {formatCtoDate(entry.entryDate)}
+                        <div className="flex flex-col gap-1">
+                          {formatCtoDate(entry.entryDate)}
+                          {showExpiry && (
+                            <span className={`inline-flex w-fit items-center rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                              isExpired
+                                ? "bg-rose-100 text-rose-700"
+                                : days <= 7
+                                ? "bg-orange-100 text-orange-700"
+                                : "bg-amber-100 text-amber-700"
+                            }`}>
+                              {isExpired
+                                ? `Expired ${Math.abs(days)}d ago`
+                                : days === 0
+                                ? "Expires today"
+                                : `Expires in ${days}d`}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="max-w-xs bg-white px-4 py-4 text-slate-700 ring-1 ring-slate-200/80">
                         <p className="line-clamp-3 whitespace-pre-wrap">
@@ -788,7 +957,8 @@ const AddCto = () => {
                         </div>
                       </td>
                     </tr>
-                  ))
+                  );
+                  })
                 )}
               </tbody>
             </table>
