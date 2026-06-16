@@ -186,15 +186,42 @@ const profileLabel = (profile) =>
  * Clicking a bar selects that person in the ledger below.
  */
 
+const WORK_HOURS_PER_DAY = 8; // standard 8-hour workday
+
+/**
+ * Converts total minutes into a human-readable string that includes days
+ * when the balance is >= 1 workday (8 hrs).
+ * Examples: 500 min → "1d 2h 20m", 90 min → "1h 30m", 30 min → "30m"
+ */
+const formatDurationWithDays = (totalMinutes) => {
+  if (!totalMinutes) return "0h";
+  const minutesPerDay = WORK_HOURS_PER_DAY * 60;
+  const days = Math.floor(totalMinutes / minutesPerDay);
+  const rem = totalMinutes % minutesPerDay;
+  const hours = Math.floor(rem / 60);
+  const minutes = rem % 60;
+
+  const parts = [];
+  if (days > 0) parts.push(`${days}d`);
+  if (hours > 0) parts.push(`${hours}h`);
+  if (minutes > 0) parts.push(`${minutes}m`);
+  return parts.join(" ") || "0h";
+};
+
 // Custom tooltip shown on hover
 const CtoBarTooltip = ({ active, payload }) => {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
+  const dayLabel = formatDurationWithDays(d.totalMinutes);
+  const isDays = d.totalMinutes >= WORK_HOURS_PER_DAY * 60;
   return (
     <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-xl text-xs">
       <p className="font-bold text-slate-800">{d.name}</p>
-      <p className="mt-0.5 text-emerald-700 font-semibold">{d.label}</p>
-      <p className="text-slate-400">{d.totalMinutes} min total</p>
+      <p className="mt-1 text-base font-bold text-emerald-700">{dayLabel}</p>
+      {isDays && (
+        <p className="text-slate-500">{d.label} total</p>
+      )}
+      <p className="mt-0.5 text-slate-400">{d.totalMinutes} min</p>
     </div>
   );
 };
@@ -238,7 +265,8 @@ const CtoLeaderboard = ({ profiles, allBalances, loading, onSelect, selectedProf
           id: p.id,
           name: profileLabel(p),
           totalMinutes,
-          label: formatDuration(b.hours, b.minutes),
+          label: formatDuration(b.hours, b.minutes),           // e.g. "10h 30m"
+          labelDays: formatDurationWithDays(totalMinutes),      // e.g. "1d 2h 30m"
         };
       })
       .sort((a, b) => b.totalMinutes - a.totalMinutes);
@@ -253,9 +281,9 @@ const CtoLeaderboard = ({ profiles, allBalances, loading, onSelect, selectedProf
   const chartHeight = Math.max(200, chartData.length * 44);
 
   // Custom label rendered at the end of each bar
-  const BarValueLabel = ({ x, y, width, height, value, index }) => {
+  const BarValueLabel = ({ x, y, width, height, index }) => {
     const d = chartData[index];
-    if (!d || !d.label || d.totalMinutes === 0) return null;
+    if (!d || d.totalMinutes === 0) return null;
     return (
       <text
         x={x + width + 6}
@@ -265,7 +293,7 @@ const CtoLeaderboard = ({ profiles, allBalances, loading, onSelect, selectedProf
         fontWeight={600}
         fill="#475569"
       >
-        {d.label}
+        {d.labelDays}
       </text>
     );
   };
