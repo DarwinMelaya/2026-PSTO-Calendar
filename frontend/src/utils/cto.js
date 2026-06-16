@@ -156,6 +156,19 @@ export const createCtoEntry = async (payload) => {
   return { data: data ? mapRow(data) : null, error };
 };
 
+export const updateCtoEntry = async (id, payload) => {
+  const { data, error } = await supabase
+    .from("cto_entries")
+    .update(toDbPayload(payload))
+    .eq("id", Number(id))
+    .select(
+      "id, profile_id, entry_date, particulars, overtime_hours, overtime_minutes, offset_date, offset_hours, offset_minutes, balance_hours, balance_minutes, created_at",
+    )
+    .single();
+
+  return { data: data ? mapRow(data) : null, error };
+};
+
 export const deleteCtoEntry = async (id) => {
   const { error } = await supabase
     .from("cto_entries")

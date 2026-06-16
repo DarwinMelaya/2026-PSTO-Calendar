@@ -7,6 +7,7 @@ import {
   normalizeHoursField,
   normalizeMinutesField,
   toTotalMinutes,
+  updateCtoEntry,
 } from "../../../utils/cto";
 
 const initialForm = {
@@ -28,27 +29,50 @@ const inputClass =
 const sectionClass =
   "rounded-xl border border-slate-200 bg-slate-50/60 p-4 space-y-3";
 
+/**
+ * Dual-mode modal: Add (editEntry = null) or Edit (editEntry = existing entry).
+ */
 const AddCtoModal = ({
   isOpen,
   onClose,
   onSuccess,
   profiles = [],
   defaultProfileId = "",
-  previousBalance = { hours: 0, minutes: 0 },
+  editEntry = null, // pass a mapped entry object to switch to edit mode
 }) => {
+  const isEditMode = Boolean(editEntry);
+
   const [form, setForm] = useState(initialForm);
   const [loading, setLoading] = useState(false);
   const [balanceTouched, setBalanceTouched] = useState(false);
 
+  // Populate form when opening
   useEffect(() => {
     if (!isOpen) return;
-    setForm({
-      ...initialForm,
-      profileId: defaultProfileId ? String(defaultProfileId) : "",
-      entryDate: new Date().toISOString().slice(0, 10),
-    });
-    setBalanceTouched(false);
-  }, [isOpen, defaultProfileId]);
+
+    if (isEditMode && editEntry) {
+      setForm({
+        profileId: String(editEntry.profileId),
+        entryDate: editEntry.entryDate ?? "",
+        particulars: editEntry.particulars ?? "",
+        overtimeHours: String(editEntry.overtimeHours ?? 0),
+        overtimeMinutes: String(editEntry.overtimeMinutes ?? 0),
+        offsetDate: editEntry.offsetDate ?? "",
+        offsetHours: String(editEntry.offsetHours ?? 0),
+        offsetMinutes: String(editEntry.offsetMinutes ?? 0),
+        balanceHours: String(editEntry.balanceHours ?? 0),
+        balanceMinutes: String(editEntry.balanceMinutes ?? 0),
+      });
+      setBalanceTouched(true); // keep stored balance in edit mode until user resets
+    } else {
+      setForm({
+        ...initialForm,
+        profileId: defaultProfileId ? String(defaultProfileId) : "",
+        entryDate: new Date().toISOString().slice(0, 10),
+      });
+      setBalanceTouched(false);
+    }
+  }, [isOpen, isEditMode, editEntry, defaultProfileId]);
 
   const suggestedBalance = useMemo(
     () =>
@@ -134,10 +158,6 @@ const AddCtoModal = ({
       return;
     }
 
-    const otMinutes = normalizeMinutesField(overtimeMinutes);
-    const offMinutes = normalizeMinutesField(offsetMinutes);
-    const balMinutes = normalizeMinutesField(balanceMinutes);
-
     if (Number(overtimeMinutes) >= 60 || Number(offsetMinutes) >= 60) {
       toast.error("Minutes must be less than 60.");
       return;
@@ -155,20 +175,28 @@ const AddCtoModal = ({
       return;
     }
 
-    setLoading(true);
-
-    const { data, error } = await createCtoEntry({
+    const payload = {
       profileId,
       entryDate,
       particulars,
       overtimeHours: normalizeHoursField(overtimeHours),
-      overtimeMinutes: otMinutes,
+      overtimeMinutes: normalizeMinutesField(overtimeMinutes),
       offsetDate: offsetDate || null,
       offsetHours: normalizeHoursField(offsetHours),
-      offsetMinutes: offMinutes,
+      offsetMinutes: normalizeMinutesField(offsetMinutes),
       balanceHours: Number(balanceHours) || 0,
-      balanceMinutes: balMinutes,
-    });
+      balanceMinutes: normalizeMinutesField(balanceMinutes),
+    };
+
+    setLoading(true);
+
+    let data, error;
+
+    if (isEditMode) {
+      ({ data, error } = await updateCtoEntry(editEntry.id, payload));
+    } else {
+      ({ data, error } = await createCtoEntry(payload));
+    }
 
     setLoading(false);
 
@@ -181,7 +209,7 @@ const AddCtoModal = ({
       return;
     }
 
-    toast.success("CTO entry added.");
+    toast.success(isEditMode ? "Entry updated." : "CTO entry added.");
     setForm(initialForm);
     setBalanceTouched(false);
     onSuccess(data);
@@ -214,10 +242,12 @@ const AddCtoModal = ({
             id="add-cto-modal-title"
             className="text-xl font-bold text-slate-900"
           >
-            Add CTO entry
+            {isEditMode ? "Edit CTO entry" : "Add CTO entry"}
           </h2>
           <p className="mt-1 text-sm text-slate-500">
-            Record overtime, offset, and running balance for one person.
+            {isEditMode
+              ? "Update the overtime, offset, and balance for this entry."
+              : "Record overtime, offset, and running balance for one person."}
           </p>
         </div>
 
@@ -236,6 +266,7 @@ const AddCtoModal = ({
                 onChange={setField("profileId")}
                 className={inputClass}
                 required
+                disabled={isEditMode} // profile can't change on edit
               >
                 <option value="">Select person…</option>
                 {profiles.map((profile) => (
@@ -244,6 +275,11 @@ const AddCtoModal = ({
                   </option>
                 ))}
               </select>
+              {isEditMode && (
+                <p className="mt-1 text-xs text-slate-400">
+                  Person cannot be changed on an existing entry.
+                </p>
+              )}
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
@@ -446,7 +482,9 @@ const AddCtoModal = ({
               disabled={loading}
               className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
             >
-              {loading ? "Saving…" : "Add entry"}
+              {loading
+                ? isEditMode ? "Saving…" : "Adding…"
+                : isEditMode ? "Save changes" : "Add entry"}
             </button>
           </div>
         </form>

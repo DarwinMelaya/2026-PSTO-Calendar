@@ -1,5 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import AddCtoModal from "../../components/Modals/AdminModals/AddCtoModal";
 import Layout from "../../components/Layout/Layout";
 import {
@@ -171,6 +181,202 @@ const profileLabel = (profile) =>
   profile?.email?.trim() ||
   (profile?.id ? `User #${profile.id}` : "—");
 
+/**
+ * Horizontal bar chart — all profiles ranked by total CTO balance.
+ * Clicking a bar selects that person in the ledger below.
+ */
+
+// Custom tooltip shown on hover
+const CtoBarTooltip = ({ active, payload }) => {
+  if (!active || !payload?.length) return null;
+  const d = payload[0].payload;
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-xl text-xs">
+      <p className="font-bold text-slate-800">{d.name}</p>
+      <p className="mt-0.5 text-emerald-700 font-semibold">{d.label}</p>
+      <p className="text-slate-400">{d.totalMinutes} min total</p>
+    </div>
+  );
+};
+
+// Custom Y-axis tick that renders the person's name
+const NameTick = ({ x, y, payload, selectedId, onClick, idMap }) => {
+  const profileId = idMap[payload.value];
+  const isSelected = String(profileId) === String(selectedId);
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text
+        x={-8}
+        y={0}
+        dy={4}
+        textAnchor="end"
+        fontSize={12}
+        fontWeight={isSelected ? 700 : 500}
+        fill={isSelected ? "#0d9488" : "#475569"}
+        className="cursor-pointer select-none"
+        onClick={() => onClick(String(profileId))}
+      >
+        {payload.value.length > 18 ? payload.value.slice(0, 17) + "…" : payload.value}
+      </text>
+    </g>
+  );
+};
+
+const BAR_COLORS = [
+  "#059669", "#0d9488", "#3b82f6", "#8b5cf6",
+  "#f59e0b", "#f43f5e", "#10b981", "#6366f1",
+  "#ec4899", "#64748b",
+];
+
+const CtoLeaderboard = ({ profiles, allBalances, loading, onSelect, selectedProfileId }) => {
+  const { chartData, idMap } = useMemo(() => {
+    const sorted = [...profiles]
+      .map((p) => {
+        const b = allBalances[String(p.id)] ?? { hours: 0, minutes: 0 };
+        const totalMinutes = b.hours * 60 + b.minutes;
+        return {
+          id: p.id,
+          name: profileLabel(p),
+          totalMinutes,
+          label: formatDuration(b.hours, b.minutes),
+        };
+      })
+      .sort((a, b) => b.totalMinutes - a.totalMinutes);
+
+    // Map name → id for the custom tick click handler
+    const map = {};
+    sorted.forEach((d) => { map[d.name] = d.id; });
+
+    return { chartData: sorted, idMap: map };
+  }, [profiles, allBalances]);
+
+  const chartHeight = Math.max(200, chartData.length * 44);
+
+  // Custom label rendered at the end of each bar
+  const BarValueLabel = ({ x, y, width, height, value, index }) => {
+    const d = chartData[index];
+    if (!d || !d.label || d.totalMinutes === 0) return null;
+    return (
+      <text
+        x={x + width + 6}
+        y={y + height / 2 + 1}
+        dominantBaseline="middle"
+        fontSize={11}
+        fontWeight={600}
+        fill="#475569"
+      >
+        {d.label}
+      </text>
+    );
+  };
+
+  return (
+    <section className="ut-animate-in ut-delay-1 overflow-hidden rounded-3xl border border-slate-200/80 bg-white/90 shadow-xl shadow-slate-300/25 ring-1 ring-slate-900/[0.04] backdrop-blur-sm">
+      <PanelHeader
+        iconGradient="bg-gradient-to-br from-amber-400 to-orange-500 shadow-amber-400/25"
+        icon={
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M16 8v8m-4-5v5m-4-2v2M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+        }
+        title="CTO Balance Overview"
+        subtitle="Ranked by total balance — click a bar or name to view their ledger"
+      />
+
+      <div className="p-5 sm:p-6">
+        {loading ? (
+          <div className="space-y-3">
+            {Array.from({ length: 5 }, (_, i) => (
+              <div key={i} className="animate-pulse flex items-center gap-3">
+                <div className="h-3.5 w-28 rounded bg-slate-200" />
+                <div className="h-6 flex-1 rounded-lg bg-slate-100" style={{ maxWidth: `${80 - i * 14}%` }} />
+              </div>
+            ))}
+          </div>
+        ) : chartData.length === 0 ? (
+          <div className="flex h-40 items-center justify-center text-sm text-slate-400">
+            No profiles found.
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height={chartHeight}>
+            <BarChart
+              data={chartData}
+              layout="vertical"
+              margin={{ top: 4, right: 80, left: 8, bottom: 4 }}
+              barSize={22}
+              onClick={(e) => {
+                if (e?.activePayload?.[0]) {
+                  onSelect(String(e.activePayload[0].payload.id));
+                }
+              }}
+            >
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke="#e2e8f0"
+                horizontal={false}
+              />
+              <XAxis
+                type="number"
+                allowDecimals={false}
+                tickFormatter={(v) => {
+                  const h = Math.floor(v / 60);
+                  const m = v % 60;
+                  if (h === 0) return `${m}m`;
+                  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+                }}
+                tick={{ fontSize: 10, fill: "#94a3b8" }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                type="category"
+                dataKey="name"
+                width={130}
+                tick={
+                  <NameTick
+                    selectedId={selectedProfileId}
+                    onClick={onSelect}
+                    idMap={idMap}
+                  />
+                }
+                axisLine={false}
+                tickLine={false}
+              />
+              <Tooltip
+                content={<CtoBarTooltip />}
+                cursor={{ fill: "#f1f5f9" }}
+              />
+              <Bar
+                dataKey="totalMinutes"
+                name="Balance"
+                radius={[0, 6, 6, 0]}
+                label={<BarValueLabel />}
+                className="cursor-pointer"
+              >
+                {chartData.map((d, i) => (
+                  <Cell
+                    key={d.id}
+                    fill={
+                      String(d.id) === String(selectedProfileId)
+                        ? "#0d9488"
+                        : BAR_COLORS[i % BAR_COLORS.length]
+                    }
+                    opacity={
+                      selectedProfileId && String(d.id) !== String(selectedProfileId)
+                        ? 0.45
+                        : 1
+                    }
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+    </section>
+  );
+};
+
 const AddCto = () => {
   const [profiles, setProfiles] = useState([]);
   const [entries, setEntries] = useState([]);
@@ -180,6 +386,10 @@ const AddCto = () => {
   const [loadingEntries, setLoadingEntries] = useState(false);
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [editEntry, setEditEntry] = useState(null); // entry being edited, null = add mode
+  // allBalances: { [profileId]: { hours, minutes } } — computed once all entries are fetched
+  const [allBalances, setAllBalances] = useState({});
+  const [loadingAllBalances, setLoadingAllBalances] = useState(false);
 
   const loadProfiles = useCallback(async () => {
     setLoadingProfiles(true);
@@ -192,6 +402,37 @@ const AddCto = () => {
     }
 
     setProfiles(data ?? []);
+  }, []);
+
+  const loadAllBalances = useCallback(async () => {
+    setLoadingAllBalances(true);
+    // Fetch ALL entries (no profile filter) in one query
+    const { data, error } = await listCtoEntries();
+    setLoadingAllBalances(false);
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    // Group by profileId and sum up balances per person
+    const map = {};
+    for (const entry of recomputeBalances(data ?? [])) {
+      const pid = String(entry.profileId);
+      if (!map[pid]) map[pid] = 0;
+      map[pid] +=
+        (Number(entry.balanceHours) || 0) * 60 +
+        (Number(entry.balanceMinutes) || 0);
+    }
+
+    const result = {};
+    for (const [pid, totalMins] of Object.entries(map)) {
+      result[pid] = {
+        hours: Math.floor(totalMins / 60),
+        minutes: totalMins % 60,
+      };
+    }
+    setAllBalances(result);
   }, []);
 
   const loadEntries = useCallback(async (profileId) => {
@@ -230,7 +471,8 @@ const AddCto = () => {
 
   useEffect(() => {
     loadProfiles();
-  }, [loadProfiles]);
+    loadAllBalances();
+  }, [loadProfiles, loadAllBalances]);
 
   useEffect(() => {
     loadEntries(selectedProfileId);
@@ -250,6 +492,11 @@ const AddCto = () => {
     [profiles.length, entries.length, latestBalance],
   );
 
+  const handleEdit = (entry) => {
+    setEditEntry(entry);
+    setAddModalOpen(true);
+  };
+
   const handleDelete = async (entry) => {
     if (!window.confirm("Delete this CTO entry? This cannot be undone.")) {
       return;
@@ -266,10 +513,12 @@ const AddCto = () => {
 
     toast.success("Entry deleted.");
     loadEntries(selectedProfileId);
+    loadAllBalances();
   };
 
   const handleEntryAdded = () => {
     loadEntries(selectedProfileId);
+    loadAllBalances();
   };
 
   const todayLabel = useMemo(
@@ -305,6 +554,7 @@ const AddCto = () => {
                 onClick={() => {
                   loadProfiles();
                   loadEntries(selectedProfileId);
+                  loadAllBalances();
                 }}
                 className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
               >
@@ -353,6 +603,14 @@ const AddCto = () => {
             sublabel="Total of all entry balances"
           />
         </div>
+
+        <CtoLeaderboard
+          profiles={profiles}
+          allBalances={allBalances}
+          loading={loadingProfiles || loadingAllBalances}
+          onSelect={setSelectedProfileId}
+          selectedProfileId={selectedProfileId}
+        />
 
         <section className="ut-animate-in ut-delay-2 overflow-hidden rounded-3xl border border-slate-200/80 bg-white/90 shadow-xl shadow-slate-300/25 ring-1 ring-slate-900/[0.04] backdrop-blur-sm">
           <PanelHeader
@@ -483,14 +741,23 @@ const AddCto = () => {
                         {formatDuration(entry.balanceHours, entry.balanceMinutes)}
                       </td>
                       <td className="rounded-r-xl bg-white px-4 py-4 text-right ring-1 ring-slate-200/80">
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(entry)}
-                          disabled={deletingId === entry.id}
-                          className="rounded-lg px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50"
-                        >
-                          {deletingId === entry.id ? "Deleting…" : "Delete"}
-                        </button>
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleEdit(entry)}
+                            className="rounded-lg px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-50"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(entry)}
+                            disabled={deletingId === entry.id}
+                            className="rounded-lg px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+                          >
+                            {deletingId === entry.id ? "Deleting…" : "Delete"}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -503,10 +770,14 @@ const AddCto = () => {
 
       <AddCtoModal
         isOpen={addModalOpen}
-        onClose={() => setAddModalOpen(false)}
+        onClose={() => {
+          setAddModalOpen(false);
+          setEditEntry(null);
+        }}
         onSuccess={handleEntryAdded}
         profiles={profiles}
         defaultProfileId={selectedProfileId}
+        editEntry={editEntry}
       />
     </Layout>
   );
