@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import AddCtoModal from "../../components/Modals/AdminModals/AddCtoModal";
 import Layout from "../../components/Layout/Layout";
@@ -17,6 +17,153 @@ import {
   listCtoProfiles,
   recomputeBalances,
 } from "../../utils/cto";
+
+/**
+ * Searchable person picker — replaces a plain <select> with a text input
+ * that filters the list as you type and lets you click to select.
+ */
+const PersonPicker = ({ profiles, value, onChange, disabled }) => {
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef(null);
+
+  const selected = profiles.find((p) => String(p.id) === String(value)) ?? null;
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handler = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setOpen(false);
+        setQuery("");
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const filtered = useMemo(() => {
+    const q = query.toLowerCase().trim();
+    if (!q) return profiles;
+    return profiles.filter((p) =>
+      profileLabel(p).toLowerCase().includes(q),
+    );
+  }, [query, profiles]);
+
+  const handleSelect = (profile) => {
+    onChange(String(profile.id));
+    setOpen(false);
+    setQuery("");
+  };
+
+  const handleClear = (e) => {
+    e.stopPropagation();
+    onChange("");
+    setQuery("");
+    setOpen(false);
+  };
+
+  return (
+    <div ref={containerRef} className="relative min-w-[240px]">
+      {/* Trigger / input */}
+      <div
+        onClick={() => !disabled && setOpen((o) => !o)}
+        className={`flex cursor-pointer items-center gap-2 rounded-xl border bg-white px-4 py-2.5 shadow-sm transition ${
+          open
+            ? "border-teal-500 ring-2 ring-teal-500/20"
+            : "border-slate-200 hover:border-slate-300"
+        } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
+      >
+        {open ? (
+          <input
+            autoFocus
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+            placeholder="Search name…"
+            className="flex-1 bg-transparent text-sm font-medium text-slate-800 outline-none placeholder:text-slate-400"
+          />
+        ) : (
+          <span
+            className={`flex-1 truncate text-sm font-medium ${
+              selected ? "text-slate-800" : "text-slate-400"
+            }`}
+          >
+            {selected ? profileLabel(selected) : "Select person…"}
+          </span>
+        )}
+
+        <div className="flex shrink-0 items-center gap-1">
+          {selected && !open && (
+            <button
+              type="button"
+              onClick={handleClear}
+              aria-label="Clear selection"
+              className="rounded p-0.5 text-slate-400 hover:text-slate-600"
+            >
+              <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+              </svg>
+            </button>
+          )}
+          <svg
+            className={`h-4 w-4 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`}
+            viewBox="0 0 20 20"
+            fill="currentColor"
+          >
+            <path
+              fillRule="evenodd"
+              d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+              clipRule="evenodd"
+            />
+          </svg>
+        </div>
+      </div>
+
+      {/* Dropdown */}
+      {open && (
+        <ul className="absolute left-0 right-0 top-full z-50 mt-1.5 max-h-60 overflow-y-auto rounded-xl border border-slate-200 bg-white py-1.5 shadow-xl shadow-slate-300/30 ring-1 ring-slate-900/[0.04]">
+          {filtered.length === 0 ? (
+            <li className="px-4 py-3 text-sm text-slate-400">No match found</li>
+          ) : (
+            filtered.map((profile) => (
+              <li key={profile.id}>
+                <button
+                  type="button"
+                  onClick={() => handleSelect(profile)}
+                  className={`flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition hover:bg-teal-50 ${
+                    String(profile.id) === String(value)
+                      ? "bg-teal-50 font-semibold text-teal-700"
+                      : "text-slate-700"
+                  }`}
+                >
+                  {/* Avatar initial */}
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-teal-400 to-emerald-500 text-xs font-bold text-white">
+                    {profileLabel(profile).charAt(0).toUpperCase()}
+                  </span>
+                  <span className="truncate">{profileLabel(profile)}</span>
+                  {String(profile.id) === String(value) && (
+                    <svg
+                      className="ml-auto h-4 w-4 shrink-0 text-teal-600"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  )}
+                </button>
+              </li>
+            ))
+          )}
+        </ul>
+      )}
+    </div>
+  );
+};
 
 const profileLabel = (profile) =>
   profile?.code_name?.trim() ||
@@ -233,25 +380,12 @@ const AddCto = () => {
                 : "Choose a person to view their CTO records"
             }
             action={
-              <div className="min-w-[220px]">
-                <label htmlFor="cto-person-filter" className="sr-only">
-                  Select person
-                </label>
-                <select
-                  id="cto-person-filter"
-                  value={selectedProfileId}
-                  onChange={(e) => setSelectedProfileId(e.target.value)}
-                  disabled={loadingProfiles}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-800 shadow-sm focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 disabled:opacity-50"
-                >
-                  <option value="">Select person…</option>
-                  {profiles.map((profile) => (
-                    <option key={profile.id} value={profile.id}>
-                      {profileLabel(profile)}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <PersonPicker
+                profiles={profiles}
+                value={selectedProfileId}
+                onChange={setSelectedProfileId}
+                disabled={loadingProfiles}
+              />
             }
           />
 
