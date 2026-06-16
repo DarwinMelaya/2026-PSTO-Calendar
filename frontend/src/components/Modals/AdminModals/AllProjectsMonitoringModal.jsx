@@ -61,6 +61,9 @@ const CheckField = ({ label, checked, onChange, className = "" }) => (
 
 const AllProjectsMonitoringModal = ({ isOpen, onClose, onSuccess, record, defaultProjectType = null }) => {
   const isEdit = Boolean(record?.id);
+  // Hide project_no for SSCP — both when adding (defaultProjectType) and editing (record.project_type)
+  const isSSCP =
+    defaultProjectType === "SSCP" || record?.project_type === "SSCP";
   const [form, setForm] = useState(EMPTY_RECORD_FORM);
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef(null);
@@ -178,17 +181,19 @@ const AllProjectsMonitoringModal = ({ isOpen, onClose, onSuccess, record, defaul
               accent="border-emerald-500 bg-emerald-50 text-emerald-900"
             >
               <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="No (ex. MAR-GIA - 072)" htmlFor="apm-project-no">
-                  <input
-                    id="apm-project-no"
-                    type="text"
-                    value={form.project_no}
-                    onChange={setField("project_no")}
-                    placeholder="MAR-GIA - 072"
-                    className={inputClass}
-                  />
-                </Field>
-                <Field label="Year" htmlFor="apm-year">
+                {!isSSCP && (
+                  <Field label="No (ex. MAR-GIA - 072)" htmlFor="apm-project-no">
+                    <input
+                      id="apm-project-no"
+                      type="text"
+                      value={form.project_no}
+                      onChange={setField("project_no")}
+                      placeholder="MAR-GIA - 072"
+                      className={inputClass}
+                    />
+                  </Field>
+                )}
+                <Field label="Year" htmlFor="apm-year" className={isSSCP ? "sm:col-span-2" : ""}>
                   <input
                     id="apm-year"
                     type="number"
