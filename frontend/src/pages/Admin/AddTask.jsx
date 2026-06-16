@@ -278,11 +278,12 @@ const AddTask = () => {
         parseTaskRemarks(task.remarks);
       const key = groupKey || `single-${task.id}`;
       const current = groups.get(key);
-      const { cleanActivities, subTasks } = parseTaskActivities(task.activities);
+      const { cleanActivities, subTasks, instructionImageUrl } = parseTaskActivities(task.activities);
       const normalizedTask = {
         ...task,
         cleanActivities,
         subTasks,
+        instructionImageUrl,
         cleanRemarks,
         requestedStatus,
         groupKey,
@@ -1290,6 +1291,25 @@ const AddTask = () => {
                             <span className="w-fit rounded-md bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-800 ring-1 ring-inset ring-indigo-600/15">
                               {task.subTasks.length} sub-task
                               {task.subTasks.length === 1 ? "" : "s"}
+                            </span>
+                          ) : null}
+                          {task.instructionImageUrl ? (
+                            <span className="inline-flex w-fit items-center gap-1 rounded-md bg-sky-50 px-2 py-0.5 text-xs font-semibold text-sky-800 ring-1 ring-inset ring-sky-600/15">
+                              <svg
+                                className="h-3.5 w-3.5"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                strokeWidth={2}
+                                stroke="currentColor"
+                                aria-hidden
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H5.25A2.25 2.25 0 003 5.25v13.5A2.25 2.25 0 005.25 21z"
+                                />
+                              </svg>
+                              Has image
                             </span>
                           ) : null}
                           <button

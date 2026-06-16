@@ -24,6 +24,7 @@ import {
   hasDeadline,
   isTaskPriority,
   listTasksForUser,
+  parseTaskActivities,
   parseTaskRemarks,
   requestTaskStatusChange,
   taskProgramLabel,
@@ -173,6 +174,7 @@ const UserTask = () => {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [taskToEdit, setTaskToEdit] = useState(null);
   const [taskToView, setTaskToView] = useState(null);
+  const [expandedInstructionUrl, setExpandedInstructionUrl] = useState(null);
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [filtersExpanded, setFiltersExpanded] = useState(true);
 
@@ -346,11 +348,13 @@ const UserTask = () => {
 
   const taskForView = (task) => {
     const meta = parseTaskRemarks(task.remarks);
+    const { instructionImageUrl } = parseTaskActivities(task.activities);
     return {
       ...task,
       cleanRemarks: remarksForTask(task).trim() || meta.cleanRemarks,
       requestedStatus: meta.requestedStatus,
       proofUrl: meta.proofUrl,
+      instructionImageUrl,
       responsibleLabels: codeName ? [codeName] : ["—"],
     };
   };
@@ -1108,6 +1112,7 @@ const UserTask = () => {
                 ) : (
                   filteredTasks.map((task) => {
                     const taskMeta = parseTaskRemarks(task.remarks);
+                    const { instructionImageUrl } = parseTaskActivities(task.activities);
                     const pendingRequest = taskMeta.requestedStatus;
                     const selectedRequestStatus =
                       requestDrafts[task.id] ??
@@ -1149,6 +1154,38 @@ const UserTask = () => {
                           >
                             {formatActivitiesPreview(task.activities) || "—"}
                           </span>
+                          {instructionImageUrl ? (
+                            <div className="flex flex-col gap-2">
+                              <span className="inline-flex w-fit items-center gap-1 rounded-md bg-sky-50 px-2 py-0.5 text-xs font-semibold text-sky-800 ring-1 ring-inset ring-sky-600/15">
+                                <svg
+                                  className="h-3.5 w-3.5"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  strokeWidth={2}
+                                  stroke="currentColor"
+                                  aria-hidden
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H5.25A2.25 2.25 0 003 5.25v13.5A2.25 2.25 0 005.25 21z"
+                                  />
+                                </svg>
+                                Instruction image
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setExpandedInstructionUrl(instructionImageUrl)}
+                                className="block w-fit overflow-hidden rounded-lg ring-2 ring-sky-200/80 transition hover:ring-sky-400"
+                              >
+                                <img
+                                  src={instructionImageUrl}
+                                  alt="Task instruction from admin"
+                                  className="h-20 w-auto max-w-full object-cover"
+                                />
+                              </button>
+                            </div>
+                          ) : null}
                           <div className="flex flex-wrap gap-1.5 opacity-90 transition group-hover:opacity-100">
                             <button
                               type="button"
@@ -1343,6 +1380,22 @@ const UserTask = () => {
         task={taskToView}
         onClose={() => setTaskToView(null)}
       />
+
+      {expandedInstructionUrl ? (
+        <button
+          type="button"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 p-4"
+          onClick={() => setExpandedInstructionUrl(null)}
+          aria-label="Close instruction image preview"
+        >
+          <img
+            src={expandedInstructionUrl}
+            alt="Task instruction from admin"
+            className="max-h-[90vh] max-w-full rounded-lg object-contain shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </button>
+      ) : null}
     </Layout>
   );
 };

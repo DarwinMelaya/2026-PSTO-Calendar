@@ -51,6 +51,7 @@ const collectProofEntries = (task) => {
 
 const ViewTaskModal = ({ isOpen, onClose, task }) => {
   const [expandedProofUrl, setExpandedProofUrl] = useState(null);
+  const [expandedInstructionUrl, setExpandedInstructionUrl] = useState(null);
 
   const proofEntries = useMemo(
     () => (task ? collectProofEntries(task) : []),
@@ -59,12 +60,17 @@ const ViewTaskModal = ({ isOpen, onClose, task }) => {
 
   const handleClose = () => {
     setExpandedProofUrl(null);
+    setExpandedInstructionUrl(null);
     onClose();
   };
 
   if (!isOpen || !task) return null;
 
-  const { cleanActivities, subTasks } = parseTaskActivities(task.activities);
+  const { cleanActivities, subTasks, instructionImageUrl } = parseTaskActivities(
+    task.activities,
+  );
+  const instructionImage =
+    task.instructionImageUrl ?? instructionImageUrl ?? null;
 
   return (
     <div
@@ -146,6 +152,34 @@ const ViewTaskModal = ({ isOpen, onClose, task }) => {
                   </li>
                 ))}
               </ul>
+            </div>
+          ) : null}
+          {instructionImage ? (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Instruction image
+              </p>
+              <div className="mt-2 rounded-xl border border-sky-200/80 bg-sky-50/40 p-3">
+                <button
+                  type="button"
+                  onClick={() => setExpandedInstructionUrl(instructionImage)}
+                  className="block overflow-hidden rounded-lg ring-2 ring-sky-200/80 transition hover:ring-sky-400"
+                >
+                  <img
+                    src={instructionImage}
+                    alt="Task instruction"
+                    className="max-h-48 w-full object-cover sm:max-h-56 sm:w-auto sm:max-w-full"
+                  />
+                </button>
+                <a
+                  href={instructionImage}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 inline-block text-xs font-semibold text-sky-800 underline-offset-2 hover:underline"
+                >
+                  Open full size
+                </a>
+              </div>
             </div>
           ) : null}
           <DetailBlock label="Remarks">{task.cleanRemarks || "—"}</DetailBlock>
@@ -239,6 +273,22 @@ const ViewTaskModal = ({ isOpen, onClose, task }) => {
           </button>
         </div>
       </div>
+
+      {expandedInstructionUrl ? (
+        <button
+          type="button"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 p-4"
+          onClick={() => setExpandedInstructionUrl(null)}
+          aria-label="Close instruction image preview"
+        >
+          <img
+            src={expandedInstructionUrl}
+            alt="Task instruction"
+            className="max-h-[90vh] max-w-full rounded-lg object-contain shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </button>
+      ) : null}
 
       {expandedProofUrl ? (
         <button

@@ -34,7 +34,10 @@ const PROOF_URL_PREFIX = "[[PROOF_URL:";
 const PROOF_URL_SUFFIX = "]]";
 const SUB_TASKS_PREFIX = "[[SUB_TASKS:";
 const SUB_TASKS_SUFFIX = "]]";
+const INSTRUCTION_IMAGE_PREFIX = "[[INSTRUCTION_IMAGE:";
+const INSTRUCTION_IMAGE_SUFFIX = "]]";
 const PROOF_BUCKET = "task-completion-proofs";
+const INSTRUCTION_IMAGE_BUCKET = "task-instruction-images";
 
 export const emptySubTask = () => ({ title: "", remarks: "" });
 
@@ -48,20 +51,32 @@ export const normalizeSubTasks = (subTasks) => {
     .filter((item) => item.title || item.remarks);
 };
 
-const extractSubTasksMarker = (raw) => {
-  const markerLine = `${SUB_TASKS_PREFIX}[\\s\\S]*${SUB_TASKS_SUFFIX}`;
+const extractTrailingMarker = (raw, prefix, suffix) => {
+  const markerLine = `${prefix}[\\s\\S]*${suffix}`;
   const match = raw.match(new RegExp(`\\n?${markerLine}$`));
   if (!match) {
-    return { cleanActivities: raw, subTasks: [] };
+    return { remaining: raw, payload: null };
   }
 
   const marker = match[0].trim();
-  let subTasks = [];
-  const payload = marker.slice(
-    SUB_TASKS_PREFIX.length,
-    marker.length - SUB_TASKS_SUFFIX.length,
-  );
+  const payload = marker.slice(prefix.length, marker.length - suffix.length);
+  return {
+    remaining: raw.slice(0, raw.length - match[0].length).trim(),
+    payload: payload || null,
+  };
+};
 
+const extractSubTasksMarker = (raw) => {
+  const { remaining, payload } = extractTrailingMarker(
+    raw,
+    SUB_TASKS_PREFIX,
+    SUB_TASKS_SUFFIX,
+  );
+  if (!payload) {
+    return { cleanActivities: remaining, subTasks: [] };
+  }
+
+  let subTasks = [];
   try {
     const parsed = JSON.parse(payload);
     if (Array.isArray(parsed)) {
@@ -71,30 +86,47 @@ const extractSubTasksMarker = (raw) => {
     // ignore malformed marker
   }
 
+  return { cleanActivities: remaining, subTasks };
+};
+
+const extractInstructionImageMarker = (raw) => {
+  const { remaining, payload } = extractTrailingMarker(
+    raw,
+    INSTRUCTION_IMAGE_PREFIX,
+    INSTRUCTION_IMAGE_SUFFIX,
+  );
   return {
-    cleanActivities: raw.slice(0, raw.length - match[0].length).trim(),
-    subTasks,
+    cleanActivities: remaining,
+    instructionImageUrl: payload || null,
   };
 };
 
 export const parseTaskActivities = (activities) => {
   const raw = (activities ?? "").trim();
   if (!raw) {
-    return { cleanActivities: "", subTasks: [] };
+    return { cleanActivities: "", subTasks: [], instructionImageUrl: null };
   }
 
-  return extractSubTasksMarker(raw);
+  const { cleanActivities: afterImage, instructionImageUrl } =
+    extractInstructionImageMarker(raw);
+  const { cleanActivities, subTasks } = extractSubTasksMarker(afterImage);
+
+  return { cleanActivities, subTasks, instructionImageUrl };
 };
 
-const composeTaskActivities = ({ activities, subTasks }) => {
+const composeTaskActivities = ({ activities, subTasks, instructionImageUrl }) => {
   const { cleanActivities } = parseTaskActivities(activities);
   const normalizedSubTasks = normalizeSubTasks(subTasks);
-  const marker =
+  const subTasksMarker =
     normalizedSubTasks.length > 0
       ? `${SUB_TASKS_PREFIX}${JSON.stringify(normalizedSubTasks)}${SUB_TASKS_SUFFIX}`
       : "";
+  const imageMarker =
+    instructionImageUrl?.trim()
+      ? `${INSTRUCTION_IMAGE_PREFIX}${instructionImageUrl.trim()}${INSTRUCTION_IMAGE_SUFFIX}`
+      : "";
 
-  const parts = [cleanActivities, marker].filter(Boolean);
+  const parts = [cleanActivities, subTasksMarker, imageMarker].filter(Boolean);
   return parts.length > 0 ? parts.join("\n") : "";
 };
 
@@ -213,6 +245,72 @@ const composeTaskRemarks = ({
   return parts.length > 0 ? parts.join("\n") : null;
 };
 
+const instructionImagePathFromUrl = (url) => {
+  if (!url) return null;
+  const marker = `/storage/v1/object/public/${INSTRUCTION_IMAGE_BUCKET}/`;
+  const index = url.indexOf(marker);
+  if (index === -1) return null;
+  return url.slice(index + marker.length);
+};
+
+export const uploadTaskInstructionImage = async (file) => {
+  if (!file) {
+    return { url: null, error: null, originalSize: null, compressedSize: null };
+  }
+
+  const originalSize = file.size;
+  let uploadFile = file;
+
+  try {
+    uploadFile = await compressImage(file);
+  } catch (compressionError) {
+    return {
+      url: null,
+      error: {
+        message:
+          compressionError?.message ?? "Failed to compress image before upload.",
+      },
+      originalSize,
+      compressedSize: null,
+    };
+  }
+
+  const safeName = uploadFile.name.replace(/[^\w.\-]+/g, "_");
+  const path = `${Date.now()}-${Math.random().toString(36).slice(2)}-${safeName}`;
+
+  const { data, error } = await supabase.storage
+    .from(INSTRUCTION_IMAGE_BUCKET)
+    .upload(path, uploadFile, {
+      upsert: false,
+      contentType: uploadFile.type,
+    });
+
+  if (error) {
+    return { url: null, error, originalSize, compressedSize: uploadFile.size };
+  }
+
+  const { data: urlData } = supabase.storage
+    .from(INSTRUCTION_IMAGE_BUCKET)
+    .getPublicUrl(data.path);
+
+  return {
+    url: urlData.publicUrl,
+    error: null,
+    originalSize,
+    compressedSize: uploadFile.size,
+  };
+};
+
+export const deleteTaskInstructionImage = async (imageUrl) => {
+  const path = instructionImagePathFromUrl(imageUrl);
+  if (!path) return { error: null };
+
+  const { error } = await supabase.storage
+    .from(INSTRUCTION_IMAGE_BUCKET)
+    .remove([path]);
+  return { error };
+};
+
 export const uploadTaskCompletionProof = async (file) => {
   if (!file) {
     return { url: null, error: null, originalSize: null, compressedSize: null };
@@ -311,8 +409,8 @@ export const normalizeDeadlineTimeForDb = (deadline, deadlineTime) => {
   return null;
 };
 
-export const normalizeActivities = (activities, subTasks) =>
-  composeTaskActivities({ activities, subTasks });
+export const normalizeActivities = (activities, subTasks, instructionImageUrl) =>
+  composeTaskActivities({ activities, subTasks, instructionImageUrl });
 
 export const deadlineForForm = (value) => (hasDeadline(value) ? value : "");
 
@@ -334,6 +432,7 @@ export const createTask = async ({
   agenda,
   activities,
   subTasks,
+  instructionImageUrl,
   deadline,
   deadlineTime,
   responsibleId,
@@ -369,7 +468,7 @@ export const createTask = async ({
       responsibleIds.map((id) => ({
         task_date: taskDate,
         agenda: agenda.trim(),
-        activities: normalizeActivities(activities, subTasks),
+        activities: normalizeActivities(activities, subTasks, instructionImageUrl),
         deadline: resolvedDeadline,
         deadline_time: resolvedDeadlineTime,
         responsible_id: id,
@@ -393,6 +492,7 @@ export const updateTask = async (
     agenda,
     activities,
     subTasks,
+    instructionImageUrl,
     deadline,
     deadlineTime,
     responsibleId,
@@ -438,7 +538,7 @@ export const updateTask = async (
   const basePayload = {
     task_date: taskDate,
     agenda: agenda.trim(),
-    activities: normalizeActivities(activities, subTasks),
+    activities: normalizeActivities(activities, subTasks, instructionImageUrl),
     deadline: resolvedDeadline,
     deadline_time: resolvedDeadlineTime,
     status,

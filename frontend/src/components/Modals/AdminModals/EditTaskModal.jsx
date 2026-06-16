@@ -1,14 +1,21 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import SubTasksField from "../../Task/SubTasksField";
+import {
+  formatFileSize,
+  MAX_UPLOAD_INPUT_BYTES,
+} from "../../../utils/compressImage";
 import {
   TASK_STATUSES,
   deadlineForForm,
   deadlineTimeForForm,
+  deleteTaskInstructionImage,
   listAssignableProfiles,
   normalizeSubTasks,
   parseTaskActivities,
+  parseTaskRemarks,
   updateTask,
+  uploadTaskInstructionImage,
 } from "../../../utils/task";
 
 const TASK_PROGRAMS = [
@@ -39,12 +46,16 @@ const inputClass =
 
 function taskToForm(task) {
   if (!task) return initialForm;
-  const { cleanActivities, subTasks } = parseTaskActivities(task.activities);
+  const { cleanActivities, subTasks, instructionImageUrl } = parseTaskActivities(
+    task.activities,
+  );
+  const { cleanRemarks } = parseTaskRemarks(task.existing_remarks ?? task.remarks);
   return {
     taskDate: task.task_date ?? "",
     agenda: task.agenda ?? "",
     activities: cleanActivities,
     subTasks,
+    instructionImageUrl,
     deadline: deadlineForForm(task.deadline),
     deadlineTime: deadlineTimeForForm(task.deadline_time),
     responsibleId: Array.isArray(task.responsible_ids)
@@ -55,7 +66,7 @@ function taskToForm(task) {
     program: task.program ?? "Other",
     status: task.status ?? "pending",
     isPriority: Boolean(task.is_priority),
-    remarks: task.remarks ?? "",
+    remarks: cleanRemarks,
   };
 }
 
@@ -64,6 +75,10 @@ const EditTaskModal = ({ isOpen, onClose, onSuccess, task }) => {
   const [assignees, setAssignees] = useState([]);
   const [loadingAssignees, setLoadingAssignees] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const [removePhoto, setRemovePhoto] = useState(false);
+  const fileInputRef = useRef(null);
 
   const loadAssignees = useCallback(async () => {
     setLoadingAssignees(true);
@@ -82,6 +97,10 @@ const EditTaskModal = ({ isOpen, onClose, onSuccess, task }) => {
     if (isOpen) {
       loadAssignees();
       setForm(taskToForm(task));
+      setPhotoFile(null);
+      setPhotoPreview(null);
+      setRemovePhoto(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }, [isOpen, loadAssignees, task]);
 
@@ -132,8 +151,42 @@ const EditTaskModal = ({ isOpen, onClose, onSuccess, task }) => {
   const handleClose = () => {
     if (submitting) return;
     setForm(initialForm);
+    setPhotoFile(null);
+    setPhotoPreview(null);
+    setRemovePhoto(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
     onClose();
   };
+
+  const handlePhotoChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please choose an image file.");
+      return;
+    }
+
+    if (file.size > MAX_UPLOAD_INPUT_BYTES) {
+      toast.error("Photo must be 20 MB or smaller.");
+      return;
+    }
+
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
+    setRemovePhoto(false);
+  };
+
+  const handleRemovePhoto = () => {
+    setPhotoFile(null);
+    setPhotoPreview(null);
+    setRemovePhoto(true);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const currentPhotoPreview =
+    photoPreview ??
+    (!removePhoto && form.instructionImageUrl ? form.instructionImageUrl : null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -171,11 +224,43 @@ const EditTaskModal = ({ isOpen, onClose, onSuccess, task }) => {
 
     setSubmitting(true);
 
+    let instructionImageUrl = removePhoto ? null : form.instructionImageUrl;
+
+    if (photoFile) {
+      const { url, error: uploadError, originalSize, compressedSize } =
+        await uploadTaskInstructionImage(photoFile);
+      if (uploadError) {
+        setSubmitting(false);
+        toast.error(uploadError.message ?? "Failed to upload instruction image.");
+        return;
+      }
+      if (
+        form.instructionImageUrl &&
+        form.instructionImageUrl !== url
+      ) {
+        await deleteTaskInstructionImage(form.instructionImageUrl);
+      }
+      instructionImageUrl = url;
+      if (
+        originalSize &&
+        compressedSize &&
+        compressedSize < originalSize
+      ) {
+        toast.success(
+          `Photo compressed: ${formatFileSize(originalSize)} → ${formatFileSize(compressedSize)}`,
+          { duration: 4000 },
+        );
+      }
+    } else if (removePhoto && form.instructionImageUrl) {
+      await deleteTaskInstructionImage(form.instructionImageUrl);
+    }
+
     const { error } = await updateTask(task.id, {
       taskDate,
       agenda,
       activities,
       subTasks: normalizeSubTasks(subTasks),
+      instructionImageUrl,
       deadline,
       deadlineTime,
       responsibleId,
@@ -370,6 +455,44 @@ const EditTaskModal = ({ isOpen, onClose, onSuccess, task }) => {
                 }
                 disabled={submitting}
               />
+            </div>
+
+            <div className="sm:col-span-2">
+              <label
+                htmlFor="edit-modal-task-instruction-image"
+                className="mb-1.5 block text-sm font-medium text-slate-700"
+              >
+                Instruction image{" "}
+                <span className="font-normal text-slate-400">
+                  (optional — attach a photo to show what to do)
+                </span>
+              </label>
+              <input
+                ref={fileInputRef}
+                id="edit-modal-task-instruction-image"
+                type="file"
+                accept="image/*"
+                onChange={handlePhotoChange}
+                disabled={submitting}
+                className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-50"
+              />
+              {currentPhotoPreview ? (
+                <div className="mt-3 flex items-start gap-3">
+                  <img
+                    src={currentPhotoPreview}
+                    alt="Instruction preview"
+                    className="h-24 w-auto max-w-full rounded-lg border border-slate-200 object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleRemovePhoto}
+                    disabled={submitting}
+                    className="text-sm font-medium text-rose-600 hover:text-rose-700 disabled:opacity-50"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ) : null}
             </div>
 
             <div>

@@ -1,12 +1,17 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import RichTextField from "../../Forms/RichTextField";
 import SubTasksField from "../../Task/SubTasksField";
+import {
+  formatFileSize,
+  MAX_UPLOAD_INPUT_BYTES,
+} from "../../../utils/compressImage";
 import {
   TASK_STATUSES,
   createTask,
   listAssignableProfiles,
   normalizeSubTasks,
+  uploadTaskInstructionImage,
 } from "../../../utils/task";
 
 const TASK_PROGRAMS = [
@@ -40,6 +45,9 @@ const AddTaskModal = ({ isOpen, onClose, onSuccess }) => {
   const [assignees, setAssignees] = useState([]);
   const [loadingAssignees, setLoadingAssignees] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const fileInputRef = useRef(null);
 
   const loadAssignees = useCallback(async () => {
     setLoadingAssignees(true);
@@ -89,7 +97,34 @@ const AddTaskModal = ({ isOpen, onClose, onSuccess }) => {
   const handleClose = () => {
     if (submitting) return;
     setForm(initialForm);
+    setPhotoFile(null);
+    setPhotoPreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
     onClose();
+  };
+
+  const handlePhotoChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please choose an image file.");
+      return;
+    }
+
+    if (file.size > MAX_UPLOAD_INPUT_BYTES) {
+      toast.error("Photo must be 20 MB or smaller.");
+      return;
+    }
+
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
+  };
+
+  const clearPhoto = () => {
+    setPhotoFile(null);
+    setPhotoPreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleSubmit = async (e) => {
@@ -128,11 +163,34 @@ const AddTaskModal = ({ isOpen, onClose, onSuccess }) => {
 
     setSubmitting(true);
 
+    let instructionImageUrl = null;
+    if (photoFile) {
+      const { url, error: uploadError, originalSize, compressedSize } =
+        await uploadTaskInstructionImage(photoFile);
+      if (uploadError) {
+        setSubmitting(false);
+        toast.error(uploadError.message ?? "Failed to upload instruction image.");
+        return;
+      }
+      instructionImageUrl = url;
+      if (
+        originalSize &&
+        compressedSize &&
+        compressedSize < originalSize
+      ) {
+        toast.success(
+          `Photo compressed: ${formatFileSize(originalSize)} → ${formatFileSize(compressedSize)}`,
+          { duration: 4000 },
+        );
+      }
+    }
+
     const { error } = await createTask({
       taskDate,
       agenda,
       activities,
       subTasks: normalizeSubTasks(subTasks),
+      instructionImageUrl,
       deadline,
       deadlineTime,
       responsibleId,
@@ -159,6 +217,7 @@ const AddTaskModal = ({ isOpen, onClose, onSuccess }) => {
         : "Task created successfully.",
     );
     setForm(initialForm);
+    clearPhoto();
     onSuccess();
     onClose();
   };
@@ -323,6 +382,44 @@ const AddTaskModal = ({ isOpen, onClose, onSuccess }) => {
                 }
                 disabled={submitting}
               />
+            </div>
+
+            <div className="sm:col-span-2">
+              <label
+                htmlFor="modal-task-instruction-image"
+                className="mb-1.5 block text-sm font-medium text-slate-700"
+              >
+                Instruction image{" "}
+                <span className="font-normal text-slate-400">
+                  (optional — attach a photo to show what to do)
+                </span>
+              </label>
+              <input
+                ref={fileInputRef}
+                id="modal-task-instruction-image"
+                type="file"
+                accept="image/*"
+                onChange={handlePhotoChange}
+                disabled={submitting}
+                className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-50"
+              />
+              {photoPreview ? (
+                <div className="mt-3 flex items-start gap-3">
+                  <img
+                    src={photoPreview}
+                    alt="Instruction preview"
+                    className="h-24 w-auto max-w-full rounded-lg border border-slate-200 object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={clearPhoto}
+                    disabled={submitting}
+                    className="text-sm font-medium text-rose-600 hover:text-rose-700 disabled:opacity-50"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ) : null}
             </div>
 
             <div>
