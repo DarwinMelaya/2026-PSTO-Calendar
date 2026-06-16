@@ -36,18 +36,15 @@ export const formatDuration = (hours, minutes) => {
 };
 
 export const computeBalance = ({
-  previousHours = 0,
-  previousMinutes = 0,
   overtimeHours = 0,
   overtimeMinutes = 0,
   offsetHours = 0,
   offsetMinutes = 0,
 }) => {
   const total =
-    toTotalMinutes(previousHours, previousMinutes) +
     toTotalMinutes(overtimeHours, overtimeMinutes) -
     toTotalMinutes(offsetHours, offsetMinutes);
-  return fromTotalMinutes(total);
+  return fromTotalMinutes(Math.max(0, total));
 };
 
 export const formatCtoDate = (value) => {
@@ -165,4 +162,59 @@ export const deleteCtoEntry = async (id) => {
     .delete()
     .eq("id", Number(id));
   return { error };
+};
+
+/**
+ * Recomputes the balance for every entry.
+ * Balance rule per entry: balance = overtime - offset (no running total)
+ */
+export const recomputeBalances = (entries) => {
+  return entries.map((entry) => {
+    const total =
+      toTotalMinutes(entry.overtimeHours, entry.overtimeMinutes) -
+      toTotalMinutes(entry.offsetHours, entry.offsetMinutes);
+    const { hours, minutes } = fromTotalMinutes(Math.max(0, total));
+    return { ...entry, balanceHours: hours, balanceMinutes: minutes };
+  });
+};
+
+/**
+ * After any mutation (add / delete) update every stored balance_hours /
+ * balance_minutes for the given profile so the DB stays consistent too.
+ */
+export const syncBalancesForProfile = async (profileId) => {
+  // 1. Fetch all entries for this profile in chronological order
+  const { data, error } = await supabase
+    .from("cto_entries")
+    .select(
+      "id, overtime_hours, overtime_minutes, offset_hours, offset_minutes",
+    )
+    .eq("profile_id", Number(profileId))
+    .order("entry_date", { ascending: true })
+    .order("created_at", { ascending: true });
+
+  if (error || !data?.length) return { error };
+
+  // 2. Walk through entries and build corrected balances
+  const updates = data.map((row) => {
+    const total =
+      toTotalMinutes(row.overtime_hours, row.overtime_minutes) -
+      toTotalMinutes(row.offset_hours, row.offset_minutes);
+    const { hours, minutes } = fromTotalMinutes(Math.max(0, total));
+    return { id: row.id, balance_hours: hours, balance_minutes: minutes };
+  });
+
+  // 3. Upsert (update) each row — do it sequentially to preserve order
+  for (const update of updates) {
+    const { error: updErr } = await supabase
+      .from("cto_entries")
+      .update({
+        balance_hours: update.balance_hours,
+        balance_minutes: update.balance_minutes,
+      })
+      .eq("id", update.id);
+    if (updErr) return { error: updErr };
+  }
+
+  return { error: null };
 };

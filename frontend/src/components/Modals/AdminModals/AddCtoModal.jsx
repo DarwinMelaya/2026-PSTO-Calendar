@@ -4,7 +4,6 @@ import {
   computeBalance,
   createCtoEntry,
   formatDuration,
-  getLatestCtoBalance,
   normalizeHoursField,
   normalizeMinutesField,
   toTotalMinutes,
@@ -40,10 +39,6 @@ const AddCtoModal = ({
   const [form, setForm] = useState(initialForm);
   const [loading, setLoading] = useState(false);
   const [balanceTouched, setBalanceTouched] = useState(false);
-  const [entryPreviousBalance, setEntryPreviousBalance] = useState({
-    hours: 0,
-    minutes: 0,
-  });
 
   useEffect(() => {
     if (!isOpen) return;
@@ -53,45 +48,17 @@ const AddCtoModal = ({
       entryDate: new Date().toISOString().slice(0, 10),
     });
     setBalanceTouched(false);
-    setEntryPreviousBalance(previousBalance);
-  }, [isOpen, defaultProfileId, previousBalance]);
-
-  useEffect(() => {
-    if (!isOpen || !form.profileId) {
-      setEntryPreviousBalance({ hours: 0, minutes: 0 });
-      return;
-    }
-
-    let cancelled = false;
-
-    getLatestCtoBalance(form.profileId).then(({ data, error }) => {
-      if (cancelled) return;
-      if (error) {
-        toast.error(error.message);
-        return;
-      }
-      setEntryPreviousBalance(data ?? { hours: 0, minutes: 0 });
-      setBalanceTouched(false);
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isOpen, form.profileId]);
+  }, [isOpen, defaultProfileId]);
 
   const suggestedBalance = useMemo(
     () =>
       computeBalance({
-        previousHours: entryPreviousBalance.hours,
-        previousMinutes: entryPreviousBalance.minutes,
         overtimeHours: form.overtimeHours,
         overtimeMinutes: form.overtimeMinutes,
         offsetHours: form.offsetHours,
         offsetMinutes: form.offsetMinutes,
       }),
     [
-      entryPreviousBalance.hours,
-      entryPreviousBalance.minutes,
       form.overtimeHours,
       form.overtimeMinutes,
       form.offsetHours,
@@ -460,11 +427,7 @@ const AddCtoModal = ({
                 </div>
               </div>
               <p className="text-xs text-slate-500">
-                Previous balance:{" "}
-                {formatDuration(
-                  entryPreviousBalance.hours,
-                  entryPreviousBalance.minutes,
-                )}
+                Balance = Overtime − Offset
               </p>
             </div>
           </div>

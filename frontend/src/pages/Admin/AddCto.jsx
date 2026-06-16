@@ -13,9 +13,9 @@ import {
   deleteCtoEntry,
   formatCtoDate,
   formatDuration,
-  getLatestCtoBalance,
   listCtoEntries,
   listCtoProfiles,
+  recomputeBalances,
 } from "../../utils/cto";
 
 const profileLabel = (profile) =>
@@ -55,10 +55,7 @@ const AddCto = () => {
     }
 
     setLoadingEntries(true);
-    const [{ data, error }, balanceResult] = await Promise.all([
-      listCtoEntries({ profileId }),
-      getLatestCtoBalance(profileId),
-    ]);
+    const { data, error } = await listCtoEntries({ profileId });
     setLoadingEntries(false);
 
     if (error) {
@@ -66,12 +63,22 @@ const AddCto = () => {
       return;
     }
 
-    if (balanceResult.error) {
-      toast.error(balanceResult.error.message);
-    }
+    // Always recompute balances client-side so the table is accurate even if
+    // stored values are stale (e.g. after a delete or an out-of-order insert).
+    const recomputed = recomputeBalances(data ?? []);
+    setEntries(recomputed);
 
-    setEntries(data ?? []);
-    setLatestBalance(balanceResult.data ?? { hours: 0, minutes: 0 });
+    const totalMinutes = recomputed.reduce(
+      (sum, e) =>
+        sum +
+        (Number(e.balanceHours) || 0) * 60 +
+        (Number(e.balanceMinutes) || 0),
+      0,
+    );
+    setLatestBalance({
+      hours: Math.floor(totalMinutes / 60),
+      minutes: totalMinutes % 60,
+    });
   }, []);
 
   useEffect(() => {
@@ -196,7 +203,7 @@ const AddCto = () => {
                   )
             }
             accent="emerald"
-            sublabel="Latest running balance"
+            sublabel="Total of all entry balances"
           />
         </div>
 
@@ -366,7 +373,6 @@ const AddCto = () => {
         onSuccess={handleEntryAdded}
         profiles={profiles}
         defaultProfileId={selectedProfileId}
-        previousBalance={latestBalance}
       />
     </Layout>
   );
