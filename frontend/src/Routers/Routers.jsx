@@ -26,6 +26,7 @@ import {
   Sscp,
   AddCto,
   AdminLinks,
+  UserLinks,
 } from "../pages";
 
 export const Routers = () => {
@@ -196,6 +197,14 @@ export const Routers = () => {
           element={
             <ProtectedRoutes userOnly>
               <ProjectTimeline />
+            </ProtectedRoutes>
+          }
+        />
+        <Route
+          path="/user-links"
+          element={
+            <ProtectedRoutes userOnly>
+              <UserLinks />
             </ProtectedRoutes>
           }
         />
