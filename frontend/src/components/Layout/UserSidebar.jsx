@@ -39,6 +39,12 @@ const LinksIcon = () => (
   </svg>
 );
 
+const CtoIcon = () => (
+  <svg className={iconClass} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5m-9-6h.008v.008H12v-.008zM12 15h.008v.008H12V15zm0 2.25h.008v.008H12v-.008zM9.75 15h.008v.008H9.75V15zm0 2.25h.008v.008H9.75v-.008zM7.5 15h.008v.008H7.5V15zm0 2.25h.008v.008H7.5v-.008zm6.75-4.5h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008V15zm0 2.25h.008v.008h-.008v-.008zm2.25-4.5h.008v.008H16.5v-.008zm0 2.25h.008v.008H16.5V15z" />
+  </svg>
+);
+
 const SearchIcon = () => (
   <svg className="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
@@ -107,6 +113,7 @@ const UserSidebar = () => {
     !navFilter("Project Timeline") &&
     !navFilter("Links") &&
     !navFilter("Admin Links") &&
+    !navFilter("CTO") &&
     !navFilter("Profile");
 
   return (
@@ -127,6 +134,10 @@ const UserSidebar = () => {
         <NavLink to="/user-links" className={mobileNavLinkClass}>
           <LinksIcon />
           <span className="truncate">Links</span>
+        </NavLink>
+        <NavLink to="/user-cto" className={mobileNavLinkClass}>
+          <CtoIcon />
+          <span className="truncate">CTO</span>
         </NavLink>
         <NavLink to="/user-project-timeline" className={mobileNavLinkClass}>
           <ProjectTimelineIcon />
@@ -200,6 +211,12 @@ const UserSidebar = () => {
             <NavLink to="/user-links" className={navItemClass}>
               <LinksIcon />
               <span className="truncate">Links</span>
+            </NavLink>
+          )}
+          {navFilter("CTO") && (
+            <NavLink to="/user-cto" className={navItemClass}>
+              <CtoIcon />
+              <span className="truncate">CTO</span>
             </NavLink>
           )}
 

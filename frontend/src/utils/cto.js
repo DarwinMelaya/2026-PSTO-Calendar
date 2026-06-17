@@ -56,6 +56,12 @@ export const formatCtoDate = (value) => {
   });
 };
 
+export const CTO_STATUSES = {
+  PENDING: "pending",
+  APPROVED: "approved",
+  REJECTED: "rejected",
+};
+
 const mapRow = (row) => ({
   id: row.id,
   profileId: row.profile_id,
@@ -68,6 +74,9 @@ const mapRow = (row) => ({
   offsetMinutes: row.offset_minutes,
   balanceHours: row.balance_hours,
   balanceMinutes: row.balance_minutes,
+  status: row.status ?? CTO_STATUSES.APPROVED,
+  rejectionReason: row.rejection_reason ?? null,
+  reviewedAt: row.reviewed_at ?? null,
   createdAt: row.created_at,
   profile: row.profiles ?? null,
 });
@@ -83,6 +92,7 @@ const toDbPayload = ({
   offsetMinutes,
   balanceHours,
   balanceMinutes,
+  status,
 }) => ({
   profile_id: Number(profileId),
   entry_date: entryDate,
@@ -94,7 +104,11 @@ const toDbPayload = ({
   offset_minutes: normalizeMinutesField(offsetMinutes),
   balance_hours: Number(balanceHours) || 0,
   balance_minutes: normalizeMinutesField(balanceMinutes),
+  ...(status ? { status } : {}),
 });
+
+const CTO_ENTRY_SELECT =
+  "id, profile_id, entry_date, particulars, overtime_hours, overtime_minutes, offset_date, offset_hours, offset_minutes, balance_hours, balance_minutes, status, rejection_reason, reviewed_at, created_at";
 
 export const listCtoProfiles = async () => {
   const { data, error } = await supabase
@@ -105,11 +119,16 @@ export const listCtoProfiles = async () => {
   return { data, error };
 };
 
-export const listCtoEntries = async ({ profileId } = {}) => {
+export const listCtoEntries = async ({
+  profileId,
+  status,
+  statuses,
+  includeAllStatuses = false,
+} = {}) => {
   let query = supabase
     .from("cto_entries")
     .select(
-      "id, profile_id, entry_date, particulars, overtime_hours, overtime_minutes, offset_date, offset_hours, offset_minutes, balance_hours, balance_minutes, created_at, profiles ( id, name, code_name )",
+      `${CTO_ENTRY_SELECT}, profiles ( id, name, code_name )`,
     )
     .order("entry_date", { ascending: true })
     .order("created_at", { ascending: true });
@@ -118,15 +137,27 @@ export const listCtoEntries = async ({ profileId } = {}) => {
     query = query.eq("profile_id", Number(profileId));
   }
 
+  if (status) {
+    query = query.eq("status", status);
+  } else if (statuses?.length) {
+    query = query.in("status", statuses);
+  } else if (!includeAllStatuses) {
+    query = query.eq("status", CTO_STATUSES.APPROVED);
+  }
+
   const { data, error } = await query;
   return { data: (data ?? []).map(mapRow), error };
 };
+
+export const listPendingCtoEntries = async () =>
+  listCtoEntries({ status: CTO_STATUSES.PENDING, includeAllStatuses: true });
 
 export const getLatestCtoBalance = async (profileId) => {
   const { data, error } = await supabase
     .from("cto_entries")
     .select("balance_hours, balance_minutes")
     .eq("profile_id", Number(profileId))
+    .eq("status", CTO_STATUSES.APPROVED)
     .order("entry_date", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(1)
@@ -147,13 +178,26 @@ export const getLatestCtoBalance = async (profileId) => {
 export const createCtoEntry = async (payload) => {
   const { data, error } = await supabase
     .from("cto_entries")
-    .insert(toDbPayload(payload))
-    .select(
-      "id, profile_id, entry_date, particulars, overtime_hours, overtime_minutes, offset_date, offset_hours, offset_minutes, balance_hours, balance_minutes, created_at",
+    .insert(
+      toDbPayload({
+        ...payload,
+        status: payload.status ?? CTO_STATUSES.APPROVED,
+      }),
     )
+    .select(CTO_ENTRY_SELECT)
     .single();
 
   return { data: data ? mapRow(data) : null, error };
+};
+
+export const createCtoRequest = async (payload) => {
+  const balance = computeBalance(payload);
+  return createCtoEntry({
+    ...payload,
+    balanceHours: balance.hours,
+    balanceMinutes: balance.minutes,
+    status: CTO_STATUSES.PENDING,
+  });
 };
 
 export const updateCtoEntry = async (id, payload) => {
@@ -161,9 +205,64 @@ export const updateCtoEntry = async (id, payload) => {
     .from("cto_entries")
     .update(toDbPayload(payload))
     .eq("id", Number(id))
-    .select(
-      "id, profile_id, entry_date, particulars, overtime_hours, overtime_minutes, offset_date, offset_hours, offset_minutes, balance_hours, balance_minutes, created_at",
-    )
+    .select(CTO_ENTRY_SELECT)
+    .single();
+
+  return { data: data ? mapRow(data) : null, error };
+};
+
+export const approveCtoEntry = async (id) => {
+  const { data: existing, error: fetchError } = await supabase
+    .from("cto_entries")
+    .select(CTO_ENTRY_SELECT)
+    .eq("id", Number(id))
+    .single();
+
+  if (fetchError) return { data: null, error: fetchError };
+  if (existing.status !== CTO_STATUSES.PENDING) {
+    return {
+      data: null,
+      error: { message: "This entry is no longer pending approval." },
+    };
+  }
+
+  const balance = computeBalance({
+    overtimeHours: existing.overtime_hours,
+    overtimeMinutes: existing.overtime_minutes,
+    offsetHours: existing.offset_hours,
+    offsetMinutes: existing.offset_minutes,
+  });
+
+  const { data, error } = await supabase
+    .from("cto_entries")
+    .update({
+      status: CTO_STATUSES.APPROVED,
+      balance_hours: balance.hours,
+      balance_minutes: balance.minutes,
+      rejection_reason: null,
+      reviewed_at: new Date().toISOString(),
+    })
+    .eq("id", Number(id))
+    .select(CTO_ENTRY_SELECT)
+    .single();
+
+  if (error) return { data: null, error };
+
+  await syncBalancesForProfile(existing.profile_id);
+  return { data: data ? mapRow(data) : null, error: null };
+};
+
+export const rejectCtoEntry = async (id, rejectionReason) => {
+  const { data, error } = await supabase
+    .from("cto_entries")
+    .update({
+      status: CTO_STATUSES.REJECTED,
+      rejection_reason: rejectionReason.trim(),
+      reviewed_at: new Date().toISOString(),
+    })
+    .eq("id", Number(id))
+    .eq("status", CTO_STATUSES.PENDING)
+    .select(CTO_ENTRY_SELECT)
     .single();
 
   return { data: data ? mapRow(data) : null, error };
@@ -196,13 +295,14 @@ export const recomputeBalances = (entries) => {
  * balance_minutes for the given profile so the DB stays consistent too.
  */
 export const syncBalancesForProfile = async (profileId) => {
-  // 1. Fetch all entries for this profile in chronological order
+  // 1. Fetch approved entries for this profile in chronological order
   const { data, error } = await supabase
     .from("cto_entries")
     .select(
       "id, overtime_hours, overtime_minutes, offset_hours, offset_minutes",
     )
     .eq("profile_id", Number(profileId))
+    .eq("status", CTO_STATUSES.APPROVED)
     .order("entry_date", { ascending: true })
     .order("created_at", { ascending: true });
 

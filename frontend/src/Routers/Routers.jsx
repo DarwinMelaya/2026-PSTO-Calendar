@@ -27,6 +27,7 @@ import {
   AddCto,
   AdminLinks,
   UserLinks,
+  UserCto,
 } from "../pages";
 
 export const Routers = () => {
@@ -205,6 +206,14 @@ export const Routers = () => {
           element={
             <ProtectedRoutes userOnly>
               <UserLinks />
+            </ProtectedRoutes>
+          }
+        />
+        <Route
+          path="/user-cto"
+          element={
+            <ProtectedRoutes userOnly>
+              <UserCto />
             </ProtectedRoutes>
           }
         />

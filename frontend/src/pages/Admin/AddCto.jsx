@@ -11,6 +11,7 @@ import {
   YAxis,
 } from "recharts";
 import AddCtoModal from "../../components/Modals/AdminModals/AddCtoModal";
+import CtoRejectModal from "../../components/Modals/AdminModals/CtoRejectModal";
 import Layout from "../../components/Layout/Layout";
 import {
   EmptyIllustration,
@@ -20,12 +21,15 @@ import {
   TableSkeleton,
 } from "../../components/User/UserWorkspaceUI";
 import {
+  approveCtoEntry,
   deleteCtoEntry,
   formatCtoDate,
   formatDuration,
   listCtoEntries,
   listCtoProfiles,
+  listPendingCtoEntries,
   recomputeBalances,
+  rejectCtoEntry,
 } from "../../utils/cto";
 
 /**
@@ -551,6 +555,10 @@ const AddCto = () => {
   const [allBalances, setAllBalances] = useState({});
   const [loadingAllBalances, setLoadingAllBalances] = useState(false);
   const [expiringEntries, setExpiringEntries] = useState([]);
+  const [pendingEntries, setPendingEntries] = useState([]);
+  const [loadingPending, setLoadingPending] = useState(false);
+  const [resolvingId, setResolvingId] = useState(null);
+  const [rejectTarget, setRejectTarget] = useState(null);
 
   const loadProfiles = useCallback(async () => {
     setLoadingProfiles(true);
@@ -623,6 +631,19 @@ const AddCto = () => {
     setExpiringEntries(expiring);
   }, []);
 
+  const loadPendingEntries = useCallback(async () => {
+    setLoadingPending(true);
+    const { data, error } = await listPendingCtoEntries();
+    setLoadingPending(false);
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    setPendingEntries(data ?? []);
+  }, []);
+
   const loadEntries = useCallback(async (profileId) => {
     if (!profileId) {
       setEntries([]);
@@ -660,7 +681,8 @@ const AddCto = () => {
   useEffect(() => {
     loadProfiles();
     loadAllBalances();
-  }, [loadProfiles, loadAllBalances]);
+    loadPendingEntries();
+  }, [loadProfiles, loadAllBalances, loadPendingEntries]);
 
   useEffect(() => {
     loadEntries(selectedProfileId);
@@ -707,7 +729,53 @@ const AddCto = () => {
   const handleEntryAdded = () => {
     loadEntries(selectedProfileId);
     loadAllBalances();
+    loadPendingEntries();
   };
+
+  const handleApprovePending = async (entry) => {
+    setResolvingId(entry.id);
+    const { error } = await approveCtoEntry(entry.id);
+    setResolvingId(null);
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    toast.success("CTO request approved.");
+    loadPendingEntries();
+    loadAllBalances();
+    if (String(entry.profileId) === String(selectedProfileId)) {
+      loadEntries(selectedProfileId);
+    }
+  };
+
+  const handleRejectPending = async (rejectionReason) => {
+    const entry = rejectTarget;
+    if (!entry) return;
+
+    setResolvingId(entry.id);
+    const { error } = await rejectCtoEntry(entry.id, rejectionReason);
+    setResolvingId(null);
+    setRejectTarget(null);
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    toast.success("CTO request rejected.");
+    loadPendingEntries();
+  };
+
+  const pendingProfileLabel = (entry) =>
+    entry.profile
+      ? profileLabel(entry.profile)
+      : profiles.find((p) => String(p.id) === String(entry.profileId))
+        ? profileLabel(
+            profiles.find((p) => String(p.id) === String(entry.profileId)),
+          )
+        : `User #${entry.profileId}`;
 
   const todayLabel = useMemo(
     () =>
@@ -743,6 +811,7 @@ const AddCto = () => {
                   loadProfiles();
                   loadEntries(selectedProfileId);
                   loadAllBalances();
+                  loadPendingEntries();
                 }}
                 className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
               >
@@ -759,6 +828,105 @@ const AddCto = () => {
             </div>
           </div>
         </section>
+
+        {pendingEntries.length > 0 || loadingPending ? (
+          <section className="ut-animate-in overflow-hidden rounded-3xl border border-amber-200/80 bg-amber-50/40 shadow-lg shadow-amber-100/40 ring-1 ring-amber-900/[0.06]">
+            <div className="flex items-start gap-3 border-b border-amber-200/60 bg-amber-50 px-5 py-4 sm:px-6">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-md shadow-amber-400/30">
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <h2 className="text-sm font-bold text-amber-900">
+                  Pending CTO requests
+                  {!loadingPending && (
+                    <span className="ml-2 inline-flex items-center rounded-full bg-amber-600 px-2 py-0.5 text-xs font-bold text-white">
+                      {pendingEntries.length}
+                    </span>
+                  )}
+                </h2>
+                <p className="mt-0.5 text-xs text-amber-800">
+                  User-submitted entries awaiting your approval.
+                </p>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto px-5 py-3 sm:px-6">
+              {loadingPending ? (
+                <TableSkeleton rows={2} />
+              ) : (
+                <table className="w-full min-w-[900px] border-separate border-spacing-y-2 text-left text-sm">
+                  <thead>
+                    <tr>
+                      <th className="rounded-l-xl bg-slate-900 px-4 py-3 text-xs font-semibold uppercase tracking-wider text-white">
+                        Person
+                      </th>
+                      <th className="bg-slate-900 px-4 py-3 text-xs font-semibold uppercase tracking-wider text-white">
+                        Date
+                      </th>
+                      <th className="bg-slate-900 px-4 py-3 text-xs font-semibold uppercase tracking-wider text-white">
+                        Particulars
+                      </th>
+                      <th className="bg-slate-900 px-4 py-3 text-xs font-semibold uppercase tracking-wider text-white">
+                        Overtime
+                      </th>
+                      <th className="rounded-r-xl bg-slate-900 px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-white">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pendingEntries.map((entry) => (
+                      <tr key={entry.id}>
+                        <td className="rounded-l-xl bg-white px-4 py-3 font-semibold text-slate-900 ring-1 ring-slate-200/80">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedProfileId(String(entry.profileId))}
+                            className="hover:text-teal-700 hover:underline"
+                          >
+                            {pendingProfileLabel(entry)}
+                          </button>
+                        </td>
+                        <td className="bg-white px-4 py-3 text-slate-700 ring-1 ring-slate-200/80">
+                          {formatCtoDate(entry.entryDate)}
+                        </td>
+                        <td className="max-w-xs bg-white px-4 py-3 text-slate-700 ring-1 ring-slate-200/80">
+                          <p className="line-clamp-2 whitespace-pre-wrap">
+                            {entry.particulars}
+                          </p>
+                        </td>
+                        <td className="whitespace-nowrap bg-white px-4 py-3 text-slate-700 ring-1 ring-slate-200/80">
+                          {formatDuration(entry.overtimeHours, entry.overtimeMinutes)}
+                        </td>
+                        <td className="rounded-r-xl bg-white px-4 py-3 text-right ring-1 ring-slate-200/80">
+                          <div className="flex justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleApprovePending(entry)}
+                              disabled={resolvingId === entry.id}
+                              className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
+                            >
+                              {resolvingId === entry.id ? "Saving…" : "Approve"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setRejectTarget(entry)}
+                              disabled={resolvingId === entry.id}
+                              className="rounded-lg border border-amber-100 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100 disabled:opacity-50"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </section>
+        ) : null}
 
         <div className="ut-animate-in ut-delay-1 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           <StatCard
@@ -998,6 +1166,14 @@ const AddCto = () => {
         profiles={profiles}
         defaultProfileId={selectedProfileId}
         editEntry={editEntry}
+      />
+
+      <CtoRejectModal
+        isOpen={!!rejectTarget}
+        entry={rejectTarget}
+        onClose={() => setRejectTarget(null)}
+        onConfirm={handleRejectPending}
+        submitting={rejectTarget ? resolvingId === rejectTarget.id : false}
       />
     </Layout>
   );

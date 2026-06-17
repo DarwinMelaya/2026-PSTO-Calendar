@@ -13,6 +13,9 @@ create table if not exists public.cto_entries (
   offset_minutes integer not null default 0,
   balance_hours integer not null default 0,
   balance_minutes integer not null default 0,
+  status text not null default 'approved',
+  rejection_reason text null,
+  reviewed_at timestamp with time zone null,
   created_at timestamp with time zone null default now(),
   constraint cto_entries_pkey primary key (id),
   constraint cto_entries_profile_id_fkey foreign key (profile_id)
@@ -25,11 +28,15 @@ create table if not exists public.cto_entries (
   ),
   constraint cto_entries_balance_minutes_check check (
     balance_minutes >= 0 and balance_minutes < 60
+  ),
+  constraint cto_entries_status_check check (
+    status = any (array['pending'::text, 'approved'::text, 'rejected'::text])
   )
 ) tablespace pg_default;
 
 create index if not exists cto_entries_profile_id_idx on public.cto_entries (profile_id);
 create index if not exists cto_entries_entry_date_idx on public.cto_entries (entry_date);
+create index if not exists cto_entries_status_idx on public.cto_entries (status);
 
 alter table public.cto_entries disable row level security;
 
