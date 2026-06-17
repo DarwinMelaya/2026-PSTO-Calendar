@@ -32,6 +32,8 @@ const COMPLETED_AT_PREFIX = "[[COMPLETED_AT:";
 const COMPLETED_AT_SUFFIX = "]]";
 const PROOF_URL_PREFIX = "[[PROOF_URL:";
 const PROOF_URL_SUFFIX = "]]";
+const REJECTION_INFO_PREFIX = "[[REJECTION_INFO:";
+const REJECTION_INFO_SUFFIX = "]]";
 const SUB_TASKS_PREFIX = "[[SUB_TASKS:";
 const SUB_TASKS_SUFFIX = "]]";
 const INSTRUCTION_IMAGE_PREFIX = "[[INSTRUCTION_IMAGE:";
@@ -150,6 +152,8 @@ export const parseTaskRemarks = (remarks) => {
       groupKey: null,
       completedAt: null,
       proofUrl: null,
+      rejectionRemarks: null,
+      rejectedStatus: null,
     };
 
   const lines = raw
@@ -161,6 +165,8 @@ export const parseTaskRemarks = (remarks) => {
   let groupKey = null;
   let completedAt = null;
   let proofUrl = null;
+  let rejectionRemarks = null;
+  let rejectedStatus = null;
   const cleanLines = [];
 
   for (const line of lines) {
@@ -202,6 +208,25 @@ export const parseTaskRemarks = (remarks) => {
       proofUrl = value || null;
       continue;
     }
+    if (
+      line.startsWith(REJECTION_INFO_PREFIX) &&
+      line.endsWith(REJECTION_INFO_SUFFIX)
+    ) {
+      const payload = line.slice(
+        REJECTION_INFO_PREFIX.length,
+        line.length - REJECTION_INFO_SUFFIX.length,
+      );
+      try {
+        const parsed = JSON.parse(payload);
+        rejectionRemarks =
+          typeof parsed?.remarks === "string" ? parsed.remarks.trim() : null;
+        rejectedStatus =
+          typeof parsed?.status === "string" ? parsed.status.trim() : null;
+      } catch {
+        // ignore malformed marker
+      }
+      continue;
+    }
     cleanLines.push(line);
   }
 
@@ -211,6 +236,8 @@ export const parseTaskRemarks = (remarks) => {
     groupKey,
     completedAt,
     proofUrl,
+    rejectionRemarks: rejectionRemarks || null,
+    rejectedStatus: rejectedStatus || null,
   };
 };
 
@@ -220,8 +247,15 @@ const composeTaskRemarks = ({
   groupKey,
   completedAt,
   proofUrl,
+  rejectionRemarks,
+  rejectedStatus,
 }) => {
-  const { cleanRemarks } = parseTaskRemarks(remarks);
+  const parsed = parseTaskRemarks(remarks);
+  const cleanRemarks = parsed.cleanRemarks;
+  const effectiveRejectionRemarks =
+    rejectionRemarks !== undefined ? rejectionRemarks : parsed.rejectionRemarks;
+  const effectiveRejectedStatus =
+    rejectedStatus !== undefined ? rejectedStatus : parsed.rejectedStatus;
   const marker = requestedStatus
     ? `${STATUS_REQUEST_PREFIX}${requestedStatus}${STATUS_REQUEST_SUFFIX}`
     : "";
@@ -234,6 +268,13 @@ const composeTaskRemarks = ({
   const proofMarker = proofUrl
     ? `${PROOF_URL_PREFIX}${proofUrl}${PROOF_URL_SUFFIX}`
     : "";
+  const rejectionMarker =
+    effectiveRejectionRemarks || effectiveRejectedStatus
+      ? `${REJECTION_INFO_PREFIX}${JSON.stringify({
+          status: effectiveRejectedStatus || null,
+          remarks: effectiveRejectionRemarks?.trim() || "",
+        })}${REJECTION_INFO_SUFFIX}`
+      : "";
 
   const parts = [
     cleanRemarks.trim(),
@@ -241,6 +282,7 @@ const composeTaskRemarks = ({
     groupMarker,
     completedMarker,
     proofMarker,
+    rejectionMarker,
   ].filter(Boolean);
   return parts.length > 0 ? parts.join("\n") : null;
 };
@@ -533,6 +575,8 @@ export const updateTask = async (
     groupKey: effectiveGroupKey,
     completedAt: effectiveCompletedAt,
     proofUrl: existingMeta.proofUrl,
+    rejectionRemarks: existingMeta.rejectionRemarks,
+    rejectedStatus: existingMeta.rejectedStatus,
   });
 
   const basePayload = {
@@ -626,6 +670,8 @@ export const updateTaskRemarks = async (id, { cleanRemarks, existingRemarks }) =
         groupKey: meta.groupKey,
         completedAt: meta.completedAt,
         proofUrl: meta.proofUrl,
+        rejectionRemarks: meta.rejectionRemarks,
+        rejectedStatus: meta.rejectedStatus,
       }),
     })
     .eq("id", id)
@@ -651,6 +697,8 @@ export const requestTaskStatusChange = async (
         groupKey: groupKey ?? existingMeta.groupKey,
         completedAt: existingMeta.completedAt,
         proofUrl: proofUrl ?? existingMeta.proofUrl,
+        rejectionRemarks: null,
+        rejectedStatus: null,
       }),
     })
     .eq("id", id)
@@ -685,6 +733,8 @@ export const approveTaskStatusRequest = async ({ id, remarks }) => {
             ? completedAt || new Date().toISOString()
             : null,
         proofUrl,
+        rejectionRemarks: null,
+        rejectedStatus: null,
       }),
     })
     .eq("id", id)
@@ -696,9 +746,24 @@ export const approveTaskStatusRequest = async ({ id, remarks }) => {
   return { data, error };
 };
 
-export const rejectTaskStatusRequest = async ({ id, remarks }) => {
-  const { cleanRemarks, groupKey, completedAt, proofUrl } =
-    parseTaskRemarks(remarks);
+export const rejectTaskStatusRequest = async (
+  { id, remarks },
+  { rejectionRemarks } = {},
+) => {
+  const {
+    cleanRemarks,
+    groupKey,
+    completedAt,
+    proofUrl,
+    requestedStatus,
+  } = parseTaskRemarks(remarks);
+  const trimmedRejection = rejectionRemarks?.trim();
+  if (!trimmedRejection) {
+    return {
+      data: null,
+      error: { message: "Please enter remarks explaining why the request was rejected." },
+    };
+  }
   const { data, error } = await supabase
     .from("tasks")
     .update({
@@ -708,6 +773,8 @@ export const rejectTaskStatusRequest = async ({ id, remarks }) => {
         groupKey,
         completedAt,
         proofUrl,
+        rejectionRemarks: trimmedRejection,
+        rejectedStatus: requestedStatus,
       }),
     })
     .eq("id", id)

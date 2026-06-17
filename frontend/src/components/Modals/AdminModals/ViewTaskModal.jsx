@@ -184,6 +184,20 @@ const ViewTaskModal = ({ isOpen, onClose, task }) => {
           ) : null}
           <DetailBlock label="Remarks">{task.cleanRemarks || "—"}</DetailBlock>
 
+          {task.rejectionRemarks ? (
+            <div className="rounded-xl border border-rose-200/90 bg-rose-50/80 px-4 py-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-rose-900">
+                Request rejected
+                {task.rejectedStatus
+                  ? `: ${statusLabel(task.rejectedStatus)}`
+                  : ""}
+              </p>
+              <p className="mt-2 text-sm leading-relaxed text-rose-950 whitespace-pre-wrap">
+                {task.rejectionRemarks}
+              </p>
+            </div>
+          ) : null}
+
           {proofEntries.length > 0 ? (
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">

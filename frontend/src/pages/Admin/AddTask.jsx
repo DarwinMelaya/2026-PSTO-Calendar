@@ -4,6 +4,7 @@ import AddTaskModal from "../../components/Modals/AdminModals/AddTaskModal";
 import EditTaskModal from "../../components/Modals/AdminModals/EditTaskModal";
 import OwnerOpenTasksModal from "../../components/Modals/AdminModals/OwnerOpenTasksModal";
 import ViewTaskModal from "../../components/Modals/AdminModals/ViewTaskModal";
+import RejectRequestModal from "../../components/Modals/AdminModals/Dashboard/RejectRequestModal";
 import Layout from "../../components/Layout/Layout";
 import PriorityBadge from "../../components/Task/PriorityBadge";
 import {
@@ -249,6 +250,7 @@ const AddTask = () => {
   const [taskToView, setTaskToView] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [resolvingRequestId, setResolvingRequestId] = useState(null);
+  const [rejectTarget, setRejectTarget] = useState(null);
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [tablePage, setTablePage] = useState(1);
   const [selectedOwnerId, setSelectedOwnerId] = useState(null);
@@ -580,13 +582,16 @@ const AddTask = () => {
     loadTasks();
   };
 
-  const handleRejectRequest = async (task) => {
-    const requestStatus = task.requestedStatus;
-    if (!requestStatus) return;
+  const handleRejectRequest = async (rejectionRemarks) => {
+    const task = rejectTarget;
+    const requestStatus = task?.requestedStatus;
+    if (!task || !requestStatus) return;
 
     setResolvingRequestId(task.id);
     for (const member of task.members ?? []) {
-      const { error } = await rejectTaskStatusRequest(member);
+      const { error } = await rejectTaskStatusRequest(member, {
+        rejectionRemarks,
+      });
       if (error) {
         setResolvingRequestId(null);
         toast.error(error.message);
@@ -594,6 +599,7 @@ const AddTask = () => {
       }
     }
     setResolvingRequestId(null);
+    setRejectTarget(null);
 
     toast.success("Status request rejected.");
     loadTasks();
@@ -1400,7 +1406,7 @@ const AddTask = () => {
                               </button>
                               <button
                                 type="button"
-                                onClick={() => handleRejectRequest(task)}
+                                onClick={() => setRejectTarget(task)}
                                 disabled={resolvingRequestId === task.id}
                                 className="rounded-lg border border-amber-100 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 shadow-sm transition hover:border-amber-200 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
                               >
@@ -1501,6 +1507,14 @@ const AddTask = () => {
         ownerLabel={selectedOwner?.label}
         tasks={incompleteTasksForOwner}
         onRefresh={loadTasks}
+      />
+
+      <RejectRequestModal
+        isOpen={!!rejectTarget}
+        task={rejectTarget}
+        onClose={() => setRejectTarget(null)}
+        onConfirm={handleRejectRequest}
+        submitting={rejectTarget ? resolvingRequestId === rejectTarget.id : false}
       />
     </Layout>
   );

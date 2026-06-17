@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import EditTaskModal from "../EditTaskModal";
 import DashboardTaskListModal from "./DashboardTaskListModal";
+import RejectRequestModal from "./RejectRequestModal";
 import { groupDashboardTasks } from "./groupDashboardTasks";
 import { sendTaskFollowUpNotifications } from "../../../../utils/notification";
 import { getSession } from "../../../../utils/session";
@@ -35,6 +36,7 @@ const DashboardTaskListWithActions = ({
   const [followingUpAll, setFollowingUpAll] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [taskToEdit, setTaskToEdit] = useState(null);
+  const [rejectTarget, setRejectTarget] = useState(null);
 
   const senderLabel = useMemo(() => {
     const session = getSession();
@@ -99,13 +101,16 @@ const DashboardTaskListWithActions = ({
     onRefresh?.();
   };
 
-  const handleRejectRequest = async (task) => {
-    const requestStatus = task.requestedStatus;
-    if (!requestStatus) return;
+  const handleRejectRequest = async (rejectionRemarks) => {
+    const task = rejectTarget;
+    const requestStatus = task?.requestedStatus;
+    if (!task || !requestStatus) return;
 
     setResolvingRequestId(task.id);
     for (const member of task.members ?? []) {
-      const { error } = await rejectTaskStatusRequest(member);
+      const { error } = await rejectTaskStatusRequest(member, {
+        rejectionRemarks,
+      });
       if (error) {
         setResolvingRequestId(null);
         toast.error(error.message);
@@ -113,6 +118,7 @@ const DashboardTaskListWithActions = ({
       }
     }
     setResolvingRequestId(null);
+    setRejectTarget(null);
 
     toast.success("Status request rejected.");
     onRefresh?.();
@@ -233,7 +239,7 @@ const DashboardTaskListWithActions = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleRejectRequest(task)}
+                  onClick={() => setRejectTarget(task)}
                   disabled={busy}
                   className="rounded-lg border border-amber-100 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 shadow-sm transition hover:border-amber-200 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
                 >
@@ -283,6 +289,14 @@ const DashboardTaskListWithActions = ({
         task={taskToEdit}
         onClose={closeEdit}
         onSuccess={handleEditSuccess}
+      />
+
+      <RejectRequestModal
+        isOpen={!!rejectTarget}
+        task={rejectTarget}
+        onClose={() => setRejectTarget(null)}
+        onConfirm={handleRejectRequest}
+        submitting={rejectTarget ? resolvingRequestId === rejectTarget.id : false}
       />
     </>
   );

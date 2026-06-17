@@ -354,6 +354,8 @@ const UserTask = () => {
       cleanRemarks: remarksForTask(task).trim() || meta.cleanRemarks,
       requestedStatus: meta.requestedStatus,
       proofUrl: meta.proofUrl,
+      rejectionRemarks: meta.rejectionRemarks,
+      rejectedStatus: meta.rejectedStatus,
       instructionImageUrl,
       responsibleLabels: codeName ? [codeName] : ["—"],
     };
@@ -1348,6 +1350,22 @@ const UserTask = () => {
                             Pending admin approval:{" "}
                             {statusLabel(pendingRequest)}
                           </p>
+                        ) : null}
+                        {!pendingRequest && taskMeta.rejectionRemarks ? (
+                          <div className="mt-2 w-full min-w-[12rem] rounded-lg border border-rose-200/90 bg-rose-50/80 p-2 text-left">
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-rose-900">
+                              Request rejected
+                              {taskMeta.rejectedStatus
+                                ? `: ${statusLabel(taskMeta.rejectedStatus)}`
+                                : ""}
+                            </p>
+                            <p className="mt-1 text-xs leading-relaxed text-rose-950 whitespace-pre-wrap">
+                              {taskMeta.rejectionRemarks}
+                            </p>
+                            <p className="mt-1.5 text-[10px] font-medium text-rose-800/80">
+                              Update your work and submit a new request.
+                            </p>
+                          </div>
                         ) : null}
                       </td>
                     </tr>
