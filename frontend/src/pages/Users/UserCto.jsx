@@ -51,6 +51,7 @@ const UserCto = () => {
   const [loadingRequests, setLoadingRequests] = useState(true);
   const [requestModalOpen, setRequestModalOpen] = useState(false);
   const [cancellingId, setCancellingId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
   const loadApproved = useCallback(async () => {
     if (!profileId) {
@@ -139,6 +140,22 @@ const UserCto = () => {
     }
 
     toast.success("Request cancelled.");
+    refresh();
+  };
+
+  const handleDeleteApproved = async (entry) => {
+    if (!window.confirm("Delete this approved CTO entry? This cannot be undone.")) return;
+
+    setDeletingId(entry.id);
+    const { error } = await deleteCtoEntry(entry.id);
+    setDeletingId(null);
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    toast.success("Entry deleted.");
     refresh();
   };
 
@@ -298,6 +315,15 @@ const UserCto = () => {
                                 ? "Cancelling…"
                                 : "Cancel"}
                             </button>
+                          ) : entry.status === CTO_STATUSES.REJECTED ? (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteApproved(entry)}
+                              disabled={deletingId === entry.id}
+                              className="rounded-lg px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+                            >
+                              {deletingId === entry.id ? "Deleting…" : "Delete"}
+                            </button>
                           ) : (
                             <span className="text-xs text-slate-400">—</span>
                           )}
@@ -367,8 +393,11 @@ const UserCto = () => {
                     <th className="bg-slate-900 px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-white">
                       Offset
                     </th>
-                    <th className="rounded-r-xl bg-slate-900 px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-white">
+                    <th className="bg-slate-900 px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-white">
                       Balance
+                    </th>
+                    <th className="rounded-r-xl bg-slate-900 px-4 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-white">
+                      Actions
                     </th>
                   </tr>
                 </thead>
@@ -395,11 +424,21 @@ const UserCto = () => {
                       <td className="whitespace-nowrap bg-white px-4 py-4 text-slate-700 ring-1 ring-slate-200/80">
                         {formatDuration(entry.offsetHours, entry.offsetMinutes)}
                       </td>
-                      <td className="rounded-r-xl bg-white px-4 py-4 font-semibold text-emerald-800 ring-1 ring-slate-200/80">
+                      <td className="whitespace-nowrap bg-white px-4 py-4 font-semibold text-emerald-800 ring-1 ring-slate-200/80">
                         {formatDuration(
                           entry.balanceHours,
                           entry.balanceMinutes,
                         )}
+                      </td>
+                      <td className="rounded-r-xl bg-white px-4 py-4 text-right ring-1 ring-slate-200/80">
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteApproved(entry)}
+                          disabled={deletingId === entry.id}
+                          className="rounded-lg px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+                        >
+                          {deletingId === entry.id ? "Deleting…" : "Delete"}
+                        </button>
                       </td>
                     </tr>
                   ))}

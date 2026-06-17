@@ -817,14 +817,6 @@ const AddCto = () => {
               >
                 Refresh
               </button>
-              <button
-                type="button"
-                onClick={() => setAddModalOpen(true)}
-                disabled={!profiles.length}
-                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-teal-600/25 hover:from-teal-700 hover:to-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Add CTO entry
-              </button>
             </div>
           </div>
         </section>
@@ -1068,15 +1060,8 @@ const AddCto = () => {
                           No CTO entries yet
                         </p>
                         <p className="mt-2 text-sm leading-relaxed text-slate-500">
-                          Add the first record for {profileLabel(selectedProfile)}.
+                          {profileLabel(selectedProfile)} hasn't submitted any CTO requests yet.
                         </p>
-                        <button
-                          type="button"
-                          onClick={() => setAddModalOpen(true)}
-                          className="mt-6 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-teal-600/25 hover:from-teal-700 hover:to-emerald-700"
-                        >
-                          Add first entry
-                        </button>
                       </div>
                     </td>
                   </tr>
