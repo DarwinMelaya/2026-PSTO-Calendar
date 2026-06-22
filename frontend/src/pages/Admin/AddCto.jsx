@@ -564,6 +564,7 @@ const AddCto = () => {
   const [resolvingId, setResolvingId] = useState(null);
   const [rejectTarget, setRejectTarget] = useState(null);
   const [exportingPdf, setExportingPdf] = useState(false);
+  const [lightboxUrl, setLightboxUrl] = useState(null); // image lightbox
 
   const loadProfiles = useCallback(async () => {
     setLoadingProfiles(true);
@@ -859,6 +860,20 @@ const AddCto = () => {
                   ? "Export PDF"
                   : "Export All PDF"}
               </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditEntry(null);
+                  setAddModalOpen(true);
+                }}
+                disabled={loadingProfiles}
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-teal-600/25 transition hover:from-teal-700 hover:to-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                Add CTO
+              </button>
             </div>
           </div>
         </section>
@@ -1045,7 +1060,7 @@ const AddCto = () => {
           />
 
           <div className="overflow-x-auto bg-slate-50/30 p-2 sm:p-3">
-            <table className="w-full min-w-[1100px] border-separate border-spacing-y-2 text-left text-sm">
+            <table className="w-full min-w-[1300px] border-separate border-spacing-y-2 text-left text-sm">
               <thead>
                 <tr>
                   <th className="whitespace-nowrap rounded-l-xl bg-slate-900 px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-white">
@@ -1066,6 +1081,12 @@ const AddCto = () => {
                   <th className="whitespace-nowrap bg-slate-900 px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-white">
                     Balance
                   </th>
+                  <th className="whitespace-nowrap bg-slate-900 px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-white">
+                    Remarks
+                  </th>
+                  <th className="whitespace-nowrap bg-slate-900 px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-white">
+                    Attachment
+                  </th>
                   <th className="whitespace-nowrap rounded-r-xl bg-slate-900 px-4 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-white">
                     Actions
                   </th>
@@ -1074,7 +1095,7 @@ const AddCto = () => {
               <tbody>
                 {!selectedProfileId ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-20">
+                    <td colSpan={9} className="px-6 py-20">
                       <div className="mx-auto flex max-w-md flex-col items-center text-center">
                         <EmptyIllustration />
                         <p className="mt-6 text-lg font-bold text-slate-900">
@@ -1089,13 +1110,13 @@ const AddCto = () => {
                   </tr>
                 ) : loadingEntries ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-8">
+                    <td colSpan={9} className="px-6 py-8">
                       <TableSkeleton rows={4} />
                     </td>
                   </tr>
                 ) : entries.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-20">
+                    <td colSpan={9} className="px-6 py-20">
                       <div className="mx-auto flex max-w-md flex-col items-center text-center">
                         <EmptyIllustration />
                         <p className="mt-6 text-lg font-bold text-slate-900">
@@ -1154,6 +1175,40 @@ const AddCto = () => {
                       <td className="whitespace-nowrap bg-white px-4 py-4 font-semibold text-emerald-800 ring-1 ring-slate-200/80">
                         {formatDuration(entry.balanceHours, entry.balanceMinutes)}
                       </td>
+                      {/* Remarks */}
+                      <td className="max-w-[180px] bg-white px-4 py-4 text-slate-600 ring-1 ring-slate-200/80">
+                        {entry.remarks ? (
+                          <p className="line-clamp-2 whitespace-pre-wrap text-xs">
+                            {entry.remarks}
+                          </p>
+                        ) : (
+                          <span className="text-xs text-slate-300">—</span>
+                        )}
+                      </td>
+                      {/* Attachment */}
+                      <td className="bg-white px-4 py-4 ring-1 ring-slate-200/80">
+                        {entry.imageUrl ? (
+                          <button
+                            type="button"
+                            onClick={() => setLightboxUrl(entry.imageUrl)}
+                            className="group relative flex h-12 w-16 overflow-hidden rounded-lg border border-slate-200 shadow-sm transition hover:border-teal-400 hover:shadow-md"
+                            aria-label="View attachment"
+                          >
+                            <img
+                              src={entry.imageUrl}
+                              alt="Attachment"
+                              className="h-full w-full object-cover transition group-hover:scale-105"
+                            />
+                            <span className="absolute inset-0 flex items-center justify-center bg-black/0 transition group-hover:bg-black/20">
+                              <svg className="h-4 w-4 text-white opacity-0 transition group-hover:opacity-100" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607zM10.5 7.5v6m3-3h-6" />
+                              </svg>
+                            </span>
+                          </button>
+                        ) : (
+                          <span className="text-xs text-slate-300">—</span>
+                        )}
+                      </td>
                       <td className="rounded-r-xl bg-white px-4 py-4 text-right ring-1 ring-slate-200/80">
                         <div className="flex items-center justify-end gap-1">
                           <button
@@ -1202,6 +1257,34 @@ const AddCto = () => {
         onConfirm={handleRejectPending}
         submitting={rejectTarget ? resolvingId === rejectTarget.id : false}
       />
+
+      {/* Image lightbox */}
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Image preview"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <button
+            type="button"
+            className="absolute right-4 top-4 rounded-full bg-white/10 p-2 text-white hover:bg-white/20"
+            onClick={() => setLightboxUrl(null)}
+            aria-label="Close preview"
+          >
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          <img
+            src={lightboxUrl}
+            alt="Full attachment"
+            className="max-h-[90vh] max-w-[90vw] rounded-xl object-contain shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </Layout>
   );
 };

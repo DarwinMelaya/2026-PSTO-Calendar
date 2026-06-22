@@ -1,3 +1,4 @@
+import { compressImage } from "./compressImage";
 import supabase from "./supabaseClient";
 
 export const toTotalMinutes = (hours, minutes) =>
@@ -79,6 +80,8 @@ const mapRow = (row) => ({
   reviewedAt: row.reviewed_at ?? null,
   createdAt: row.created_at,
   profile: row.profiles ?? null,
+  imageUrl: row.image_url ?? null,
+  remarks: row.remarks ?? null,
 });
 
 const toDbPayload = ({
@@ -93,6 +96,8 @@ const toDbPayload = ({
   balanceHours,
   balanceMinutes,
   status,
+  imageUrl,
+  remarks,
 }) => ({
   profile_id: Number(profileId),
   entry_date: entryDate,
@@ -105,10 +110,64 @@ const toDbPayload = ({
   balance_hours: Number(balanceHours) || 0,
   balance_minutes: normalizeMinutesField(balanceMinutes),
   ...(status ? { status } : {}),
+  image_url: imageUrl ?? null,
+  remarks: remarks?.trim() || null,
 });
 
 const CTO_ENTRY_SELECT =
-  "id, profile_id, entry_date, particulars, overtime_hours, overtime_minutes, offset_date, offset_hours, offset_minutes, balance_hours, balance_minutes, status, rejection_reason, reviewed_at, created_at";
+  "id, profile_id, entry_date, particulars, overtime_hours, overtime_minutes, offset_date, offset_hours, offset_minutes, balance_hours, balance_minutes, status, rejection_reason, reviewed_at, created_at, image_url, remarks";
+
+// ─── CTO Image Storage ────────────────────────────────────────────────────────
+const CTO_IMAGE_BUCKET = "cto-attachments";
+
+/** Returns the storage path from a full public URL, or null. */
+const ctoImagePathFromUrl = (url) => {
+  if (!url) return null;
+  const marker = `/storage/v1/object/public/${CTO_IMAGE_BUCKET}/`;
+  const index = url.indexOf(marker);
+  if (index === -1) return null;
+  return url.slice(index + marker.length);
+};
+
+/**
+ * Uploads a file to the cto-attachments bucket.
+ * Compresses before upload. Returns { url, error }.
+ */
+export const uploadCtoImage = async (file) => {
+  if (!file) return { url: null, error: null };
+
+  let uploadFile = file;
+  try {
+    uploadFile = await compressImage(file);
+  } catch (err) {
+    return { url: null, error: { message: err?.message ?? "Failed to compress image." } };
+  }
+
+  const safeName = uploadFile.name.replace(/[^\w.\-]+/g, "_");
+  const path = `${Date.now()}-${Math.random().toString(36).slice(2)}-${safeName}`;
+
+  const { data, error } = await supabase.storage
+    .from(CTO_IMAGE_BUCKET)
+    .upload(path, uploadFile, { upsert: false, contentType: uploadFile.type });
+
+  if (error) return { url: null, error };
+
+  const { data: urlData } = supabase.storage
+    .from(CTO_IMAGE_BUCKET)
+    .getPublicUrl(data.path);
+
+  return { url: urlData?.publicUrl ?? null, error: null };
+};
+
+/**
+ * Removes a previously-uploaded CTO image from storage.
+ */
+export const deleteCtoImage = async (url) => {
+  const path = ctoImagePathFromUrl(url);
+  if (!path) return { error: null };
+  const { error } = await supabase.storage.from(CTO_IMAGE_BUCKET).remove([path]);
+  return { error };
+};
 
 export const listCtoProfiles = async () => {
   const { data, error } = await supabase
@@ -269,10 +328,23 @@ export const rejectCtoEntry = async (id, rejectionReason) => {
 };
 
 export const deleteCtoEntry = async (id) => {
+  // Fetch the entry first so we can clean up its image from storage
+  const { data: existing } = await supabase
+    .from("cto_entries")
+    .select("image_url")
+    .eq("id", Number(id))
+    .maybeSingle();
+
   const { error } = await supabase
     .from("cto_entries")
     .delete()
     .eq("id", Number(id));
+
+  if (!error && existing?.image_url) {
+    // Best-effort cleanup — don't block on storage errors
+    await deleteCtoImage(existing.image_url).catch(() => {});
+  }
+
   return { error };
 };
 

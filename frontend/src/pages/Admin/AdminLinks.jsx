@@ -23,8 +23,10 @@ const formatDate = (value) => {
 
 const getFaviconUrl = (url) => {
   try {
-    const { hostname } = new URL(url);
-    return `https://www.google.com/s2/favicons?domain=${hostname}&sz=32`;
+    const parsed = new URL(url);
+    // Normalize to https so Google's favicon service resolves correctly
+    parsed.protocol = "https:";
+    return `https://www.google.com/s2/favicons?domain=${parsed.hostname}&sz=32`;
   } catch {
     return null;
   }

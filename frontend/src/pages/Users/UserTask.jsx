@@ -175,6 +175,7 @@ const UserTask = () => {
   const [taskToEdit, setTaskToEdit] = useState(null);
   const [taskToView, setTaskToView] = useState(null);
   const [expandedInstructionUrl, setExpandedInstructionUrl] = useState(null);
+  const [expandedProofUrl, setExpandedProofUrl] = useState(null);
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [filtersExpanded, setFiltersExpanded] = useState(true);
 
@@ -1310,11 +1311,18 @@ const UserTask = () => {
                             </p>
                             {proof?.preview ? (
                               <div className="mt-1.5 space-y-1.5">
-                                <img
-                                  src={proof.preview}
-                                  alt="Proof preview"
-                                  className="h-16 w-full rounded-md border border-emerald-200 object-cover"
-                                />
+                                <button
+                                  type="button"
+                                  onClick={() => setExpandedProofUrl(proof.preview)}
+                                  className="block w-full overflow-hidden rounded-md border border-emerald-200 transition hover:border-emerald-400 hover:ring-2 hover:ring-emerald-300/60"
+                                  aria-label="View proof of completion"
+                                >
+                                  <img
+                                    src={proof.preview}
+                                    alt="Proof preview"
+                                    className="h-16 w-full object-cover"
+                                  />
+                                </button>
                                 {!proof.saved ? (
                                   <button
                                     type="button"
@@ -1412,6 +1420,26 @@ const UserTask = () => {
             className="max-h-[90vh] max-w-full rounded-lg object-contain shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           />
+        </button>
+      ) : null}
+
+      {expandedProofUrl ? (
+        <button
+          type="button"
+          className="fixed inset-0 z-[60] flex flex-col items-center justify-center gap-3 bg-slate-950/80 p-4"
+          onClick={() => setExpandedProofUrl(null)}
+          aria-label="Close proof image preview"
+        >
+          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-300">
+            Proof of completion
+          </p>
+          <img
+            src={expandedProofUrl}
+            alt="Proof of completion"
+            className="max-h-[85vh] max-w-full rounded-lg object-contain shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+          <p className="text-xs text-slate-400">Click anywhere outside to close</p>
         </button>
       ) : null}
     </Layout>
