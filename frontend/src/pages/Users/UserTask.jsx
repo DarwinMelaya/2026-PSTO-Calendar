@@ -204,9 +204,17 @@ const UserTask = () => {
 
   const sortedTasks = useMemo(() => {
     return [...tasks].sort((a, b) => {
+      // Move completed tasks to the bottom
+      const completedA = a.status === "completed" ? 1 : 0;
+      const completedB = b.status === "completed" ? 1 : 0;
+      if (completedA !== completedB) return completedA - completedB;
+
+      // Among non-completed tasks, prioritize by priority flag
       const priA = isTaskPriority(a) ? 1 : 0;
       const priB = isTaskPriority(b) ? 1 : 0;
       if (priB !== priA) return priB - priA;
+
+      // Finally sort by creation date (newest first)
       const createdA = a.created_at ? new Date(a.created_at).getTime() : 0;
       const createdB = b.created_at ? new Date(b.created_at).getTime() : 0;
       return createdB - createdA;

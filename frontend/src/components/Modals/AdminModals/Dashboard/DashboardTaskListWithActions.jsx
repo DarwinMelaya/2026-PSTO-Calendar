@@ -27,6 +27,7 @@ const DashboardTaskListWithActions = ({
   emptyMessage,
   modalId,
   enableFollowUp = false,
+  enableApproveAll = false,
   showCompletionProof = false,
   showFilters = false,
 }) => {
@@ -34,6 +35,7 @@ const DashboardTaskListWithActions = ({
   const [deletingId, setDeletingId] = useState(null);
   const [followingUpId, setFollowingUpId] = useState(null);
   const [followingUpAll, setFollowingUpAll] = useState(false);
+  const [approvingAll, setApprovingAll] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [taskToEdit, setTaskToEdit] = useState(null);
   const [rejectTarget, setRejectTarget] = useState(null);
@@ -124,6 +126,34 @@ const DashboardTaskListWithActions = ({
     onRefresh?.();
   };
 
+  const handleApproveAll = async () => {
+    const pendingTasks = groupedTasks.filter((task) => task.requestedStatus);
+    if (pendingTasks.length === 0) return;
+
+    const ok = window.confirm(
+      `Approve all ${pendingTasks.length} status change request${pendingTasks.length === 1 ? "" : "s"}?`,
+    );
+    if (!ok) return;
+
+    setApprovingAll(true);
+    for (const task of pendingTasks) {
+      for (const member of task.members ?? []) {
+        const { error } = await approveTaskStatusRequest(member);
+        if (error) {
+          setApprovingAll(false);
+          toast.error(error.message);
+          return;
+        }
+      }
+    }
+    setApprovingAll(false);
+
+    toast.success(
+      `Approved ${pendingTasks.length} status change request${pendingTasks.length === 1 ? "" : "s"}.`,
+    );
+    onRefresh?.();
+  };
+
   const handleEditSuccess = () => {
     closeEdit();
     onRefresh?.();
@@ -193,16 +223,32 @@ const DashboardTaskListWithActions = ({
   };
 
   const renderHeaderActions =
-    enableFollowUp && !readOnly && groupedTasks.length > 0
+    !readOnly &&
+    groupedTasks.length > 0 &&
+    (enableFollowUp || enableApproveAll)
       ? () => (
-          <button
-            type="button"
-            onClick={handleFollowUpAll}
-            disabled={followingUpAll || followingUpId !== null}
-            className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-800 shadow-sm transition hover:border-violet-300 hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {followingUpAll ? "Sending…" : "Follow up all"}
-          </button>
+          <>
+            {enableApproveAll ? (
+              <button
+                type="button"
+                onClick={handleApproveAll}
+                disabled={approvingAll || resolvingRequestId !== null}
+                className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {approvingAll ? "Approving…" : "Approve all"}
+              </button>
+            ) : null}
+            {enableFollowUp ? (
+              <button
+                type="button"
+                onClick={handleFollowUpAll}
+                disabled={followingUpAll || followingUpId !== null}
+                className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-800 shadow-sm transition hover:border-violet-300 hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {followingUpAll ? "Sending…" : "Follow up all"}
+              </button>
+            ) : null}
+          </>
         )
       : undefined;
 
@@ -213,7 +259,8 @@ const DashboardTaskListWithActions = ({
           resolvingRequestId === task.id ||
           deletingId === task.id ||
           followingUpId === task.id ||
-          followingUpAll;
+          followingUpAll ||
+          approvingAll;
 
         return (
           <>

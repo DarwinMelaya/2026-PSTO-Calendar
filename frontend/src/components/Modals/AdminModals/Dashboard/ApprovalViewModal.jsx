@@ -20,6 +20,7 @@ const ApprovalViewModal = ({
     }
     emptyMessage="No pending approval requests."
     modalId="approval-tasks-modal"
+    enableApproveAll={!readOnly}
   />
 );
 
