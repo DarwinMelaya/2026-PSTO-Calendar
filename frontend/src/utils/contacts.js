@@ -11,36 +11,60 @@ export const DEFAULT_CONTACT_CATEGORIES = [
 ];
 
 const SELECT_COLS =
-  "id, name, email, mobile_number, telephone_number, category, created_at, updated_at";
+  "id, name, email, organization, mobile_numbers, telephone_number, category, created_at, updated_at";
+
+/** Normalize mobile numbers from DB (text[]) or legacy string into a string[]. */
+export const normalizeMobileNumbers = (value) => {
+  if (Array.isArray(value)) {
+    return value
+      .map((n) => (typeof n === "string" ? n.trim() : ""))
+      .filter(Boolean);
+  }
+  if (typeof value === "string" && value.trim()) {
+    return [value.trim()];
+  }
+  return [];
+};
 
 const mapRow = (row) => ({
   id: row.id,
   name: row.name,
   email: row.email ?? "",
-  mobileNumber: row.mobile_number ?? "",
+  organization: row.organization ?? "",
+  mobileNumbers: normalizeMobileNumbers(row.mobile_numbers),
+  /** Primary mobile for backward-compatible display helpers. */
+  mobileNumber: normalizeMobileNumbers(row.mobile_numbers)[0] ?? "",
   telephoneNumber: row.telephone_number ?? "",
   category: row.category,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
 
-const trimOrEmpty = (value) =>
-  typeof value === "string" ? value.trim() : "";
+const trimOrEmpty = (value) => (typeof value === "string" ? value.trim() : "");
 
 const toDbPayload = ({
   name,
   email,
+  organization,
+  mobileNumbers,
   mobileNumber,
   telephoneNumber,
   category,
-}) => ({
-  name: name.trim(),
-  email: trimOrEmpty(email),
-  mobile_number: trimOrEmpty(mobileNumber),
-  telephone_number: trimOrEmpty(telephoneNumber),
-  category: category.trim(),
-  updated_at: new Date().toISOString(),
-});
+}) => {
+  const numbers = normalizeMobileNumbers(
+    mobileNumbers ?? (mobileNumber ? [mobileNumber] : []),
+  );
+
+  return {
+    name: name.trim(),
+    email: trimOrEmpty(email),
+    organization: trimOrEmpty(organization),
+    mobile_numbers: numbers,
+    telephone_number: trimOrEmpty(telephoneNumber),
+    category: category.trim(),
+    updated_at: new Date().toISOString(),
+  };
+};
 
 /** Digits (and leading +) for tel: / sms: deep links. */
 export const toDialableNumber = (value) => {

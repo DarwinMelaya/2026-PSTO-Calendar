@@ -121,6 +121,14 @@ const ContactCard = ({ contact, onEdit, onDelete, isDeleting, index }) => {
           >
             {contact.name}
           </p>
+          {contact.organization ? (
+            <p
+              className="mt-0.5 truncate text-[11px] font-medium text-slate-500"
+              title={contact.organization}
+            >
+              {contact.organization}
+            </p>
+          ) : null}
           <div className="mt-1.5">
             <CategoryBadge category={contact.category} />
           </div>
@@ -154,29 +162,34 @@ const ContactCard = ({ contact, onEdit, onDelete, isDeleting, index }) => {
           </p>
         )}
 
-        {contact.mobileNumber ? (
-          <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
-            <div className="flex items-center gap-2 text-[11px] font-medium text-slate-600">
-              <svg
-                className="h-3.5 w-3.5 shrink-0"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={2}
-                stroke="currentColor"
+        {(contact.mobileNumbers?.length ?? 0) > 0 ? (
+          <div className="space-y-2">
+            {contact.mobileNumbers.map((number, i) => (
+              <div
+                key={`${i}-${number}`}
+                className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3"
-                />
-              </svg>
-              <span className="min-w-0 flex-1 truncate">
-                {contact.mobileNumber}
-              </span>
-            </div>
-            <div className="mt-2">
-              <PhoneActionButtons number={contact.mobileNumber} showText />
-            </div>
+                <div className="flex items-center gap-2 text-[11px] font-medium text-slate-600">
+                  <svg
+                    className="h-3.5 w-3.5 shrink-0"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={2}
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3"
+                    />
+                  </svg>
+                  <span className="min-w-0 flex-1 truncate">{number}</span>
+                </div>
+                <div className="mt-2">
+                  <PhoneActionButtons number={number} showText />
+                </div>
+              </div>
+            ))}
           </div>
         ) : (
           <p className="rounded-lg border border-dashed border-slate-200 px-3 py-2 text-[11px] text-slate-400">
@@ -308,7 +321,15 @@ const AddContact = () => {
 
     if (q) {
       list = list.filter((c) =>
-        [c.name, c.email, c.mobileNumber, c.telephoneNumber, c.category]
+        [
+          c.name,
+          c.organization,
+          c.email,
+          ...(c.mobileNumbers ?? []),
+          c.mobileNumber,
+          c.telephoneNumber,
+          c.category,
+        ]
           .filter(Boolean)
           .join(" ")
           .toLowerCase()
@@ -410,9 +431,9 @@ const AddContact = () => {
                   Contacts directory
                 </h1>
                 <p className="mt-3 text-sm leading-relaxed text-sky-100/85 sm:text-base">
-                  Store names, emails, mobile, and telephone numbers tagged by
-                  where they belong — with Call and Text shortcuts to your
-                  phone apps.
+                  Store names, organizations, emails, mobile, and telephone
+                  numbers tagged by where they belong — with Call and Text
+                  shortcuts to your phone apps.
                 </p>
               </div>
               <p className="text-xs font-medium text-sky-200/80">
@@ -502,7 +523,7 @@ const AddContact = () => {
                 type="search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search name, email, mobile, telephone…"
+                placeholder="Search name, organization, email, mobile…"
                 className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-10 pr-4 text-sm text-slate-800 shadow-sm placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
               />
             </div>
@@ -703,6 +724,7 @@ const AddContact = () => {
                       <tr className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-sky-50/30 text-xs font-bold uppercase tracking-widest text-slate-500">
                         <th className="px-5 py-3.5 sm:px-6">#</th>
                         <th className="px-5 py-3.5 sm:px-6">Name</th>
+                        <th className="px-5 py-3.5 sm:px-6">Organization</th>
                         <th className="px-5 py-3.5 sm:px-6">Category</th>
                         <th className="px-5 py-3.5 sm:px-6">Email</th>
                         <th className="px-5 py-3.5 sm:px-6">Mobile</th>
@@ -724,6 +746,15 @@ const AddContact = () => {
                           <td className="px-5 py-4 font-semibold text-slate-900 sm:px-6">
                             {contact.name}
                           </td>
+                          <td className="max-w-[160px] px-5 py-4 text-slate-600 sm:px-6">
+                            {contact.organization ? (
+                              <span className="line-clamp-2">
+                                {contact.organization}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400">—</span>
+                            )}
+                          </td>
                           <td className="px-5 py-4 sm:px-6">
                             <CategoryBadge category={contact.category} />
                           </td>
@@ -740,15 +771,22 @@ const AddContact = () => {
                             )}
                           </td>
                           <td className="px-5 py-4 sm:px-6">
-                            {contact.mobileNumber ? (
-                              <div className="space-y-1.5">
-                                <p className="whitespace-nowrap text-slate-600">
-                                  {contact.mobileNumber}
-                                </p>
-                                <PhoneActionButtons
-                                  number={contact.mobileNumber}
-                                  showText
-                                />
+                            {(contact.mobileNumbers?.length ?? 0) > 0 ? (
+                              <div className="space-y-2">
+                                {contact.mobileNumbers.map((number, mi) => (
+                                  <div
+                                    key={`${mi}-${number}`}
+                                    className="space-y-1.5"
+                                  >
+                                    <p className="whitespace-nowrap text-slate-600">
+                                      {number}
+                                    </p>
+                                    <PhoneActionButtons
+                                      number={number}
+                                      showText
+                                    />
+                                  </div>
+                                ))}
                               </div>
                             ) : (
                               <span className="text-slate-400">—</span>

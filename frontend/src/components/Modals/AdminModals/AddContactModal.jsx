@@ -4,13 +4,15 @@ import {
   collectCategories,
   createContact,
   DEFAULT_CONTACT_CATEGORIES,
+  normalizeMobileNumbers,
   updateContact,
 } from "../../../utils/contacts";
 
 const initialForm = {
   name: "",
   email: "",
-  mobileNumber: "",
+  organization: "",
+  mobileNumbers: [""],
   telephoneNumber: "",
   category: DEFAULT_CONTACT_CATEGORIES[0],
   customCategory: "",
@@ -43,10 +45,14 @@ const AddContactModal = ({
     if (isEditMode && editContact) {
       const cat = editContact.category ?? DEFAULT_CONTACT_CATEGORIES[0];
       const isKnown = categoryOptions.includes(cat);
+      const mobiles = normalizeMobileNumbers(
+        editContact.mobileNumbers ?? editContact.mobileNumber,
+      );
       setForm({
         name: editContact.name ?? "",
         email: editContact.email ?? "",
-        mobileNumber: editContact.mobileNumber ?? "",
+        organization: editContact.organization ?? "",
+        mobileNumbers: mobiles.length > 0 ? mobiles : [""],
         telephoneNumber: editContact.telephoneNumber ?? "",
         category: isKnown ? cat : CUSTOM_VALUE,
         customCategory: isKnown ? "" : cat,
@@ -54,6 +60,7 @@ const AddContactModal = ({
     } else {
       setForm({
         ...initialForm,
+        mobileNumbers: [""],
         category: categoryOptions[0] ?? DEFAULT_CONTACT_CATEGORIES[0],
       });
     }
@@ -63,6 +70,32 @@ const AddContactModal = ({
 
   const setField = (field) => (e) =>
     setForm((prev) => ({ ...prev, [field]: e.target.value }));
+
+  const setMobileNumber = (index) => (e) => {
+    const value = e.target.value;
+    setForm((prev) => {
+      const next = [...prev.mobileNumbers];
+      next[index] = value;
+      return { ...prev, mobileNumbers: next };
+    });
+  };
+
+  const addMobileNumber = () => {
+    setForm((prev) => ({
+      ...prev,
+      mobileNumbers: [...prev.mobileNumbers, ""],
+    }));
+  };
+
+  const removeMobileNumber = (index) => {
+    setForm((prev) => {
+      const next = prev.mobileNumbers.filter((_, i) => i !== index);
+      return {
+        ...prev,
+        mobileNumbers: next.length > 0 ? next : [""],
+      };
+    });
+  };
 
   const handleClose = () => {
     if (loading) return;
@@ -81,8 +114,9 @@ const AddContactModal = ({
     e.preventDefault();
     if (loading) return;
 
-    const { name, email, mobileNumber, telephoneNumber } = form;
+    const { name, email, organization, mobileNumbers, telephoneNumber } = form;
     const category = resolveCategory();
+    const cleanedMobiles = normalizeMobileNumbers(mobileNumbers);
 
     if (!name.trim()) {
       toast.error("Name is required.");
@@ -96,7 +130,7 @@ const AddContactModal = ({
 
     if (
       !email.trim() &&
-      !mobileNumber.trim() &&
+      cleanedMobiles.length === 0 &&
       !telephoneNumber.trim()
     ) {
       toast.error("Provide at least an email, mobile, or telephone number.");
@@ -110,7 +144,14 @@ const AddContactModal = ({
 
     setLoading(true);
 
-    const payload = { name, email, mobileNumber, telephoneNumber, category };
+    const payload = {
+      name,
+      email,
+      organization,
+      mobileNumbers: cleanedMobiles,
+      telephoneNumber,
+      category,
+    };
     const { error } = isEditMode
       ? await updateContact(editContact.id, payload)
       : await createContact(payload);
@@ -153,7 +194,7 @@ const AddContactModal = ({
             </h2>
             <p className="mt-1 text-sm text-slate-500">
               {isEditMode
-                ? "Update name, email, numbers, or category"
+                ? "Update name, organization, numbers, or category"
                 : "Save a contact and tag where they belong (LGUs, GIA, etc.)"}
             </p>
           </div>
@@ -189,6 +230,23 @@ const AddContactModal = ({
 
           <div>
             <label
+              htmlFor="contact-organization"
+              className="mb-1.5 block text-sm font-medium text-slate-700"
+            >
+              Organization / Association
+            </label>
+            <input
+              id="contact-organization"
+              type="text"
+              value={form.organization}
+              onChange={setField("organization")}
+              placeholder="e.g. Boac LGU, Marinduque State University"
+              className={inputClass}
+            />
+          </div>
+
+          <div>
+            <label
               htmlFor="contact-email"
               className="mb-1.5 block text-sm font-medium text-slate-700"
             >
@@ -205,20 +263,57 @@ const AddContactModal = ({
           </div>
 
           <div>
-            <label
-              htmlFor="contact-mobile"
-              className="mb-1.5 block text-sm font-medium text-slate-700"
-            >
-              Mobile number
-            </label>
-            <input
-              id="contact-mobile"
-              type="tel"
-              value={form.mobileNumber}
-              onChange={setField("mobileNumber")}
-              placeholder="e.g. 0917 123 4567"
-              className={inputClass}
-            />
+            <div className="mb-1.5 flex items-center justify-between gap-2">
+              <label className="block text-sm font-medium text-slate-700">
+                Mobile number(s)
+              </label>
+              <button
+                type="button"
+                onClick={addMobileNumber}
+                className="inline-flex items-center gap-1 rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700 transition hover:bg-sky-100"
+              >
+                <svg
+                  className="h-3.5 w-3.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={2.5}
+                  stroke="currentColor"
+                  aria-hidden
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 4.5v15m7.5-7.5h-15"
+                  />
+                </svg>
+                Add number
+              </button>
+            </div>
+            <div className="space-y-2">
+              {form.mobileNumbers.map((number, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <input
+                    id={index === 0 ? "contact-mobile" : `contact-mobile-${index}`}
+                    type="tel"
+                    value={number}
+                    onChange={setMobileNumber(index)}
+                    placeholder="e.g. 0917 123 4567"
+                    className={inputClass}
+                    aria-label={`Mobile number ${index + 1}`}
+                  />
+                  {form.mobileNumbers.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeMobileNumber(index)}
+                      className="shrink-0 rounded-lg border border-red-100 bg-white px-2.5 py-2.5 text-xs font-semibold text-red-600 transition hover:border-red-200 hover:bg-red-50"
+                      aria-label={`Remove mobile number ${index + 1}`}
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
             <p className="mt-1 text-xs text-slate-500">
               Used for Call and Text buttons (opens phone / messaging app).
             </p>
