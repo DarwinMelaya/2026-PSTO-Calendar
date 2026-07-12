@@ -28,6 +28,7 @@ import {
   AdminLinks,
   UserLinks,
   UserCto,
+  AddContact,
 } from "../pages";
 
 export const Routers = () => {
@@ -139,6 +140,14 @@ export const Routers = () => {
           element={
             <ProtectedRoutes adminOnly>
               <AdminLinks />
+            </ProtectedRoutes>
+          }
+        />
+        <Route
+          path="/admin-add-contact"
+          element={
+            <ProtectedRoutes adminOnly>
+              <AddContact />
             </ProtectedRoutes>
           }
         />
