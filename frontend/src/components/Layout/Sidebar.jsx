@@ -217,6 +217,39 @@ const ChevronIcon = ({ open }) => (
   </svg>
 );
 
+const MoreIcon = () => (
+  <svg
+    className={iconClass}
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={1.5}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
+    />
+  </svg>
+);
+
+const MOBILE_MORE_LINKS = [
+  { label: "Users", to: "/admin-add-users", Icon: UsersIcon },
+  { label: "CTO", to: "/admin-add-cto", Icon: CtoIcon },
+  { label: "Links", to: "/admin-links", Icon: LinksIcon },
+  { label: "Contact", to: "/admin-add-contact", Icon: ContactIcon },
+  { label: "Project Timeline", to: "/admin-project-timeline", Icon: ProjectTimelineIcon },
+  {
+    label: "All Projects Monitoring",
+    to: "/admin-all-projects-monitoring",
+    Icon: MonitoringIcon,
+  },
+  { label: "GIA", to: "/admin-gia", Icon: MonitoringIcon },
+  { label: "SETUP", to: "/admin-setup", Icon: MonitoringIcon },
+  { label: "CEST", to: "/admin-cest", Icon: MonitoringIcon },
+  { label: "SSCP", to: "/admin-sscp", Icon: MonitoringIcon },
+];
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -256,6 +289,13 @@ const subNavItemClass = ({ isActive }) =>
 const mobileNavLinkClass = ({ isActive }) =>
   `flex min-w-0 flex-1 flex-col items-center justify-center gap-1 px-1 py-2 text-[10px] font-medium transition-colors sm:text-xs ${
     isActive ? "text-white" : "text-slate-500 active:text-slate-300"
+  }`;
+
+const mobileMoreItemClass = ({ isActive }) =>
+  `flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-colors ${
+    isActive
+      ? "bg-white/10 text-white"
+      : "text-slate-300 active:bg-white/5"
   }`;
 
 // ---------------------------------------------------------------------------
@@ -357,7 +397,9 @@ const MonitoringNavGroup = ({ query, navFilter }) => {
 
 const Sidebar = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [query, setQuery] = useState("");
+  const [moreOpen, setMoreOpen] = useState(false);
 
   const handleLogout = () => {
     clearSession();
@@ -383,8 +425,70 @@ const Sidebar = () => {
     !navFilter("Profile") &&
     !monitoringNavMatches(navFilter);
 
+  const moreIsActive =
+    moreOpen ||
+    MOBILE_MORE_LINKS.some((item) => location.pathname === item.to);
+
+  const closeMore = () => setMoreOpen(false);
+
   return (
     <>
+      {/* ── Mobile more sheet ── */}
+      {moreOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true">
+          <button
+            type="button"
+            className="absolute inset-0 bg-slate-950/60"
+            aria-label="Close menu"
+            onClick={closeMore}
+          />
+          <div className="absolute inset-x-0 bottom-0 max-h-[80vh] overflow-y-auto rounded-t-2xl border-t border-white/10 bg-[#0d1424] pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl">
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/5 bg-[#0d1424] px-4 py-3">
+              <div>
+                <p className="text-sm font-semibold text-white">More</p>
+                <p className="text-xs text-slate-500">All admin pages</p>
+              </div>
+              <button
+                type="button"
+                onClick={closeMore}
+                className="rounded-lg px-2 py-1 text-xl leading-none text-slate-400 hover:bg-white/5 hover:text-white"
+                aria-label="Close"
+              >
+                &times;
+              </button>
+            </div>
+
+            <nav className="flex flex-col gap-1 p-3" aria-label="More admin pages">
+              {MOBILE_MORE_LINKS.map(({ label, to, Icon }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  className={mobileMoreItemClass}
+                  onClick={closeMore}
+                >
+                  <Icon />
+                  <span>{label}</span>
+                </NavLink>
+              ))}
+
+              <div className="my-2 border-t border-white/5" />
+
+              <button
+                type="button"
+                onClick={() => {
+                  closeMore();
+                  handleLogout();
+                }}
+                className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-rose-400 transition-colors active:bg-rose-500/10"
+              >
+                <LogoutIcon />
+                Log out
+              </button>
+            </nav>
+          </div>
+        </div>
+      )}
+
       {/* ── Mobile bottom nav ── */}
       <nav
         className="fixed inset-x-0 bottom-0 z-40 flex border-t border-white/5 bg-[#0d1424] px-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1.5 shadow-[0_-1px_0_0_rgba(255,255,255,0.04)] lg:hidden"
@@ -398,33 +502,26 @@ const Sidebar = () => {
           <TaskIcon />
           <span className="truncate">Tasks</span>
         </NavLink>
-        <NavLink to="/admin-add-users" className={mobileNavLinkClass}>
-          <UsersIcon />
-          <span className="truncate">Users</span>
-        </NavLink>
-        <NavLink to="/admin-add-cto" className={mobileNavLinkClass}>
-          <CtoIcon />
-          <span className="truncate">CTO</span>
-        </NavLink>
         <NavLink to="/admin-calendar" className={mobileNavLinkClass}>
           <CalendarIcon />
           <span className="truncate">Calendar</span>
-        </NavLink>
-        <NavLink to="/admin-project-timeline" className={mobileNavLinkClass}>
-          <ProjectTimelineIcon />
-          <span className="truncate">Timeline</span>
-        </NavLink>
-        <NavLink
-          to="/admin-all-projects-monitoring"
-          className={mobileNavLinkClass}
-        >
-          <MonitoringIcon />
-          <span className="truncate">Monitor</span>
         </NavLink>
         <NavLink to="/admin-profile" className={mobileNavLinkClass}>
           <ProfileIcon />
           <span className="truncate">Profile</span>
         </NavLink>
+        <button
+          type="button"
+          onClick={() => setMoreOpen(true)}
+          className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-1 px-1 py-2 text-[10px] font-medium transition-colors sm:text-xs ${
+            moreIsActive ? "text-white" : "text-slate-500 active:text-slate-300"
+          }`}
+          aria-expanded={moreOpen}
+          aria-haspopup="dialog"
+        >
+          <MoreIcon />
+          <span className="truncate">More</span>
+        </button>
       </nav>
 
       {/* ── Desktop sidebar ── */}
