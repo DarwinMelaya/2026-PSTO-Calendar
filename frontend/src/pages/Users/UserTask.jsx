@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import Layout from "../../components/Layout/Layout";
 import ViewTaskModal from "../../components/Modals/AdminModals/ViewTaskModal";
@@ -22,8 +22,10 @@ import {
   formatActivitiesPreview,
   formatTaskDeadline,
   hasDeadline,
+  isImageProofUrl,
   isTaskPriority,
   listTasksForUser,
+  normalizeProofLink,
   parseTaskActivities,
   parseTaskRemarks,
   requestTaskStatusChange,
@@ -170,6 +172,7 @@ const UserTask = () => {
   const [requestingId, setRequestingId] = useState(null);
   const [savingRemarksId, setSavingRemarksId] = useState(null);
   const [proofDrafts, setProofDrafts] = useState({});
+  const [proofLinkInputs, setProofLinkInputs] = useState({});
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [taskToEdit, setTaskToEdit] = useState(null);
@@ -372,7 +375,24 @@ const UserTask = () => {
 
   const proofForTask = (task) => {
     const saved = parseTaskRemarks(task.remarks).proofUrl;
-    return proofDrafts[task.id] ?? (saved ? { preview: saved, saved: true } : null);
+    if (proofDrafts[task.id]) return proofDrafts[task.id];
+    if (!saved) return null;
+    return {
+      preview: saved,
+      saved: true,
+      type: isImageProofUrl(saved) ? "image" : "link",
+      link: isImageProofUrl(saved) ? "" : saved,
+    };
+  };
+
+  const proofLinkForTask = (task) => {
+    if (proofLinkInputs[task.id] !== undefined) return proofLinkInputs[task.id];
+    const proof = proofForTask(task);
+    if (proof?.type === "link" && proof.link) return proof.link;
+    if (proof?.saved && proof.preview && !isImageProofUrl(proof.preview)) {
+      return proof.preview;
+    }
+    return "";
   };
 
   const handleProofChange = (task, event) => {
@@ -393,7 +413,7 @@ const UserTask = () => {
 
     setProofDrafts((prev) => {
       const existing = prev[task.id];
-      if (existing?.preview && !existing.saved) {
+      if (existing?.preview && existing.type === "image" && !existing.saved) {
         URL.revokeObjectURL(existing.preview);
       }
       return {
@@ -402,6 +422,42 @@ const UserTask = () => {
           file,
           preview: URL.createObjectURL(file),
           saved: false,
+          type: "image",
+        },
+      };
+    });
+    setProofLinkInputs((prev) => {
+      const next = { ...prev };
+      delete next[task.id];
+      return next;
+    });
+  };
+
+  const handleProofLinkChange = (task, value) => {
+    setProofLinkInputs((prev) => ({ ...prev, [task.id]: value }));
+    const normalized = normalizeProofLink(value);
+    if (!normalized) {
+      setProofDrafts((prev) => {
+        const existing = prev[task.id];
+        if (existing?.type !== "link") return prev;
+        const next = { ...prev };
+        delete next[task.id];
+        return next;
+      });
+      return;
+    }
+    setProofDrafts((prev) => {
+      const existing = prev[task.id];
+      if (existing?.preview && existing.type === "image" && !existing.saved) {
+        URL.revokeObjectURL(existing.preview);
+      }
+      return {
+        ...prev,
+        [task.id]: {
+          link: normalized,
+          preview: normalized,
+          saved: false,
+          type: "link",
         },
       };
     });
@@ -410,9 +466,14 @@ const UserTask = () => {
   const clearProofDraft = (task) => {
     setProofDrafts((prev) => {
       const existing = prev[task.id];
-      if (existing?.preview && !existing.saved) {
+      if (existing?.preview && existing.type === "image" && !existing.saved) {
         URL.revokeObjectURL(existing.preview);
       }
+      const next = { ...prev };
+      delete next[task.id];
+      return next;
+    });
+    setProofLinkInputs((prev) => {
       const next = { ...prev };
       delete next[task.id];
       return next;
@@ -481,14 +542,9 @@ const UserTask = () => {
 
     let proofUrl = meta.proofUrl;
     const proofDraft = proofDrafts[task.id];
+    const linkFromInput = normalizeProofLink(proofLinkForTask(task));
 
-    if (selectedStatus === "completed") {
-      if (!proofUrl && !proofDraft?.file) {
-        toast.error("Please upload a photo as proof of completion.");
-        return;
-      }
-    }
-
+    // Proof is optional — photo, link, or none are all allowed for completed.
     setRequestingId(task.id);
 
     if (proofDraft?.file) {
@@ -513,6 +569,10 @@ const UserTask = () => {
           { duration: 4000 },
         );
       }
+    } else if (proofDraft?.type === "link" && proofDraft.link) {
+      proofUrl = proofDraft.link;
+    } else if (selectedStatus === "completed" && linkFromInput) {
+      proofUrl = linkFromInput;
     }
 
     const { error } = await requestTaskStatusChange(task.id, {
@@ -692,7 +752,7 @@ const UserTask = () => {
         </div>
 
         {/* Task table */}
-        <section className="ut-animate-in ut-delay-2 overflow-hidden rounded-3xl border border-slate-200/80 bg-white/90 shadow-xl shadow-slate-300/25 ring-1 ring-slate-900/[0.04] backdrop-blur-sm">
+        <section className="ut-animate-in ut-delay-2 rounded-3xl border border-slate-200/80 bg-white/90 shadow-xl shadow-slate-300/25 ring-1 ring-slate-900/[0.04] backdrop-blur-sm">
           <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100/80 bg-gradient-to-r from-slate-50 via-white to-blue-50/30 px-5 py-5 sm:px-6">
             <div className="flex items-start gap-3">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-md shadow-blue-500/25">
@@ -1042,30 +1102,30 @@ const UserTask = () => {
           </div>
           ) : null}
 
-          <div className="overflow-x-auto bg-slate-50/30 p-2 sm:p-3">
-            <table className="w-full min-w-[1020px] border-separate border-spacing-y-2 text-left text-sm">
+          <div className="w-full min-w-0 overflow-x-auto overscroll-x-contain bg-slate-50/30 p-2 sm:p-3 [-webkit-overflow-scrolling:touch]">
+            <table className="w-full min-w-[720px] table-fixed border-separate border-spacing-y-2 text-left text-sm">
               <thead>
                 <tr>
-                  <th className="whitespace-nowrap rounded-l-xl bg-slate-900 px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-white sm:px-6">
+                  <th className="w-[9%] whitespace-nowrap rounded-l-xl bg-slate-900 px-3 py-3 text-xs font-semibold uppercase tracking-wider text-white sm:px-4">
                     Date
                   </th>
-                  <th className="whitespace-nowrap bg-slate-900 px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-white sm:px-6">
+                  <th className="w-[16%] whitespace-nowrap bg-slate-900 px-3 py-3 text-xs font-semibold uppercase tracking-wider text-white sm:px-4">
                     Agenda
                   </th>
-                  <th className="whitespace-nowrap bg-slate-900 px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-white sm:px-6">
+                  <th className="w-[18%] whitespace-nowrap bg-slate-900 px-3 py-3 text-xs font-semibold uppercase tracking-wider text-white sm:px-4">
                     Activities
                   </th>
-                  <th className="whitespace-nowrap bg-slate-900 px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-white sm:px-6">
+                  <th className="w-[11%] whitespace-nowrap bg-slate-900 px-3 py-3 text-xs font-semibold uppercase tracking-wider text-white sm:px-4">
                     Deadline
                   </th>
-                  <th className="whitespace-nowrap bg-slate-900 px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-white sm:px-6">
+                  <th className="w-[9%] whitespace-nowrap bg-slate-900 px-3 py-3 text-xs font-semibold uppercase tracking-wider text-white sm:px-4">
                     Status
                   </th>
-                  <th className="whitespace-nowrap bg-slate-900 px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-white sm:px-6">
+                  <th className="w-[18%] whitespace-nowrap bg-slate-900 px-3 py-3 text-xs font-semibold uppercase tracking-wider text-white sm:px-4">
                     Remarks
                   </th>
-                  <th className="w-[1%] whitespace-nowrap rounded-r-xl bg-slate-900 px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-white sm:px-6">
-                    Request status
+                  <th className="w-[19%] whitespace-nowrap rounded-r-xl bg-slate-900 px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-white sm:px-4">
+                    Request
                   </th>
                 </tr>
               </thead>
@@ -1130,262 +1190,326 @@ const UserTask = () => {
                       pendingRequest ??
                       task.status;
                     const proof = proofForTask(task);
-                    const showProofUpload = selectedRequestStatus === "completed";
+                    const showProofUpload =
+                      selectedRequestStatus === "completed";
                     const overdue = isOverdueTask(task);
+                    const showExtraRow =
+                      showProofUpload ||
+                      Boolean(pendingRequest) ||
+                      Boolean(!pendingRequest && taskMeta.rejectionRemarks);
 
                     return (
-                    <tr
-                      key={task.id}
-                      className={`group transition-all duration-200 ${completedRowClass(selectedRequestStatus)} ${
-                        overdue
-                          ? "[&_td]:!border-rose-200/90 [&_td:first-child]:border-l-[3px] [&_td:first-child]:!border-l-rose-500"
-                          : ""
-                      }`}
-                    >
-                      <td className="whitespace-nowrap rounded-l-xl border border-r-0 border-slate-200/80 bg-white px-5 py-4 font-semibold text-slate-900 shadow-sm sm:px-6">
-                        {formatDate(task.task_date)}
-                      </td>
-                      <td className="max-w-[200px] border-y border-slate-200/80 bg-white px-5 py-4 text-slate-800 shadow-sm sm:px-6">
-                        <div className="flex flex-col gap-1.5">
-                          {isTaskPriority(task) ? (
-                            <span className="inline-flex w-fit rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-rose-800 ring-1 ring-inset ring-rose-600/15">
-                              Priority
-                            </span>
-                          ) : null}
-                          <span className="line-clamp-2" title={task.agenda}>
-                            {task.agenda}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="max-w-[240px] border-y border-slate-200/80 bg-white px-5 py-4 text-slate-600 shadow-sm sm:px-6">
-                        <div className="flex flex-col gap-2">
-                          <span
-                            className="line-clamp-2"
-                            title={formatActivitiesPreview(task.activities)}
-                          >
-                            {formatActivitiesPreview(task.activities) || "—"}
-                          </span>
-                          {instructionImageUrl ? (
-                            <div className="flex flex-col gap-2">
-                              <span className="inline-flex w-fit items-center gap-1 rounded-md bg-sky-50 px-2 py-0.5 text-xs font-semibold text-sky-800 ring-1 ring-inset ring-sky-600/15">
-                                <svg
-                                  className="h-3.5 w-3.5"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  strokeWidth={2}
-                                  stroke="currentColor"
-                                  aria-hidden
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H5.25A2.25 2.25 0 003 5.25v13.5A2.25 2.25 0 005.25 21z"
-                                  />
-                                </svg>
-                                Instruction image
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => setExpandedInstructionUrl(instructionImageUrl)}
-                                className="block w-fit overflow-hidden rounded-lg ring-2 ring-sky-200/80 transition hover:ring-sky-400"
-                              >
-                                <img
-                                  src={instructionImageUrl}
-                                  alt="Task instruction from admin"
-                                  className="h-20 w-auto max-w-full object-cover"
-                                />
-                              </button>
-                            </div>
-                          ) : null}
-                          <div className="flex flex-wrap gap-1.5 opacity-90 transition group-hover:opacity-100">
-                            <button
-                              type="button"
-                              onClick={() => setTaskToView(taskForView(task))}
-                              className="w-fit rounded-lg border border-blue-100 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 shadow-sm transition hover:bg-blue-100"
-                            >
-                              View
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => openEdit(task)}
-                              disabled={
-                                savingRemarksId === task.id ||
-                                requestingId === task.id
-                              }
-                              className="w-fit rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                              Edit
-                            </button>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="whitespace-nowrap border-y border-slate-200/80 bg-white px-5 py-4 shadow-sm sm:px-6">
-                        <div className="flex flex-col gap-1.5">
-                          <span
-                            className={
-                              overdue
-                                ? "font-semibold text-rose-800"
-                                : "text-slate-800"
-                            }
-                          >
-                            {formatTaskDeadline(task.deadline, task.deadline_time)}
-                          </span>
-                          {overdue ? (
-                            <span className="inline-flex w-fit items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-rose-800 ring-1 ring-inset ring-rose-600/15">
-                              <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
-                              Late
-                            </span>
-                          ) : null}
-                        </div>
-                      </td>
-                      <td className="whitespace-nowrap border-y border-slate-200/80 bg-white px-5 py-4 shadow-sm sm:px-6">
-                        <span
-                          className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${statusBadgeClass(task.status)}`}
+                      <Fragment key={task.id}>
+                        <tr
+                          className={`group transition-all duration-200 ${completedRowClass(selectedRequestStatus)} ${
+                            overdue
+                              ? "[&_td]:!border-rose-200/90 [&_td:first-child]:border-l-[3px] [&_td:first-child]:!border-l-rose-500"
+                              : ""
+                          }`}
                         >
-                          {statusLabel(task.status)}
-                        </span>
-                      </td>
-                      <td className="min-w-[220px] max-w-[280px] border-y border-slate-200/80 bg-white px-5 py-4 shadow-sm sm:px-6">
-                        <div className="space-y-2">
-                          <textarea
-                            rows={2}
-                            value={remarksForTask(task)}
-                            onChange={(e) =>
-                              setRemarksDrafts((prev) => ({
-                                ...prev,
-                                [task.id]: e.target.value,
-                              }))
-                            }
-                            disabled={
-                              savingRemarksId === task.id ||
-                              requestingId === task.id
-                            }
-                            placeholder="What you accomplished, progress notes…"
-                            className="w-full resize-y rounded-lg border border-slate-200 bg-slate-50/50 px-2.5 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 transition focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => handleSaveRemarks(task)}
-                            disabled={
-                              savingRemarksId === task.id ||
-                              requestingId === task.id
-                            }
-                            className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            {savingRemarksId === task.id
-                              ? "Saving..."
-                              : "Save remarks"}
-                          </button>
-                        </div>
-                      </td>
-                      <td className="whitespace-nowrap rounded-r-xl border border-l-0 border-slate-200/80 bg-white px-5 py-4 text-right shadow-sm sm:px-6">
-                        <div className="flex items-center justify-end gap-2">
-                          <select
-                            value={selectedRequestStatus}
-                            onChange={(e) =>
-                              setRequestDrafts((prev) => ({
-                                ...prev,
-                                [task.id]: e.target.value,
-                              }))
-                            }
-                            disabled={requestingId === task.id}
-                            className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 ${
-                              selectedRequestStatus === "completed"
-                                ? "border-emerald-800 bg-emerald-100 text-emerald-950 focus:border-emerald-900"
-                                : "border-slate-300 bg-white text-slate-700 focus:border-blue-500"
+                          <td
+                            className={`whitespace-nowrap border border-r-0 border-slate-200/80 bg-white px-3 py-3 font-semibold text-slate-900 shadow-sm sm:px-4 ${
+                              showExtraRow ? "rounded-tl-xl" : "rounded-l-xl"
                             }`}
                           >
-                            {TASK_STATUSES.map(({ value, label }) => (
-                              <option key={value} value={value}>
-                                {label}
-                              </option>
-                            ))}
-                          </select>
-                          <button
-                            type="button"
-                            onClick={() => handleRequestStatus(task)}
-                            disabled={requestingId === task.id}
-                            className="rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:from-blue-700 hover:to-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            {requestingId === task.id
-                              ? "Sending..."
-                              : "Request"}
-                          </button>
-                        </div>
-                        {showProofUpload ? (
-                          <div className="mt-2 w-full min-w-[12rem] rounded-lg border border-emerald-200/80 bg-emerald-50/60 p-2 text-left">
-                            <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-900">
-                              Proof of completion
-                            </p>
-                            {proof?.preview ? (
-                              <div className="mt-1.5 space-y-1.5">
+                            {formatDate(task.task_date)}
+                          </td>
+                          <td className="border-y border-slate-200/80 bg-white px-3 py-3 text-slate-800 shadow-sm sm:px-4">
+                            <div className="flex min-w-0 flex-col gap-1.5">
+                              {isTaskPriority(task) ? (
+                                <span className="inline-flex w-fit rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-rose-800 ring-1 ring-inset ring-rose-600/15">
+                                  Priority
+                                </span>
+                              ) : null}
+                              <span className="line-clamp-2 break-words" title={task.agenda}>
+                                {task.agenda}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="border-y border-slate-200/80 bg-white px-3 py-3 text-slate-600 shadow-sm sm:px-4">
+                            <div className="flex min-w-0 flex-col gap-2">
+                              <span
+                                className="line-clamp-2 break-words"
+                                title={formatActivitiesPreview(task.activities)}
+                              >
+                                {formatActivitiesPreview(task.activities) || "—"}
+                              </span>
+                              {instructionImageUrl ? (
                                 <button
                                   type="button"
-                                  onClick={() => setExpandedProofUrl(proof.preview)}
-                                  className="block w-full overflow-hidden rounded-md border border-emerald-200 transition hover:border-emerald-400 hover:ring-2 hover:ring-emerald-300/60"
-                                  aria-label="View proof of completion"
+                                  onClick={() =>
+                                    setExpandedInstructionUrl(instructionImageUrl)
+                                  }
+                                  className="block w-fit max-w-full overflow-hidden rounded-lg ring-2 ring-sky-200/80 transition hover:ring-sky-400"
                                 >
                                   <img
-                                    src={proof.preview}
-                                    alt="Proof preview"
-                                    className="h-16 w-full object-cover"
+                                    src={instructionImageUrl}
+                                    alt="Task instruction from admin"
+                                    className="h-14 w-auto max-w-full object-cover"
                                   />
                                 </button>
-                                {!proof.saved ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => clearProofDraft(task)}
-                                    disabled={requestingId === task.id}
-                                    className="text-[10px] font-semibold text-emerald-800 underline-offset-2 hover:underline disabled:opacity-50"
-                                  >
-                                    Remove
-                                  </button>
-                                ) : null}
+                              ) : null}
+                              <div className="flex flex-wrap gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => setTaskToView(taskForView(task))}
+                                  className="w-fit rounded-lg border border-blue-100 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 shadow-sm transition hover:bg-blue-100"
+                                >
+                                  View
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => openEdit(task)}
+                                  disabled={
+                                    savingRemarksId === task.id ||
+                                    requestingId === task.id
+                                  }
+                                  className="w-fit rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  Edit
+                                </button>
                               </div>
-                            ) : null}
-                            <label className="mt-1.5 flex cursor-pointer items-center justify-center rounded-md border border-dashed border-emerald-300 bg-white px-2 py-1.5 text-[10px] font-semibold text-emerald-800 transition hover:bg-emerald-50/80">
-                              {proof?.preview ? "Change photo" : "Upload photo"}
-                              <input
-                                type="file"
-                                accept="image/*"
-                                className="sr-only"
-                                disabled={requestingId === task.id}
-                                onChange={(e) => handleProofChange(task, e)}
+                            </div>
+                          </td>
+                          <td className="border-y border-slate-200/80 bg-white px-3 py-3 shadow-sm sm:px-4">
+                            <div className="flex flex-col gap-1.5">
+                              <span
+                                className={
+                                  overdue
+                                    ? "font-semibold text-rose-800"
+                                    : "text-slate-800"
+                                }
+                              >
+                                {formatTaskDeadline(
+                                  task.deadline,
+                                  task.deadline_time,
+                                )}
+                              </span>
+                              {overdue ? (
+                                <span className="inline-flex w-fit items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-rose-800 ring-1 ring-inset ring-rose-600/15">
+                                  <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+                                  Late
+                                </span>
+                              ) : null}
+                            </div>
+                          </td>
+                          <td className="border-y border-slate-200/80 bg-white px-3 py-3 shadow-sm sm:px-4">
+                            <span
+                              className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${statusBadgeClass(task.status)}`}
+                            >
+                              {statusLabel(task.status)}
+                            </span>
+                          </td>
+                          <td className="border-y border-slate-200/80 bg-white px-3 py-3 shadow-sm sm:px-4">
+                            <div className="min-w-0 space-y-2">
+                              <textarea
+                                rows={2}
+                                value={remarksForTask(task)}
+                                onChange={(e) =>
+                                  setRemarksDrafts((prev) => ({
+                                    ...prev,
+                                    [task.id]: e.target.value,
+                                  }))
+                                }
+                                disabled={
+                                  savingRemarksId === task.id ||
+                                  requestingId === task.id
+                                }
+                                placeholder="Progress notes…"
+                                className="w-full min-w-0 resize-y rounded-lg border border-slate-200 bg-slate-50/50 px-2.5 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 transition focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
                               />
-                            </label>
-                          </div>
-                        ) : null}
-                        {pendingRequest ? (
-                          <p
-                            className={`mt-1 text-xs ${
-                              pendingRequest === "completed"
-                                ? "font-semibold text-emerald-900"
-                                : "text-amber-800"
+                              <button
+                                type="button"
+                                onClick={() => handleSaveRemarks(task)}
+                                disabled={
+                                  savingRemarksId === task.id ||
+                                  requestingId === task.id
+                                }
+                                className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                {savingRemarksId === task.id
+                                  ? "Saving..."
+                                  : "Save remarks"}
+                              </button>
+                            </div>
+                          </td>
+                          <td
+                            className={`border border-l-0 border-slate-200/80 bg-white px-3 py-3 text-right shadow-sm sm:px-4 ${
+                              showExtraRow ? "rounded-tr-xl" : "rounded-r-xl"
                             }`}
                           >
-                            Pending admin approval:{" "}
-                            {statusLabel(pendingRequest)}
-                          </p>
+                            <div className="flex flex-wrap items-center justify-end gap-2">
+                              <select
+                                value={selectedRequestStatus}
+                                onChange={(e) =>
+                                  setRequestDrafts((prev) => ({
+                                    ...prev,
+                                    [task.id]: e.target.value,
+                                  }))
+                                }
+                                disabled={requestingId === task.id}
+                                className={`max-w-full rounded-lg border px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 ${
+                                  selectedRequestStatus === "completed"
+                                    ? "border-emerald-800 bg-emerald-100 text-emerald-950 focus:border-emerald-900"
+                                    : "border-slate-300 bg-white text-slate-700 focus:border-blue-500"
+                                }`}
+                              >
+                                {TASK_STATUSES.map(({ value, label }) => (
+                                  <option key={value} value={value}>
+                                    {label}
+                                  </option>
+                                ))}
+                              </select>
+                              <button
+                                type="button"
+                                onClick={() => handleRequestStatus(task)}
+                                disabled={requestingId === task.id}
+                                className="shrink-0 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:from-blue-700 hover:to-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                {requestingId === task.id
+                                  ? "Sending..."
+                                  : "Request"}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+
+                        {showExtraRow ? (
+                          <tr
+                            className={`transition-all duration-200 ${completedRowClass(selectedRequestStatus)}`}
+                          >
+                            <td
+                              colSpan={7}
+                              className="rounded-b-xl border border-t-0 border-slate-200/80 bg-white px-3 py-3 shadow-sm sm:px-4"
+                            >
+                              <div className="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-start">
+                                {showProofUpload ? (
+                                  <div className="w-full min-w-0 flex-1 rounded-lg border border-emerald-200/80 bg-emerald-50/60 p-2.5 sm:min-w-[16rem]">
+                                    <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-900">
+                                      Proof of completion
+                                    </p>
+                                    <p className="mt-0.5 text-[10px] text-emerald-800/75">
+                                      Optional — photo or link
+                                    </p>
+                                    <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-start">
+                                      {proof?.type === "image" && proof?.preview ? (
+                                        <div className="w-full min-w-0 space-y-1 sm:max-w-[10rem]">
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              setExpandedProofUrl(proof.preview)
+                                            }
+                                            className="block w-full overflow-hidden rounded-md border border-emerald-200 transition hover:border-emerald-400"
+                                            aria-label="View proof of completion"
+                                          >
+                                            <img
+                                              src={proof.preview}
+                                              alt="Proof preview"
+                                              className="h-20 w-full object-cover"
+                                            />
+                                          </button>
+                                          {!proof.saved ? (
+                                            <button
+                                              type="button"
+                                              onClick={() => clearProofDraft(task)}
+                                              disabled={requestingId === task.id}
+                                              className="text-[10px] font-semibold text-emerald-800 underline-offset-2 hover:underline disabled:opacity-50"
+                                            >
+                                              Remove photo
+                                            </button>
+                                          ) : null}
+                                        </div>
+                                      ) : null}
+                                      {proof?.type === "link" && proof?.preview ? (
+                                        <div className="w-full min-w-0 space-y-1 sm:max-w-sm">
+                                          <a
+                                            href={proof.preview}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="block break-all rounded-md border border-emerald-200 bg-white px-2 py-1.5 text-[10px] font-semibold text-emerald-800 underline-offset-2 hover:underline"
+                                          >
+                                            {proof.preview}
+                                          </a>
+                                          {!proof.saved ? (
+                                            <button
+                                              type="button"
+                                              onClick={() => clearProofDraft(task)}
+                                              disabled={requestingId === task.id}
+                                              className="text-[10px] font-semibold text-emerald-800 underline-offset-2 hover:underline disabled:opacity-50"
+                                            >
+                                              Remove link
+                                            </button>
+                                          ) : null}
+                                        </div>
+                                      ) : null}
+                                      <div className="flex w-full min-w-0 flex-1 flex-col gap-1.5">
+                                        <label className="flex cursor-pointer items-center justify-center rounded-md border border-dashed border-emerald-300 bg-white px-2 py-1.5 text-[10px] font-semibold text-emerald-800 transition hover:bg-emerald-50/80">
+                                          {proof?.type === "image" && proof?.preview
+                                            ? "Change photo"
+                                            : "Upload photo"}
+                                          <input
+                                            type="file"
+                                            accept="image/*"
+                                            className="sr-only"
+                                            disabled={requestingId === task.id}
+                                            onChange={(e) =>
+                                              handleProofChange(task, e)
+                                            }
+                                          />
+                                        </label>
+                                        <input
+                                          type="url"
+                                          inputMode="url"
+                                          placeholder="Or paste link…"
+                                          value={proofLinkForTask(task)}
+                                          disabled={requestingId === task.id}
+                                          onChange={(e) =>
+                                            handleProofLinkChange(
+                                              task,
+                                              e.target.value,
+                                            )
+                                          }
+                                          className="w-full min-w-0 rounded-md border border-emerald-200 bg-white px-2 py-1.5 text-[11px] text-slate-800 placeholder:text-slate-400 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400/40 disabled:opacity-50"
+                                          aria-label="Proof link"
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
+                                ) : null}
+
+                                {pendingRequest ? (
+                                  <p
+                                    className={`text-xs ${
+                                      pendingRequest === "completed"
+                                        ? "font-semibold text-emerald-900"
+                                        : "text-amber-800"
+                                    }`}
+                                  >
+                                    Pending admin approval:{" "}
+                                    {statusLabel(pendingRequest)}
+                                  </p>
+                                ) : null}
+
+                                {!pendingRequest && taskMeta.rejectionRemarks ? (
+                                  <div className="w-full min-w-0 rounded-lg border border-rose-200/90 bg-rose-50/80 p-2 sm:max-w-md">
+                                    <p className="text-[10px] font-semibold uppercase tracking-wide text-rose-900">
+                                      Request rejected
+                                      {taskMeta.rejectedStatus
+                                        ? `: ${statusLabel(taskMeta.rejectedStatus)}`
+                                        : ""}
+                                    </p>
+                                    <p className="mt-1 text-xs leading-relaxed text-rose-950 whitespace-pre-wrap">
+                                      {taskMeta.rejectionRemarks}
+                                    </p>
+                                  </div>
+                                ) : null}
+                              </div>
+                            </td>
+                          </tr>
                         ) : null}
-                        {!pendingRequest && taskMeta.rejectionRemarks ? (
-                          <div className="mt-2 w-full min-w-[12rem] rounded-lg border border-rose-200/90 bg-rose-50/80 p-2 text-left">
-                            <p className="text-[10px] font-semibold uppercase tracking-wide text-rose-900">
-                              Request rejected
-                              {taskMeta.rejectedStatus
-                                ? `: ${statusLabel(taskMeta.rejectedStatus)}`
-                                : ""}
-                            </p>
-                            <p className="mt-1 text-xs leading-relaxed text-rose-950 whitespace-pre-wrap">
-                              {taskMeta.rejectionRemarks}
-                            </p>
-                            <p className="mt-1.5 text-[10px] font-medium text-rose-800/80">
-                              Update your work and submit a new request.
-                            </p>
-                          </div>
-                        ) : null}
-                      </td>
-                    </tr>
+                      </Fragment>
                     );
+
                   })
                 )}
               </tbody>
@@ -1432,23 +1556,54 @@ const UserTask = () => {
       ) : null}
 
       {expandedProofUrl ? (
-        <button
-          type="button"
-          className="fixed inset-0 z-[60] flex flex-col items-center justify-center gap-3 bg-slate-950/80 p-4"
-          onClick={() => setExpandedProofUrl(null)}
-          aria-label="Close proof image preview"
-        >
-          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-300">
-            Proof of completion
-          </p>
-          <img
-            src={expandedProofUrl}
-            alt="Proof of completion"
-            className="max-h-[85vh] max-w-full rounded-lg object-contain shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          />
-          <p className="text-xs text-slate-400">Click anywhere outside to close</p>
-        </button>
+        isImageProofUrl(expandedProofUrl) ? (
+          <button
+            type="button"
+            className="fixed inset-0 z-[60] flex flex-col items-center justify-center gap-3 bg-slate-950/80 p-4"
+            onClick={() => setExpandedProofUrl(null)}
+            aria-label="Close proof image preview"
+          >
+            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-300">
+              Proof of completion
+            </p>
+            <img
+              src={expandedProofUrl}
+              alt="Proof of completion"
+              className="max-h-[85vh] max-w-full rounded-lg object-contain shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            />
+            <p className="text-xs text-slate-400">Click anywhere outside to close</p>
+          </button>
+        ) : (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 p-4">
+            <button
+              type="button"
+              className="absolute inset-0"
+              onClick={() => setExpandedProofUrl(null)}
+              aria-label="Close proof link preview"
+            />
+            <div className="relative z-10 w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
+              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                Proof of completion
+              </p>
+              <a
+                href={expandedProofUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3 block break-all text-sm font-semibold text-sky-700 underline-offset-2 hover:underline"
+              >
+                {expandedProofUrl}
+              </a>
+              <button
+                type="button"
+                onClick={() => setExpandedProofUrl(null)}
+                className="mt-4 w-full rounded-xl border border-slate-300 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )
       ) : null}
     </Layout>
   );

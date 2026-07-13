@@ -41,6 +41,24 @@ const INSTRUCTION_IMAGE_SUFFIX = "]]";
 const PROOF_BUCKET = "task-completion-proofs";
 const INSTRUCTION_IMAGE_BUCKET = "task-instruction-images";
 
+/** True when a proof URL should be shown as an image (upload / image file). */
+export const isImageProofUrl = (url) => {
+  if (!url || typeof url !== "string") return false;
+  if (url.startsWith("blob:")) return true;
+  const path = url.toLowerCase().split("?")[0].split("#")[0];
+  if (/\.(jpe?g|png|gif|webp|bmp|svg|heic|heif)$/.test(path)) return true;
+  if (path.includes(`/${PROOF_BUCKET}/`)) return true;
+  return false;
+};
+
+/** Normalize a user-entered proof link (adds https:// when missing). */
+export const normalizeProofLink = (value) => {
+  const trimmed = typeof value === "string" ? value.trim() : "";
+  if (!trimmed) return "";
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+};
+
 export const emptySubTask = () => ({ title: "", remarks: "" });
 
 export const normalizeSubTasks = (subTasks) => {

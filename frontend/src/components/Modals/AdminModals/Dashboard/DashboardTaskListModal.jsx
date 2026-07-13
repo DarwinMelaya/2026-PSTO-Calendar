@@ -6,6 +6,7 @@ import {
   formatActivitiesPreview,
   formatTaskDeadline,
   hasDeadline,
+  isImageProofUrl,
   isTaskPriority,
   parseTaskRemarks,
   taskProgramLabel,
@@ -774,27 +775,40 @@ const DashboardTaskListModal = ({
                                   {entry.label}
                                 </p>
                               ) : null}
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setExpandedProofUrl(entry.proofUrl)
-                                }
-                                className="block overflow-hidden rounded-lg ring-2 ring-emerald-200/80 transition hover:ring-emerald-400"
-                              >
-                                <img
-                                  src={entry.proofUrl}
-                                  alt={`Proof of completion${proofEntries.length > 1 ? ` — ${entry.label}` : ""}`}
-                                  className="max-h-36 w-full object-cover sm:max-h-40 sm:w-auto sm:max-w-full"
-                                />
-                              </button>
-                              <a
-                                href={entry.proofUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="mt-1.5 inline-block text-xs font-semibold text-emerald-800 underline-offset-2 hover:underline"
-                              >
-                                Open full size
-                              </a>
+                              {isImageProofUrl(entry.proofUrl) ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setExpandedProofUrl(entry.proofUrl)
+                                    }
+                                    className="block overflow-hidden rounded-lg ring-2 ring-emerald-200/80 transition hover:ring-emerald-400"
+                                  >
+                                    <img
+                                      src={entry.proofUrl}
+                                      alt={`Proof of completion${proofEntries.length > 1 ? ` — ${entry.label}` : ""}`}
+                                      className="max-h-36 w-full object-cover sm:max-h-40 sm:w-auto sm:max-w-full"
+                                    />
+                                  </button>
+                                  <a
+                                    href={entry.proofUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="mt-1.5 inline-block text-xs font-semibold text-emerald-800 underline-offset-2 hover:underline"
+                                  >
+                                    Open full size
+                                  </a>
+                                </>
+                              ) : (
+                                <a
+                                  href={entry.proofUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="block break-all rounded-lg border border-emerald-200 bg-white px-2.5 py-2 text-xs font-semibold text-sky-700 underline-offset-2 hover:underline"
+                                >
+                                  {entry.proofUrl}
+                                </a>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -824,19 +838,50 @@ const DashboardTaskListModal = ({
       </div>
 
       {expandedProofUrl ? (
-        <button
-          type="button"
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 p-4"
-          onClick={() => setExpandedProofUrl(null)}
-          aria-label="Close proof preview"
-        >
-          <img
-            src={expandedProofUrl}
-            alt="Proof of completion"
-            className="max-h-[90vh] max-w-full rounded-lg object-contain shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          />
-        </button>
+        isImageProofUrl(expandedProofUrl) ? (
+          <button
+            type="button"
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 p-4"
+            onClick={() => setExpandedProofUrl(null)}
+            aria-label="Close proof preview"
+          >
+            <img
+              src={expandedProofUrl}
+              alt="Proof of completion"
+              className="max-h-[90vh] max-w-full rounded-lg object-contain shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </button>
+        ) : (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 p-4">
+            <button
+              type="button"
+              className="absolute inset-0"
+              onClick={() => setExpandedProofUrl(null)}
+              aria-label="Close proof link"
+            />
+            <div className="relative z-10 w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">
+              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                Proof of completion
+              </p>
+              <a
+                href={expandedProofUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3 block break-all text-sm font-semibold text-sky-700 underline-offset-2 hover:underline"
+              >
+                {expandedProofUrl}
+              </a>
+              <button
+                type="button"
+                onClick={() => setExpandedProofUrl(null)}
+                className="mt-4 w-full rounded-xl border border-slate-300 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )
       ) : null}
     </div>
   );

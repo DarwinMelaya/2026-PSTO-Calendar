@@ -13,6 +13,7 @@ const CompletedViewModal = ({
     tasks={tasks}
     onRefresh={onRefresh}
     readOnly={readOnly}
+    showCompletionProof
     title="Completed tasks"
     getSubtitle={(grouped) => `${grouped.length} completed`}
     emptyMessage="No completed tasks yet."
