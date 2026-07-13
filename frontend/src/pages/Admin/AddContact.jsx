@@ -504,14 +504,15 @@ const AddContact = () => {
             }
           />
 
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/50 px-5 py-3.5 sm:px-6">
-            <div className="relative min-w-0 flex-1 max-w-sm">
+          <div className="flex flex-col gap-3 border-b border-slate-100 bg-slate-50/50 px-3 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-6 sm:py-3.5">
+            <div className="relative w-full min-w-0 shrink-0 lg:max-w-md lg:flex-1">
               <svg
-                className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400 sm:left-3.5 sm:h-4 sm:w-4"
                 fill="none"
                 viewBox="0 0 24 24"
                 strokeWidth={2}
                 stroke="currentColor"
+                aria-hidden
               >
                 <path
                   strokeLinecap="round"
@@ -523,16 +524,19 @@ const AddContact = () => {
                 type="search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search name, organization, email, mobile…"
-                className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-10 pr-4 text-sm text-slate-800 shadow-sm placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                placeholder="Search name, org, email, mobile…"
+                enterKeyHint="search"
+                autoComplete="off"
+                aria-label="Search contacts"
+                className="block h-12 w-full min-w-0 appearance-none rounded-xl border border-slate-200 bg-white py-3 pl-12 pr-4 text-base leading-normal text-slate-800 shadow-sm placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 sm:h-10 sm:py-2 sm:pl-10 sm:text-sm [&::-webkit-search-cancel-button]:appearance-none [&::-webkit-search-decoration]:appearance-none"
               />
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 shadow-sm focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 sm:flex-none sm:py-2"
                 aria-label="Filter by category"
               >
                 <option value="all">All categories</option>
@@ -549,7 +553,7 @@ const AddContact = () => {
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 shadow-sm focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 sm:flex-none sm:py-2"
                 aria-label="Sort contacts"
               >
                 <option value="category">Sort by category</option>
@@ -569,7 +573,7 @@ const AddContact = () => {
                 onClick={loadContacts}
                 disabled={loading}
                 title="Refresh"
-                className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500 shadow-sm transition hover:border-slate-300 hover:text-slate-700 disabled:opacity-40"
+                className="rounded-xl border border-slate-200 bg-white p-2.5 text-slate-500 shadow-sm transition hover:border-slate-300 hover:text-slate-700 disabled:opacity-40 sm:p-2"
               >
                 <svg
                   className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
@@ -591,7 +595,7 @@ const AddContact = () => {
                   type="button"
                   title="Grid view"
                   onClick={() => setViewMode("grid")}
-                  className={`p-2 transition ${viewMode === "grid" ? "bg-sky-50 text-sky-600" : "text-slate-400 hover:text-slate-600"}`}
+                  className={`p-2.5 transition sm:p-2 ${viewMode === "grid" ? "bg-sky-50 text-sky-600" : "text-slate-400 hover:text-slate-600"}`}
                 >
                   <svg
                     className="h-4 w-4"
@@ -611,7 +615,7 @@ const AddContact = () => {
                   type="button"
                   title="Table view"
                   onClick={() => setViewMode("table")}
-                  className={`p-2 transition ${viewMode === "table" ? "bg-sky-50 text-sky-600" : "text-slate-400 hover:text-slate-600"}`}
+                  className={`p-2.5 transition sm:p-2 ${viewMode === "table" ? "bg-sky-50 text-sky-600" : "text-slate-400 hover:text-slate-600"}`}
                 >
                   <svg
                     className="h-4 w-4"

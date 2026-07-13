@@ -226,6 +226,14 @@ export const Routers = () => {
             </ProtectedRoutes>
           }
         />
+        <Route
+          path="/user-contacts"
+          element={
+            <ProtectedRoutes userOnly>
+              <AddContact />
+            </ProtectedRoutes>
+          }
+        />
       </Routes>
     </Router>
   );
