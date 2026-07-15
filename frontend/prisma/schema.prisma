@@ -1,0 +1,197 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["partialIndexes"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model admin_links {
+  id         BigInt    @id @default(autoincrement())
+  name       String
+  url        String
+  created_at DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@index([created_at(sort: Desc)])
+  @@index([name])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model all_projects_monitoring {
+  id                              BigInt    @id @default(autoincrement())
+  project_no                      String?
+  year                            Int?
+  firm                            String?
+  total_amount                    Decimal?  @db.Decimal(15, 2)
+  downloaded_funds_to_beneficiary Decimal?  @db.Decimal(15, 2)
+  project_title                   String
+  proponent                       String?
+  start_date                      DateTime? @db.Date
+  end_date                        DateTime? @db.Date
+  extension_request_3mo           DateTime? @db.Date
+  extension_date                  DateTime? @db.Date
+  realignment_1st                 Boolean   @default(false)
+  realignment_2nd                 Boolean   @default(false)
+  intervention_equipment          Boolean   @default(false)
+  intervention_mooe               Boolean   @default(false)
+  intervention_trainings          Boolean   @default(false)
+  intervention_consultancy        Boolean   @default(false)
+  intervention_pl                 Boolean   @default(false)
+  intervention_lab_others         Boolean   @default(false)
+  liquidation_psto                Boolean   @default(false)
+  received_approved               Boolean   @default(false)
+  lddap_date                      DateTime? @db.Date
+  moa_date                        DateTime? @db.Date
+  rtec_date                       DateTime? @db.Date
+  cash_program                    String?
+  status_report_1st               Boolean   @default(false)
+  status_report_2nd               Boolean   @default(false)
+  terminal_report                 Boolean   @default(false)
+  completed                       Boolean   @default(false)
+  terminated                      Boolean   @default(false)
+  condonation                     Boolean   @default(false)
+  with_letter_of_extension        Boolean   @default(false)
+  donated                         Boolean   @default(false)
+  impact_assessment               Boolean   @default(false)
+  par_no                          String?
+  ptr_no                          String?
+  remarks                         String?
+  with_coo                        Boolean   @default(false)
+  google_drive_links              String?
+  created_at                      DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at                      DateTime? @default(now()) @db.Timestamptz(6)
+  municipality                    String?
+  project_type                    String?
+
+  @@index([municipality])
+  @@index([project_no])
+  @@index([project_type])
+  @@index([year])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model contacts {
+  id               BigInt    @id @default(autoincrement())
+  name             String
+  email            String?
+  telephone_number String?
+  category         String
+  created_at       DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime? @default(now()) @db.Timestamptz(6)
+  organization     String?
+  mobile_numbers   String[]  @default([])
+
+  @@index([category])
+  @@index([created_at(sort: Desc)])
+  @@index([name])
+  @@index([organization])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model cto_entries {
+  id               BigInt    @id @default(autoincrement())
+  profile_id       BigInt
+  entry_date       DateTime  @db.Date
+  particulars      String
+  overtime_hours   Int       @default(0)
+  overtime_minutes Int       @default(0)
+  offset_date      DateTime? @db.Date
+  offset_hours     Int       @default(0)
+  offset_minutes   Int       @default(0)
+  balance_hours    Int       @default(0)
+  balance_minutes  Int       @default(0)
+  created_at       DateTime? @default(now()) @db.Timestamptz(6)
+  status           String    @default("approved")
+  rejection_reason String?
+  reviewed_at      DateTime? @db.Timestamptz(6)
+  image_url        String?
+  remarks          String?
+  profiles         profiles  @relation(fields: [profile_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([entry_date])
+  @@index([profile_id])
+  @@index([status])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model monitoring_projects {
+  id                       BigInt                     @id @default(autoincrement())
+  program                  String
+  title                    String
+  location                 String?
+  created_by               BigInt?
+  created_at               DateTime?                  @default(now()) @db.Timestamptz(6)
+  profiles                 profiles?                  @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  project_timeline_entries project_timeline_entries[]
+
+  @@index([program])
+}
+
+model notifications {
+  id           BigInt    @id @default(autoincrement())
+  recipient_id BigInt
+  task_id      BigInt?
+  type         String    @default("task_follow_up")
+  title        String
+  message      String
+  is_read      Boolean   @default(false)
+  created_at   DateTime? @default(now()) @db.Timestamptz(6)
+  profiles     profiles  @relation(fields: [recipient_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tasks        tasks?    @relation(fields: [task_id], references: [id], onUpdate: NoAction)
+
+  @@index([recipient_id])
+  @@index([recipient_id, is_read], map: "notifications_recipient_unread_idx", where: raw("(is_read = false)"))
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model profiles {
+  id                  BigInt                @id @default(autoincrement())
+  email               String                @unique
+  role                String                @default("user")
+  created_at          DateTime?             @default(now()) @db.Timestamptz(6)
+  password            String?
+  code_name           String?
+  name                String?
+  cto_entries         cto_entries[]
+  monitoring_projects monitoring_projects[]
+  notifications       notifications[]
+  tasks               tasks[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model project_timeline_entries {
+  id                  BigInt              @id @default(autoincrement())
+  project_id          BigInt
+  entry_date          DateTime            @db.Date
+  remarks             String?
+  photo_url           String?
+  created_at          DateTime?           @default(now()) @db.Timestamptz(6)
+  status              String              @default("update")
+  monitoring_projects monitoring_projects @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([entry_date])
+  @@index([project_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model tasks {
+  id             BigInt          @id @default(autoincrement())
+  task_date      DateTime        @db.Date
+  agenda         String
+  activities     String
+  deadline       DateTime        @db.Date
+  responsible_id BigInt
+  status         String          @default("pending")
+  remarks        String?
+  created_at     DateTime?       @default(now()) @db.Timestamptz(6)
+  is_priority    Boolean         @default(false)
+  program        String          @default("Other")
+  deadline_time  DateTime?       @db.Time(6)
+  notifications  notifications[]
+  profiles       profiles        @relation(fields: [responsible_id], references: [id], onUpdate: NoAction)
+
+  @@index([responsible_id])
+  @@index([task_date])
+}
