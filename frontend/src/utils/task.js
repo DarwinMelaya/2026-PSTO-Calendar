@@ -71,23 +71,37 @@ export const normalizeSubTasks = (subTasks) => {
     .filter((item) => item.title || item.remarks);
 };
 
-const escapeRegExp = (value) =>
-  String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
+/** Extract trailing `prefix...suffix` marker without RegExp (prefix has `[` chars). */
 const extractTrailingMarker = (raw, prefix, suffix) => {
-  // Prefix/suffix must be escaped — `[[...]]` contains regex char-class metacharacters.
-  const markerLine = `${escapeRegExp(prefix)}[\\s\\S]*${escapeRegExp(suffix)}`;
-  const match = raw.match(new RegExp(`\\n?${markerLine}$`));
-  if (!match) {
+  if (!raw.endsWith(suffix)) {
     return { remaining: raw, payload: null };
   }
 
-  const marker = match[0].trim();
-  const payload = marker.slice(prefix.length, marker.length - suffix.length).trim();
+  const prefixIdx = raw.lastIndexOf(prefix);
+  if (prefixIdx === -1) {
+    return { remaining: raw, payload: null };
+  }
+
+  const payload = raw
+    .slice(prefixIdx + prefix.length, raw.length - suffix.length)
+    .trim();
+  let remaining = raw.slice(0, prefixIdx);
+  if (remaining.endsWith("\n")) remaining = remaining.slice(0, -1);
+
   return {
-    remaining: raw.slice(0, raw.length - match[0].length).trim(),
+    remaining: remaining.trim(),
     payload: payload || null,
   };
+};
+
+/** Accept only real http(s) instruction image URLs — drop marker junk / empty payloads. */
+export const isInstructionImageUrl = (url) => {
+  if (!url || typeof url !== "string") return false;
+  const trimmed = url.trim();
+  if (!/^https?:\/\//i.test(trimmed)) return false;
+  if (trimmed.includes("[[") || trimmed.includes("]]")) return false;
+  if (/\s/.test(trimmed)) return false;
+  return true;
 };
 
 const extractSubTasksMarker = (raw) => {
@@ -121,7 +135,33 @@ const extractInstructionImageMarker = (raw) => {
   );
   return {
     cleanActivities: remaining,
-    instructionImageUrl: payload || null,
+    instructionImageUrl: isInstructionImageUrl(payload) ? payload.trim() : null,
+  };
+};
+
+/** Also strip a mid-string instruction marker left by older broken parsers. */
+const stripLooseInstructionImageMarker = (raw) => {
+  const start = raw.indexOf(INSTRUCTION_IMAGE_PREFIX);
+  if (start === -1) return { cleanActivities: raw, instructionImageUrl: null };
+
+  const afterPrefix = start + INSTRUCTION_IMAGE_PREFIX.length;
+  const end = raw.indexOf(INSTRUCTION_IMAGE_SUFFIX, afterPrefix);
+  if (end === -1) {
+    // Truncated marker (no closing ]]) — drop from prefix to end.
+    return {
+      cleanActivities: raw.slice(0, start).trim(),
+      instructionImageUrl: null,
+    };
+  }
+
+  const payload = raw.slice(afterPrefix, end).trim();
+  const before = raw.slice(0, start).trim();
+  const after = raw.slice(end + INSTRUCTION_IMAGE_SUFFIX.length).trim();
+  const cleanActivities = [before, after].filter(Boolean).join("\n");
+
+  return {
+    cleanActivities,
+    instructionImageUrl: isInstructionImageUrl(payload) ? payload : null,
   };
 };
 
@@ -131,8 +171,15 @@ export const parseTaskActivities = (activities) => {
     return { cleanActivities: "", subTasks: [], instructionImageUrl: null };
   }
 
-  const { cleanActivities: afterImage, instructionImageUrl } =
+  let { cleanActivities: afterImage, instructionImageUrl } =
     extractInstructionImageMarker(raw);
+
+  if (!instructionImageUrl && afterImage.includes(INSTRUCTION_IMAGE_PREFIX)) {
+    const loose = stripLooseInstructionImageMarker(afterImage);
+    afterImage = loose.cleanActivities;
+    instructionImageUrl = loose.instructionImageUrl;
+  }
+
   const { cleanActivities, subTasks } = extractSubTasksMarker(afterImage);
 
   return { cleanActivities, subTasks, instructionImageUrl };
@@ -146,7 +193,7 @@ const composeTaskActivities = ({ activities, subTasks, instructionImageUrl }) =>
       ? `${SUB_TASKS_PREFIX}${JSON.stringify(normalizedSubTasks)}${SUB_TASKS_SUFFIX}`
       : "";
   const imageMarker =
-    instructionImageUrl?.trim()
+    isInstructionImageUrl(instructionImageUrl)
       ? `${INSTRUCTION_IMAGE_PREFIX}${instructionImageUrl.trim()}${INSTRUCTION_IMAGE_SUFFIX}`
       : "";
 

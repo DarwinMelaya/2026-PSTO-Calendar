@@ -4,6 +4,7 @@ import {
   TASK_STATUSES,
   formatTaskDeadline,
   isImageProofUrl,
+  isInstructionImageUrl,
   isTaskPriority,
   parseTaskActivities,
   parseTaskRemarks,
@@ -53,6 +54,7 @@ const collectProofEntries = (task) => {
 const ViewTaskModal = ({ isOpen, onClose, task }) => {
   const [expandedProofUrl, setExpandedProofUrl] = useState(null);
   const [expandedInstructionUrl, setExpandedInstructionUrl] = useState(null);
+  const [instructionBroken, setInstructionBroken] = useState(false);
 
   const proofEntries = useMemo(
     () => (task ? collectProofEntries(task) : []),
@@ -62,6 +64,7 @@ const ViewTaskModal = ({ isOpen, onClose, task }) => {
   const handleClose = () => {
     setExpandedProofUrl(null);
     setExpandedInstructionUrl(null);
+    setInstructionBroken(false);
     onClose();
   };
 
@@ -70,8 +73,11 @@ const ViewTaskModal = ({ isOpen, onClose, task }) => {
   const { cleanActivities, subTasks, instructionImageUrl } = parseTaskActivities(
     task.activities,
   );
-  const instructionImage =
-    task.instructionImageUrl ?? instructionImageUrl ?? null;
+  const instructionImage = isInstructionImageUrl(
+    task.instructionImageUrl ?? instructionImageUrl,
+  )
+    ? (task.instructionImageUrl ?? instructionImageUrl)
+    : null;
 
   return (
     <div
@@ -155,7 +161,7 @@ const ViewTaskModal = ({ isOpen, onClose, task }) => {
               </ul>
             </div>
           ) : null}
-          {instructionImage ? (
+          {instructionImage && !instructionBroken ? (
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Instruction image
@@ -170,6 +176,7 @@ const ViewTaskModal = ({ isOpen, onClose, task }) => {
                     src={instructionImage}
                     alt="Task instruction"
                     className="max-h-48 w-full object-cover sm:max-h-56 sm:w-auto sm:max-w-full"
+                    onError={() => setInstructionBroken(true)}
                   />
                 </button>
                 <a

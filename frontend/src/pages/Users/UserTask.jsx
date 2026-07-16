@@ -23,6 +23,7 @@ import {
   formatTaskDeadline,
   hasDeadline,
   isImageProofUrl,
+  isInstructionImageUrl,
   isTaskPriority,
   listTasksForUser,
   normalizeProofLink,
@@ -179,6 +180,7 @@ const UserTask = () => {
   const [taskToView, setTaskToView] = useState(null);
   const [expandedInstructionUrl, setExpandedInstructionUrl] = useState(null);
   const [expandedProofUrl, setExpandedProofUrl] = useState(null);
+  const [brokenInstructionIds, setBrokenInstructionIds] = useState({});
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [filtersExpanded, setFiltersExpanded] = useState(true);
 
@@ -368,7 +370,9 @@ const UserTask = () => {
       proofUrl: meta.proofUrl,
       rejectionRemarks: meta.rejectionRemarks,
       rejectedStatus: meta.rejectedStatus,
-      instructionImageUrl,
+      instructionImageUrl: isInstructionImageUrl(instructionImageUrl)
+        ? instructionImageUrl
+        : null,
       responsibleLabels: codeName ? [codeName] : ["—"],
     };
   };
@@ -1184,6 +1188,9 @@ const UserTask = () => {
                   filteredTasks.map((task) => {
                     const taskMeta = parseTaskRemarks(task.remarks);
                     const { instructionImageUrl } = parseTaskActivities(task.activities);
+                    const showInstructionImage =
+                      isInstructionImageUrl(instructionImageUrl) &&
+                      !brokenInstructionIds[task.id];
                     const pendingRequest = taskMeta.requestedStatus;
                     const selectedRequestStatus =
                       requestDrafts[task.id] ??
@@ -1234,7 +1241,7 @@ const UserTask = () => {
                               >
                                 {formatActivitiesPreview(task.activities) || "—"}
                               </span>
-                              {instructionImageUrl ? (
+                              {showInstructionImage ? (
                                 <button
                                   type="button"
                                   onClick={() =>
@@ -1246,6 +1253,12 @@ const UserTask = () => {
                                     src={instructionImageUrl}
                                     alt="Task instruction from admin"
                                     className="h-14 w-auto max-w-full object-cover"
+                                    onError={() =>
+                                      setBrokenInstructionIds((prev) => ({
+                                        ...prev,
+                                        [task.id]: true,
+                                      }))
+                                    }
                                   />
                                 </button>
                               ) : null}
