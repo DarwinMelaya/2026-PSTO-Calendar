@@ -22,6 +22,7 @@ function taskToForm(task) {
       agenda: "",
       activities: "",
       subTasks: [],
+      instructionImageUrl: null,
       deadline: "",
       deadlineTime: "",
       responsibleId: [],
@@ -31,7 +32,8 @@ function taskToForm(task) {
     };
   }
 
-  const { cleanActivities, subTasks } = parseTaskActivities(task.activities);
+  const { cleanActivities, subTasks, instructionImageUrl } =
+    parseTaskActivities(task.activities);
   const meta = parseTaskRemarks(task.existing_remarks ?? task.remarks);
 
   return {
@@ -39,6 +41,7 @@ function taskToForm(task) {
     agenda: task.agenda ?? "",
     activities: cleanActivities,
     subTasks,
+    instructionImageUrl,
     deadline: deadlineForForm(task.deadline),
     deadlineTime: deadlineTimeForForm(task.deadline_time),
     responsibleId:
@@ -118,6 +121,7 @@ const EditUserTaskModal = ({ isOpen, onClose, onSuccess, task, currentUserId }) 
       agenda,
       activities,
       subTasks,
+      instructionImageUrl,
       deadline,
       deadlineTime,
       responsibleId,
@@ -153,6 +157,7 @@ const EditUserTaskModal = ({ isOpen, onClose, onSuccess, task, currentUserId }) 
       agenda,
       activities,
       subTasks: normalizeSubTasks(subTasks),
+      instructionImageUrl,
       deadline,
       deadlineTime,
       responsibleId,

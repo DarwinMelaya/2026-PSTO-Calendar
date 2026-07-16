@@ -71,15 +71,19 @@ export const normalizeSubTasks = (subTasks) => {
     .filter((item) => item.title || item.remarks);
 };
 
+const escapeRegExp = (value) =>
+  String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 const extractTrailingMarker = (raw, prefix, suffix) => {
-  const markerLine = `${prefix}[\\s\\S]*${suffix}`;
+  // Prefix/suffix must be escaped — `[[...]]` contains regex char-class metacharacters.
+  const markerLine = `${escapeRegExp(prefix)}[\\s\\S]*${escapeRegExp(suffix)}`;
   const match = raw.match(new RegExp(`\\n?${markerLine}$`));
   if (!match) {
     return { remaining: raw, payload: null };
   }
 
   const marker = match[0].trim();
-  const payload = marker.slice(prefix.length, marker.length - suffix.length);
+  const payload = marker.slice(prefix.length, marker.length - suffix.length).trim();
   return {
     remaining: raw.slice(0, raw.length - match[0].length).trim(),
     payload: payload || null,
