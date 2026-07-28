@@ -29,6 +29,7 @@ import {
   UserLinks,
   UserCto,
   AddContact,
+  AddOrgChart,
 } from "../pages";
 
 export const Routers = () => {
@@ -148,6 +149,14 @@ export const Routers = () => {
           element={
             <ProtectedRoutes adminOnly>
               <AddContact />
+            </ProtectedRoutes>
+          }
+        />
+        <Route
+          path="/admin-add-org-chart"
+          element={
+            <ProtectedRoutes adminOnly>
+              <AddOrgChart />
             </ProtectedRoutes>
           }
         />

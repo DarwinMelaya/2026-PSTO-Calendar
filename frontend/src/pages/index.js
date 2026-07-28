@@ -16,6 +16,7 @@ export { default as AddCto } from "./Admin/AddCto";
 export { default as AdminLinks } from "./Admin/AdminLinks";
 export { default as UserLinks } from "./Admin/AdminLinks";
 export { default as AddContact } from "./Admin/AddContact";
+export { default as AddOrgChart } from "./Admin/AddOrgChart";
 // Project Monitoring
 export { default as Cest } from "./Admin/ProjectMonitoring/Cest";
 export { default as Setup } from "./Admin/ProjectMonitoring/Setup";
