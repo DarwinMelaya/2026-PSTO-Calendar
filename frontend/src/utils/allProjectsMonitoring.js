@@ -10,6 +10,9 @@ export const APM_PROJECT_TYPES = [
 export const apmProjectTypeLabel = (value) =>
   APM_PROJECT_TYPES.find((p) => p.value === value)?.label ?? value ?? "—";
 
+/** Covers all municipalities in the province. Stored in municipality column. */
+export const APM_PROVINCE_WIDE = "Province wide";
+
 /** MIMAROPA municipalities grouped by province (for dropdown). */
 export const APM_MUNICIPALITY_GROUPS = [
   {

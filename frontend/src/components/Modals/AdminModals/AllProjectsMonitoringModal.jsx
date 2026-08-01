@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import {
   APM_PROJECT_TYPES,
+  APM_PROVINCE_WIDE,
   EMPTY_RECORD_FORM,
   createAllProjectsMonitoringRecord,
   recordToForm,
@@ -216,6 +217,7 @@ const AllProjectsMonitoringModal = ({ isOpen, onClose, onSuccess, record, defaul
                     className={inputClass}
                   >
                     <option value="">— Select municipality —</option>
+                    <option value={APM_PROVINCE_WIDE}>{APM_PROVINCE_WIDE}</option>
                     <option value="Boac">Boac</option>
                     <option value="Gasan">Gasan</option>
                     <option value="Buenavista">Buenavista</option>
