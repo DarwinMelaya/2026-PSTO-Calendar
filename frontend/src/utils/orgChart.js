@@ -17,7 +17,7 @@ export const PERSON_CARD_WIDTH = 208;
 export const PERSON_CARD_HEIGHT = 250;
 
 const SELECT_COLS =
-  "id, element_type, name, position, responsibilities, employment_type, photo_url, parent_id, from_id, to_id, sort_order, pos_x, pos_y, width, height, text_content, font_size, color, created_at, updated_at";
+  "id, element_type, name, position, responsibilities, employment_type, photo_url, parent_id, from_id, to_id, sort_order, pos_x, pos_y, width, height, text_content, font_size, color, has_arrow, created_at, updated_at";
 
 const mapRow = (row) => ({
   id: row.id,
@@ -38,6 +38,7 @@ const mapRow = (row) => ({
   textContent: row.text_content ?? "",
   fontSize: row.font_size ?? null,
   color: row.color ?? "",
+  hasArrow: row.has_arrow ?? false,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
@@ -76,6 +77,7 @@ const toDbPayload = (fields) => {
   if ("textContent" in fields) payload.text_content = fields.textContent ?? null;
   if ("fontSize" in fields) payload.font_size = numberOrNull(fields.fontSize);
   if ("color" in fields) payload.color = trimOrEmpty(fields.color) || null;
+  if ("hasArrow" in fields) payload.has_arrow = Boolean(fields.hasArrow);
 
   return payload;
 };
@@ -197,14 +199,45 @@ export const resolveLineEndpoints = (line, rectById) => {
     y: freeStart.y + (line.height ?? 0),
   };
 
-  let start = fromRect ? centerOf(fromRect) : freeStart;
-  let end = toRect ? centerOf(toRect) : freeEnd;
+  if (fromRect && toRect) {
+    const fromAnchors = sideAnchors(fromRect);
+    const toAnchors = sideAnchors(toRect);
 
-  if (fromRect) start = nearestAnchor(fromRect, end);
-  if (toRect) end = nearestAnchor(toRect, start);
-  if (fromRect) start = nearestAnchor(fromRect, end);
+    // Keep hierarchy branches on common bottom/top anchors. Multiple targets
+    // on one row then overlap into one horizontal trunk with separate arrows.
+    if (toRect.y >= fromRect.y + fromRect.h) {
+      return { start: fromAnchors.bottom, end: toAnchors.top };
+    }
+    if (fromRect.y >= toRect.y + toRect.h) {
+      return { start: fromAnchors.top, end: toAnchors.bottom };
+    }
+
+    return centerOf(toRect).x >= centerOf(fromRect).x
+      ? { start: fromAnchors.right, end: toAnchors.left }
+      : { start: fromAnchors.left, end: toAnchors.right };
+  }
+
+  const start = fromRect ? nearestAnchor(fromRect, freeEnd) : freeStart;
+  const end = toRect ? nearestAnchor(toRect, start) : freeEnd;
 
   return { start, end };
+};
+
+/**
+ * Route a connector with 90-degree elbows. Vertical routes match a standard
+ * org chart; horizontal routes are used when cards sit beside each other.
+ */
+export const orthogonalConnectorPoints = (start, end) => {
+  const deltaX = Math.abs(end.x - start.x);
+  const deltaY = Math.abs(end.y - start.y);
+
+  if (deltaY >= deltaX) {
+    const midY = start.y + (end.y - start.y) / 2;
+    return `${start.x},${start.y} ${start.x},${midY} ${end.x},${midY} ${end.x},${end.y}`;
+  }
+
+  const midX = start.x + (end.x - start.x) / 2;
+  return `${start.x},${start.y} ${midX},${start.y} ${midX},${end.y} ${end.x},${end.y}`;
 };
 
 // ─── Photo storage ────────────────────────────────────────────────────────────
@@ -318,6 +351,7 @@ export const createLineElement = async ({
   color = "#475569",
   fromId = null,
   toId = null,
+  hasArrow = false,
 }) => {
   const { data, error } = await supabase
     .from("org_chart")
@@ -331,6 +365,7 @@ export const createLineElement = async ({
         color,
         fromId,
         toId,
+        hasArrow,
       }),
     )
     .select(SELECT_COLS)

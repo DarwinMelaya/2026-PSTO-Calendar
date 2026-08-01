@@ -20,6 +20,7 @@ create table if not exists public.org_chart (
   text_content text null,
   font_size integer null,
   color text null,
+  has_arrow boolean not null default false,
   created_at timestamp with time zone null default now(),
   updated_at timestamp with time zone null default now(),
   constraint org_chart_pkey primary key (id),
@@ -42,6 +43,7 @@ alter table public.org_chart add column if not exists height double precision nu
 alter table public.org_chart add column if not exists text_content text null;
 alter table public.org_chart add column if not exists font_size integer null;
 alter table public.org_chart add column if not exists color text null;
+alter table public.org_chart add column if not exists has_arrow boolean not null default false;
 alter table public.org_chart add column if not exists from_id bigint null;
 alter table public.org_chart add column if not exists to_id bigint null;
 

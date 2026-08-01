@@ -216,6 +216,7 @@ model org_chart {
   text_content     String?
   font_size        Int?
   color            String?
+  has_arrow        Boolean     @default(false)
   created_at       DateTime?   @default(now()) @db.Timestamptz(6)
   updated_at       DateTime?   @default(now()) @db.Timestamptz(6)
   parent           org_chart?  @relation("org_chart_parent", fields: [parent_id], references: [id], onDelete: SetNull, onUpdate: NoAction)

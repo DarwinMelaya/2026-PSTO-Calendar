@@ -17,6 +17,7 @@ import {
   deleteOrgChartEntry,
   ELEMENT_TYPES,
   listOrgChart,
+  orthogonalConnectorPoints,
   PERSON_CARD_HEIGHT,
   PERSON_CARD_WIDTH,
   resolveLineEndpoints,
@@ -114,6 +115,9 @@ const AddOrgChart = () => {
   const [connecting, setConnecting] = useState(false);
   const [dropTargetId, setDropTargetId] = useState(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [branchMode, setBranchMode] = useState(false);
+  const [branchSourceId, setBranchSourceId] = useState(null);
+  const [newLineHasArrow, setNewLineHasArrow] = useState(false);
 
   const dragRef = useRef(null);
   const connectRef = useRef(null);
@@ -204,6 +208,10 @@ const AddOrgChart = () => {
     () => entries.filter((e) => e.elementType === ELEMENT_TYPES.LINE),
     [entries],
   );
+  const selectedLine = useMemo(
+    () => lines.find((line) => String(line.id) === String(selectedId)) ?? null,
+    [lines, selectedId],
+  );
 
   const canvasSize = useMemo(() => {
     let maxX = MIN_CANVAS_W;
@@ -293,10 +301,10 @@ const AddOrgChart = () => {
   }, [people, sizes]);
 
   // Kept in a ref so drag listeners never resubscribe mid-gesture.
-  const helpersRef = useRef({ cardAtPoint, pointInCanvas });
+  const helpersRef = useRef({ cardAtPoint, pointInCanvas, newLineHasArrow });
   useEffect(() => {
-    helpersRef.current = { cardAtPoint, pointInCanvas };
-  }, [cardAtPoint, pointInCanvas]);
+    helpersRef.current = { cardAtPoint, pointInCanvas, newLineHasArrow };
+  }, [cardAtPoint, pointInCanvas, newLineHasArrow]);
 
   // ── Dragging ───────────────────────────────────────────────────────────────
 
@@ -449,6 +457,7 @@ const AddOrgChart = () => {
         height: snap(draft.point.y - draft.origin.y),
         fromId: draft.fromId,
         toId: draft.hoverId,
+        hasArrow: helpersRef.current.newLineHasArrow,
       });
 
       if (error) {
@@ -504,6 +513,7 @@ const AddOrgChart = () => {
       posY: 80 + offset,
       width: 220,
       height: 0,
+      hasArrow: newLineHasArrow,
     });
     if (error) {
       toast.error(error.message);
@@ -511,6 +521,91 @@ const AddOrgChart = () => {
     }
     setEntries((prev) => [...prev, data]);
     setSelectedId(data.id);
+  };
+
+  const toggleSelectedLineArrow = async () => {
+    const line = lines.find((item) => String(item.id) === String(selectedId));
+    if (!line) return;
+
+    const next = !line.hasArrow;
+    setEntries((prev) =>
+      prev.map((item) =>
+        String(item.id) === String(line.id) ? { ...item, hasArrow: next } : item,
+      ),
+    );
+
+    const { error } = await saveElementGeometry(line.id, { hasArrow: next });
+    if (error) {
+      toast.error(error.message);
+      setEntries((prev) =>
+        prev.map((item) =>
+          String(item.id) === String(line.id)
+            ? { ...item, hasArrow: line.hasArrow }
+            : item,
+        ),
+      );
+    }
+  };
+
+  const toggleBranchMode = () => {
+    setBranchMode((active) => !active);
+    setBranchSourceId(null);
+    setSelectedId(null);
+  };
+
+  const handleBranchCard = async (e, entry) => {
+    e.stopPropagation();
+
+    if (!branchSourceId) {
+      setBranchSourceId(entry.id);
+      setSelectedId(entry.id);
+      toast.success("Source selected. Click target boxes.");
+      return;
+    }
+
+    if (String(branchSourceId) === String(entry.id)) return;
+
+    const alreadyConnected = lines.some(
+      (line) =>
+        String(line.fromId) === String(branchSourceId) &&
+        String(line.toId) === String(entry.id),
+    );
+    if (alreadyConnected) {
+      toast.error("These boxes are already connected.");
+      return;
+    }
+
+    const sourceRect = rectById.get(String(branchSourceId));
+    const targetRect = rectById.get(String(entry.id));
+    if (!sourceRect || !targetRect) return;
+
+    const start = {
+      x: sourceRect.x + sourceRect.w / 2,
+      y: sourceRect.y + sourceRect.h,
+    };
+    const end = {
+      x: targetRect.x + targetRect.w / 2,
+      y: targetRect.y,
+    };
+
+    const { data, error } = await createLineElement({
+      posX: start.x,
+      posY: start.y,
+      width: end.x - start.x,
+      height: end.y - start.y,
+      fromId: branchSourceId,
+      toId: entry.id,
+      color: "#0f172a",
+      hasArrow: newLineHasArrow,
+    });
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    setEntries((prev) => [...prev, data]);
+    toast.success(`Connected to ${entry.name}. Select another target.`);
   };
 
   const handleAutoArrange = async () => {
@@ -573,6 +668,11 @@ const AddOrgChart = () => {
 
   useEffect(() => {
     const onKeyDown = (e) => {
+      if (e.key === "Escape" && branchMode) {
+        setBranchMode(false);
+        setBranchSourceId(null);
+        return;
+      }
       if (editingTextId || !selectedId) return;
       if (e.key !== "Delete" && e.key !== "Backspace") return;
       const target = e.target;
@@ -591,7 +691,7 @@ const AddOrgChart = () => {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [entries, selectedId, editingTextId, handleDelete]);
+  }, [entries, selectedId, editingTextId, handleDelete, branchMode]);
 
   const regularCount = useMemo(
     () => people.filter((e) => e.employmentType === "regular").length,
@@ -749,6 +849,46 @@ const AddOrgChart = () => {
             </button>
             <button
               type="button"
+              onClick={() => setNewLineHasArrow((v) => !v)}
+              className={`${toolbarButton} ${
+                newLineHasArrow
+                  ? "border-sky-500 bg-sky-50 text-sky-700 ring-2 ring-sky-500/20"
+                  : ""
+              }`}
+              title="New lines and connectors use this arrow setting"
+            >
+              {newLineHasArrow ? "Arrow: On" : "Arrow: Off"}
+            </button>
+            {selectedLine && (
+              <button
+                type="button"
+                onClick={toggleSelectedLineArrow}
+                className={toolbarButton}
+                title="Toggle arrow on the selected line"
+              >
+                {selectedLine.hasArrow
+                  ? "Selected: remove arrow"
+                  : "Selected: add arrow"}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={toggleBranchMode}
+              className={`${toolbarButton} ${
+                branchMode
+                  ? "border-sky-500 bg-sky-50 text-sky-700 ring-2 ring-sky-500/20"
+                  : ""
+              }`}
+              title="Connect one box to multiple boxes"
+            >
+              {branchMode
+                ? branchSourceId
+                  ? "Click target boxes · Done"
+                  : "Click source box · Cancel"
+                : "Branch connector"}
+            </button>
+            <button
+              type="button"
               onClick={handleAutoArrange}
               className={toolbarButton}
             >
@@ -867,6 +1007,31 @@ const AddOrgChart = () => {
                       className="absolute inset-0 h-full w-full"
                       style={{ pointerEvents: "none" }}
                     >
+                      <defs>
+                        <marker
+                          id="org-chart-arrow"
+                          viewBox="0 0 10 10"
+                          refX="9"
+                          refY="5"
+                          markerWidth="6"
+                          markerHeight="6"
+                          orient="auto-start-reverse"
+                        >
+                          <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569" />
+                        </marker>
+                        <marker
+                          id="org-chart-arrow-muted"
+                          viewBox="0 0 10 10"
+                          refX="9"
+                          refY="5"
+                          markerWidth="6"
+                          markerHeight="6"
+                          orient="auto-start-reverse"
+                        >
+                          <path d="M 0 0 L 10 5 L 0 10 z" fill="#94a3b8" />
+                        </marker>
+                      </defs>
+
                       {connectors.map((connector) => (
                         <polyline
                           key={connector.id}
@@ -874,6 +1039,7 @@ const AddOrgChart = () => {
                           fill="none"
                           stroke="#94a3b8"
                           strokeWidth={1.5}
+                          markerEnd="url(#org-chart-arrow-muted)"
                         />
                       ))}
 
@@ -886,26 +1052,27 @@ const AddOrgChart = () => {
                         const y1 = start.y;
                         const x2 = end.x;
                         const y2 = end.y;
+                        const elbowPoints = orthogonalConnectorPoints(start, end);
                         const isSelected = String(selectedId) === String(line.id);
 
                         return (
                           <g key={line.id} style={{ pointerEvents: "auto" }}>
-                            <line
-                              x1={x1}
-                              y1={y1}
-                              x2={x2}
-                              y2={y2}
+                            <polyline
+                              points={elbowPoints}
+                              fill="none"
                               stroke={line.color || "#475569"}
                               strokeWidth={2}
-                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              markerEnd={
+                                line.hasArrow ? "url(#org-chart-arrow)" : undefined
+                              }
                             />
-                            <line
-                              x1={x1}
-                              y1={y1}
-                              x2={x2}
-                              y2={y2}
+                            <polyline
+                              points={elbowPoints}
+                              fill="none"
                               stroke="transparent"
                               strokeWidth={14}
+                              strokeLinejoin="round"
                               className="cursor-move"
                               onPointerDown={(e) => beginDrag(e, line, "move")}
                             />
@@ -942,14 +1109,18 @@ const AddOrgChart = () => {
                       })}
 
                       {connectDraft && (
-                        <line
-                          x1={connectDraft.from.x}
-                          y1={connectDraft.from.y}
-                          x2={connectDraft.to.x}
-                          y2={connectDraft.to.y}
+                        <polyline
+                          points={orthogonalConnectorPoints(
+                            connectDraft.from,
+                            connectDraft.to,
+                          )}
+                          fill="none"
                           stroke="#0ea5e9"
                           strokeWidth={2}
                           strokeDasharray="6 4"
+                          markerEnd={
+                            newLineHasArrow ? "url(#org-chart-arrow)" : undefined
+                          }
                         />
                       )}
                     </svg>
@@ -959,6 +1130,9 @@ const AddOrgChart = () => {
                       const isDropTarget =
                         String(dropTargetId) === String(entry.id) ||
                         String(connectDraft?.hoverId ?? "") === String(entry.id);
+                      const isBranchSource =
+                        branchMode &&
+                        String(branchSourceId ?? "") === String(entry.id);
                       const rect = rectById.get(String(entry.id));
                       const anchors = rect ? sideAnchors(rect) : null;
 
@@ -966,20 +1140,31 @@ const AddOrgChart = () => {
                         <div
                           key={entry.id}
                           ref={setCardRef(entry.id)}
-                          className={`group absolute cursor-move touch-none select-none ${
-                            isDropTarget
+                          className={`group absolute touch-none select-none ${
+                            branchMode ? "cursor-crosshair" : "cursor-move"
+                          } ${
+                            isBranchSource
+                              ? "ring-4 ring-violet-500 ring-offset-2"
+                              : isDropTarget
                               ? "ring-2 ring-emerald-500 ring-offset-2"
                               : isSelected
                                 ? "ring-2 ring-sky-500 ring-offset-2"
                                 : ""
                           }`}
                           style={{ left: entry.posX ?? 0, top: entry.posY ?? 0 }}
-                          onPointerDown={(e) => beginDrag(e, entry, "move")}
-                          onDoubleClick={() => openEdit(entry)}
+                          onPointerDown={(e) =>
+                            branchMode
+                              ? handleBranchCard(e, entry)
+                              : beginDrag(e, entry, "move")
+                          }
+                          onDoubleClick={() => {
+                            if (!branchMode) openEdit(entry);
+                          }}
                         >
                           <PersonCard entry={entry} />
 
-                          {anchors &&
+                          {!branchMode &&
+                            anchors &&
                             Object.entries(anchors).map(([side, anchor]) => (
                               <span
                                 key={side}
