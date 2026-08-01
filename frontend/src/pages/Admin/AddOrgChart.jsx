@@ -13,6 +13,7 @@ import { getGreeting, PanelHeader, StatCard } from "../../components/User/UserWo
 import {
   autoLayoutPositions,
   createLineElement,
+  createOrgChartEntry,
   createTextElement,
   deleteOrgChartEntry,
   ELEMENT_TYPES,
@@ -118,12 +119,14 @@ const AddOrgChart = () => {
   const [branchMode, setBranchMode] = useState(false);
   const [branchSourceId, setBranchSourceId] = useState(null);
   const [newLineHasArrow, setNewLineHasArrow] = useState(false);
+  const [addPosition, setAddPosition] = useState(null);
 
   const dragRef = useRef(null);
   const connectRef = useRef(null);
   const zoomRef = useRef(zoom);
   const cardRefs = useRef(new Map());
   const canvasRef = useRef(null);
+  const viewportRef = useRef(null);
 
   useEffect(() => {
     zoomRef.current = zoom;
@@ -211,6 +214,11 @@ const AddOrgChart = () => {
   const selectedLine = useMemo(
     () => lines.find((line) => String(line.id) === String(selectedId)) ?? null,
     [lines, selectedId],
+  );
+  const selectedElement = useMemo(
+    () =>
+      entries.find((entry) => String(entry.id) === String(selectedId)) ?? null,
+    [entries, selectedId],
   );
 
   const canvasSize = useMemo(() => {
@@ -478,7 +486,34 @@ const AddOrgChart = () => {
 
   // ── Element actions ────────────────────────────────────────────────────────
 
+  const getViewportSpawn = useCallback(
+    (width, height, index = 0) => {
+      const viewport = viewportRef.current;
+      const offset = (index % 5) * 20;
+
+      if (!viewport) {
+        return { x: 80 + offset, y: 80 + offset };
+      }
+
+      const scale = zoomRef.current || 1;
+      return {
+        x: Math.max(
+          20,
+          snap((viewport.scrollLeft + viewport.clientWidth / 2) / scale - width / 2 + offset),
+        ),
+        y: Math.max(
+          20,
+          snap((viewport.scrollTop + viewport.clientHeight / 2) / scale - height / 2 + offset),
+        ),
+      };
+    },
+    [],
+  );
+
   const openAdd = () => {
+    setAddPosition(
+      getViewportSpawn(PERSON_CARD_WIDTH, PERSON_CARD_HEIGHT, people.length),
+    );
     setEditingEntry(null);
     setModalOpen(true);
   };
@@ -489,14 +524,15 @@ const AddOrgChart = () => {
   const closeModal = () => {
     setModalOpen(false);
     setEditingEntry(null);
+    setAddPosition(null);
   };
 
   const handleAddText = async () => {
-    const offset = texts.length * 20;
+    const position = getViewportSpawn(240, 40, texts.length);
     const { data, error } = await createTextElement({
       textContent: "Double-click to edit",
-      posX: 80 + offset,
-      posY: 40 + offset,
+      posX: position.x,
+      posY: position.y,
     });
     if (error) {
       toast.error(error.message);
@@ -507,10 +543,10 @@ const AddOrgChart = () => {
   };
 
   const handleAddLine = async () => {
-    const offset = lines.length * 20;
+    const position = getViewportSpawn(220, 20, lines.length);
     const { data, error } = await createLineElement({
-      posX: 80 + offset,
-      posY: 80 + offset,
+      posX: position.x,
+      posY: position.y,
       width: 220,
       height: 0,
       hasArrow: newLineHasArrow,
@@ -545,6 +581,53 @@ const AddOrgChart = () => {
         ),
       );
     }
+  };
+
+  const handleDuplicate = async () => {
+    if (!selectedElement) return;
+
+    let result;
+    if (selectedElement.elementType === ELEMENT_TYPES.PERSON) {
+      result = await createOrgChartEntry({
+        name: selectedElement.name,
+        position: selectedElement.position,
+        responsibilities: selectedElement.responsibilities,
+        employmentType: selectedElement.employmentType,
+        photoUrl: selectedElement.photoUrl,
+        parentId: selectedElement.parentId,
+        sortOrder: selectedElement.sortOrder,
+        posX: (selectedElement.posX ?? 0) + 30,
+        posY: (selectedElement.posY ?? 0) + 30,
+      });
+    } else if (selectedElement.elementType === ELEMENT_TYPES.TEXT) {
+      result = await createTextElement({
+        textContent: selectedElement.textContent,
+        posX: (selectedElement.posX ?? 0) + 30,
+        posY: (selectedElement.posY ?? 0) + 30,
+        width: selectedElement.width ?? 240,
+        fontSize: selectedElement.fontSize ?? 18,
+        color: selectedElement.color || "#0f172a",
+      });
+    } else {
+      const { start, end } = resolveLineEndpoints(selectedElement, rectById);
+      result = await createLineElement({
+        posX: start.x + 30,
+        posY: start.y + 30,
+        width: end.x - start.x,
+        height: end.y - start.y,
+        color: selectedElement.color || "#475569",
+        hasArrow: selectedElement.hasArrow,
+      });
+    }
+
+    if (result.error) {
+      toast.error(result.error.message);
+      return;
+    }
+
+    setEntries((prev) => [...prev, result.data]);
+    setSelectedId(result.data.id);
+    toast.success("Element duplicated.");
   };
 
   const toggleBranchMode = () => {
@@ -668,6 +751,16 @@ const AddOrgChart = () => {
 
   useEffect(() => {
     const onKeyDown = (e) => {
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        e.key.toLowerCase() === "d" &&
+        selectedElement &&
+        !editingTextId
+      ) {
+        e.preventDefault();
+        handleDuplicate();
+        return;
+      }
       if (e.key === "Escape" && branchMode) {
         setBranchMode(false);
         setBranchSourceId(null);
@@ -691,7 +784,15 @@ const AddOrgChart = () => {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [entries, selectedId, editingTextId, handleDelete, branchMode]);
+  }, [
+    entries,
+    selectedId,
+    selectedElement,
+    editingTextId,
+    handleDelete,
+    handleDuplicate,
+    branchMode,
+  ]);
 
   const regularCount = useMemo(
     () => people.filter((e) => e.employmentType === "regular").length,
@@ -849,6 +950,15 @@ const AddOrgChart = () => {
             </button>
             <button
               type="button"
+              onClick={handleDuplicate}
+              disabled={!selectedElement}
+              className={`${toolbarButton} disabled:cursor-not-allowed disabled:opacity-40`}
+              title="Duplicate selected element (Ctrl+D)"
+            >
+              Duplicate
+            </button>
+            <button
+              type="button"
               onClick={() => setNewLineHasArrow((v) => !v)}
               className={`${toolbarButton} ${
                 newLineHasArrow
@@ -983,6 +1093,7 @@ const AddOrgChart = () => {
               <div className="h-[640px] animate-pulse rounded-2xl bg-slate-100" />
             ) : (
               <div
+                ref={viewportRef}
                 className={`relative overflow-auto rounded-2xl border border-slate-200 bg-[radial-gradient(circle,#cbd5e1_1px,transparent_1px)] [background-size:20px_20px] ${
                   isFullscreen ? "min-h-0 flex-1" : "max-h-[75vh]"
                 }`}
@@ -1272,6 +1383,7 @@ const AddOrgChart = () => {
         isOpen={modalOpen}
         editEntry={editingEntry}
         entries={people}
+        initialPosition={addPosition}
         onClose={closeModal}
         onSuccess={loadEntries}
       />

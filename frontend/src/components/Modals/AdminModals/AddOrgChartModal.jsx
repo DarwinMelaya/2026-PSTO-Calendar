@@ -16,6 +16,8 @@ const initialForm = {
   parentId: "",
   sortOrder: "0",
   photoUrl: "",
+  posX: null,
+  posY: null,
 };
 
 const inputClass =
@@ -27,6 +29,7 @@ const AddOrgChartModal = ({
   onSuccess,
   editEntry = null,
   entries = [],
+  initialPosition = null,
 }) => {
   const isEditMode = Boolean(editEntry);
   const [form, setForm] = useState(initialForm);
@@ -45,11 +48,17 @@ const AddOrgChartModal = ({
         parentId: editEntry.parentId != null ? String(editEntry.parentId) : "",
         sortOrder: String(editEntry.sortOrder ?? 0),
         photoUrl: editEntry.photoUrl ?? "",
+        posX: editEntry.posX ?? null,
+        posY: editEntry.posY ?? null,
       });
     } else {
-      setForm(initialForm);
+      setForm({
+        ...initialForm,
+        posX: initialPosition?.x ?? null,
+        posY: initialPosition?.y ?? null,
+      });
     }
-  }, [isOpen, isEditMode, editEntry]);
+  }, [isOpen, isEditMode, editEntry, initialPosition]);
 
   const parentOptions = useMemo(() => {
     if (!isEditMode || !editEntry) return entries;
