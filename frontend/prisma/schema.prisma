@@ -195,3 +195,24 @@ model tasks {
   @@index([responsible_id])
   @@index([task_date])
 }
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model org_chart {
+  id               BigInt      @id @default(autoincrement())
+  name             String
+  position         String
+  responsibilities String?
+  employment_type  String      @default("regular")
+  photo_url        String?
+  parent_id        BigInt?
+  sort_order       Int         @default(0)
+  created_at       DateTime?   @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime?   @default(now()) @db.Timestamptz(6)
+  parent           org_chart?  @relation("org_chart_parent", fields: [parent_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  children         org_chart[] @relation("org_chart_parent")
+
+  @@index([employment_type])
+  @@index([name])
+  @@index([parent_id])
+  @@index([sort_order])
+}
