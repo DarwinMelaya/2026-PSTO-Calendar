@@ -199,20 +199,37 @@ model tasks {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model org_chart {
   id               BigInt      @id @default(autoincrement())
-  name             String
-  position         String
+  element_type     String      @default("person")
+  name             String?
+  position         String?
   responsibilities String?
   employment_type  String      @default("regular")
   photo_url        String?
   parent_id        BigInt?
+  from_id          BigInt?
+  to_id            BigInt?
   sort_order       Int         @default(0)
+  pos_x            Float?
+  pos_y            Float?
+  width            Float?
+  height           Float?
+  text_content     String?
+  font_size        Int?
+  color            String?
   created_at       DateTime?   @default(now()) @db.Timestamptz(6)
   updated_at       DateTime?   @default(now()) @db.Timestamptz(6)
   parent           org_chart?  @relation("org_chart_parent", fields: [parent_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
   children         org_chart[] @relation("org_chart_parent")
+  from_node        org_chart?  @relation("org_chart_from", fields: [from_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  from_links       org_chart[] @relation("org_chart_from")
+  to_node          org_chart?  @relation("org_chart_to", fields: [to_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  to_links         org_chart[] @relation("org_chart_to")
 
+  @@index([element_type])
   @@index([employment_type])
+  @@index([from_id])
   @@index([name])
   @@index([parent_id])
   @@index([sort_order])
+  @@index([to_id])
 }
