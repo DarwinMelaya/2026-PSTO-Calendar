@@ -116,10 +116,14 @@ const AddOrgChart = () => {
   const [connecting, setConnecting] = useState(false);
   const [dropTargetId, setDropTargetId] = useState(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [canvasMode, setCanvasMode] = useState("view");
   const [branchMode, setBranchMode] = useState(false);
   const [branchSourceId, setBranchSourceId] = useState(null);
   const [newLineHasArrow, setNewLineHasArrow] = useState(false);
   const [addPosition, setAddPosition] = useState(null);
+
+  const isViewMode = canvasMode === "view";
+  const isEditMode = canvasMode === "edit";
 
   const dragRef = useRef(null);
   const connectRef = useRef(null);
@@ -749,8 +753,26 @@ const AddOrgChart = () => {
     if (error) toast.error(error.message);
   };
 
+  const enterViewMode = useCallback(() => {
+    setCanvasMode("view");
+    setSelectedId(null);
+    setEditingTextId(null);
+    setBranchMode(false);
+    setBranchSourceId(null);
+    setConnectDraft(null);
+    setConnecting(false);
+    setDropTargetId(null);
+    setModalOpen(false);
+    setEditingEntry(null);
+  }, []);
+
+  const enterEditMode = useCallback(() => {
+    setCanvasMode("edit");
+  }, []);
+
   useEffect(() => {
     const onKeyDown = (e) => {
+      if (isViewMode) return;
       if (
         (e.ctrlKey || e.metaKey) &&
         e.key.toLowerCase() === "d" &&
@@ -792,6 +814,7 @@ const AddOrgChart = () => {
     handleDelete,
     handleDuplicate,
     branchMode,
+    isViewMode,
   ]);
 
   const regularCount = useMemo(
@@ -851,8 +874,9 @@ const AddOrgChart = () => {
                   Organizational chart
                 </h1>
                 <p className="mt-3 text-sm leading-relaxed text-sky-100/85 sm:text-base">
-                  Drag any card, text, or line anywhere on the canvas. Positions
-                  save automatically.
+                  {isViewMode
+                    ? "Professional view of the PSTO-Marinduque organizational structure."
+                    : "Drag any card, text, or line anywhere on the canvas. Positions save automatically."}
                 </p>
               </div>
               <p className="text-xs font-medium text-sky-200/80">{todayLabel}</p>
@@ -902,29 +926,61 @@ const AddOrgChart = () => {
                 </svg>
               }
               title="PSTO-Marinduque chart"
-              subtitle="Hover a card and drag a blue dot onto another card to connect them. Double-click a card to edit."
+              subtitle={
+                isViewMode
+                  ? "Presentation mode — zoom and scroll to explore. Switch to Edit to rearrange."
+                  : "Hover a card and drag a blue dot onto another card to connect them. Double-click a card to edit."
+              }
               action={
-                <button
-                  type="button"
-                  onClick={openAdd}
-                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-600 to-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-sky-600/25 transition hover:from-sky-700 hover:to-blue-700 active:scale-95"
-                >
-                  <svg
-                    className="h-4 w-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    strokeWidth={2.5}
-                    stroke="currentColor"
-                    aria-hidden
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M12 4.5v15m7.5-7.5h-15"
-                    />
-                  </svg>
-                  Add personnel
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="inline-flex rounded-xl border border-slate-200 bg-slate-100/80 p-1 shadow-sm">
+                    <button
+                      type="button"
+                      onClick={enterViewMode}
+                      className={`rounded-lg px-3 py-2 text-sm font-bold transition ${
+                        isViewMode
+                          ? "bg-white text-slate-900 shadow-sm"
+                          : "text-slate-500 hover:text-slate-700"
+                      }`}
+                    >
+                      View
+                    </button>
+                    <button
+                      type="button"
+                      onClick={enterEditMode}
+                      className={`rounded-lg px-3 py-2 text-sm font-bold transition ${
+                        isEditMode
+                          ? "bg-white text-slate-900 shadow-sm"
+                          : "text-slate-500 hover:text-slate-700"
+                      }`}
+                    >
+                      Edit
+                    </button>
+                  </div>
+                  {isEditMode && (
+                    <button
+                      type="button"
+                      onClick={openAdd}
+                      className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-600 to-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-sky-600/25 transition hover:from-sky-700 hover:to-blue-700 active:scale-95"
+                    >
+                      <svg
+                        className="h-4 w-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        strokeWidth={2.5}
+                        stroke="currentColor"
+                        aria-hidden
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M12 4.5v15m7.5-7.5h-15"
+                        />
+                      </svg>
+                      Add personnel
+                    </button>
+                  )}
+                </div>
               }
             />
           )}
@@ -936,74 +992,107 @@ const AddOrgChart = () => {
           >
             {isFullscreen && (
               <p className="mr-2 text-sm font-bold text-slate-800">
-                Org chart editor
+                {isViewMode ? "Org chart view" : "Org chart editor"}
               </p>
             )}
-            <button type="button" onClick={openAdd} className={toolbarButton}>
-              Add personnel
-            </button>
-            <button type="button" onClick={handleAddText} className={toolbarButton}>
-              Add text
-            </button>
-            <button type="button" onClick={handleAddLine} className={toolbarButton}>
-              Add line
-            </button>
-            <button
-              type="button"
-              onClick={handleDuplicate}
-              disabled={!selectedElement}
-              className={`${toolbarButton} disabled:cursor-not-allowed disabled:opacity-40`}
-              title="Duplicate selected element (Ctrl+D)"
-            >
-              Duplicate
-            </button>
-            <button
-              type="button"
-              onClick={() => setNewLineHasArrow((v) => !v)}
-              className={`${toolbarButton} ${
-                newLineHasArrow
-                  ? "border-sky-500 bg-sky-50 text-sky-700 ring-2 ring-sky-500/20"
-                  : ""
-              }`}
-              title="New lines and connectors use this arrow setting"
-            >
-              {newLineHasArrow ? "Arrow: On" : "Arrow: Off"}
-            </button>
-            {selectedLine && (
-              <button
-                type="button"
-                onClick={toggleSelectedLineArrow}
-                className={toolbarButton}
-                title="Toggle arrow on the selected line"
-              >
-                {selectedLine.hasArrow
-                  ? "Selected: remove arrow"
-                  : "Selected: add arrow"}
-              </button>
+
+            {isFullscreen && (
+              <div className="mr-2 inline-flex rounded-lg border border-slate-200 bg-white p-0.5 shadow-sm">
+                <button
+                  type="button"
+                  onClick={enterViewMode}
+                  className={`rounded-md px-2.5 py-1.5 text-xs font-bold transition ${
+                    isViewMode
+                      ? "bg-slate-900 text-white"
+                      : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  View
+                </button>
+                <button
+                  type="button"
+                  onClick={enterEditMode}
+                  className={`rounded-md px-2.5 py-1.5 text-xs font-bold transition ${
+                    isEditMode
+                      ? "bg-slate-900 text-white"
+                      : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  Edit
+                </button>
+              </div>
             )}
-            <button
-              type="button"
-              onClick={toggleBranchMode}
-              className={`${toolbarButton} ${
-                branchMode
-                  ? "border-sky-500 bg-sky-50 text-sky-700 ring-2 ring-sky-500/20"
-                  : ""
-              }`}
-              title="Connect one box to multiple boxes"
-            >
-              {branchMode
-                ? branchSourceId
-                  ? "Click target boxes · Done"
-                  : "Click source box · Cancel"
-                : "Branch connector"}
-            </button>
-            <button
-              type="button"
-              onClick={handleAutoArrange}
-              className={toolbarButton}
-            >
-              Auto-arrange
-            </button>
+
+            {isEditMode && (
+              <>
+                <button type="button" onClick={openAdd} className={toolbarButton}>
+                  Add personnel
+                </button>
+                <button type="button" onClick={handleAddText} className={toolbarButton}>
+                  Add text
+                </button>
+                <button type="button" onClick={handleAddLine} className={toolbarButton}>
+                  Add line
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDuplicate}
+                  disabled={!selectedElement}
+                  className={`${toolbarButton} disabled:cursor-not-allowed disabled:opacity-40`}
+                  title="Duplicate selected element (Ctrl+D)"
+                >
+                  Duplicate
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNewLineHasArrow((v) => !v)}
+                  className={`${toolbarButton} ${
+                    newLineHasArrow
+                      ? "border-sky-500 bg-sky-50 text-sky-700 ring-2 ring-sky-500/20"
+                      : ""
+                  }`}
+                  title="New lines and connectors use this arrow setting"
+                >
+                  {newLineHasArrow ? "Arrow: On" : "Arrow: Off"}
+                </button>
+                {selectedLine && (
+                  <button
+                    type="button"
+                    onClick={toggleSelectedLineArrow}
+                    className={toolbarButton}
+                    title="Toggle arrow on the selected line"
+                  >
+                    {selectedLine.hasArrow
+                      ? "Selected: remove arrow"
+                      : "Selected: add arrow"}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={toggleBranchMode}
+                  className={`${toolbarButton} ${
+                    branchMode
+                      ? "border-sky-500 bg-sky-50 text-sky-700 ring-2 ring-sky-500/20"
+                      : ""
+                  }`}
+                  title="Connect one box to multiple boxes"
+                >
+                  {branchMode
+                    ? branchSourceId
+                      ? "Click target boxes · Done"
+                      : "Click source box · Cancel"
+                    : "Branch connector"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAutoArrange}
+                  className={toolbarButton}
+                >
+                  Auto-arrange
+                </button>
+              </>
+            )}
+
             <button
               type="button"
               onClick={loadEntries}
@@ -1040,7 +1129,13 @@ const AddOrgChart = () => {
                 type="button"
                 onClick={() => setIsFullscreen((v) => !v)}
                 className={toolbarButton}
-                title={isFullscreen ? "Exit fullscreen (Esc)" : "Fullscreen edit"}
+                title={
+                  isFullscreen
+                    ? "Exit fullscreen (Esc)"
+                    : isViewMode
+                      ? "Fullscreen view"
+                      : "Fullscreen edit"
+                }
                 aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
               >
                 {isFullscreen ? (
@@ -1094,10 +1189,14 @@ const AddOrgChart = () => {
             ) : (
               <div
                 ref={viewportRef}
-                className={`relative overflow-auto rounded-2xl border border-slate-200 bg-[radial-gradient(circle,#cbd5e1_1px,transparent_1px)] [background-size:20px_20px] ${
-                  isFullscreen ? "min-h-0 flex-1" : "max-h-[75vh]"
-                }`}
-                onPointerDown={() => setSelectedId(null)}
+                className={`relative overflow-auto rounded-2xl border ${
+                  isViewMode
+                    ? "border-slate-200/80 bg-gradient-to-br from-[#f7f6f2] via-white to-slate-50"
+                    : "border-slate-200 bg-[radial-gradient(circle,#cbd5e1_1px,transparent_1px)] [background-size:20px_20px]"
+                } ${isFullscreen ? "min-h-0 flex-1" : "max-h-[75vh]"}`}
+                onPointerDown={() => {
+                  if (isEditMode) setSelectedId(null);
+                }}
               >
                 <div
                   style={{
@@ -1167,7 +1266,7 @@ const AddOrgChart = () => {
                         const isSelected = String(selectedId) === String(line.id);
 
                         return (
-                          <g key={line.id} style={{ pointerEvents: "auto" }}>
+                          <g key={line.id} style={{ pointerEvents: isEditMode ? "auto" : "none" }}>
                             <polyline
                               points={elbowPoints}
                               fill="none"
@@ -1178,16 +1277,18 @@ const AddOrgChart = () => {
                                 line.hasArrow ? "url(#org-chart-arrow)" : undefined
                               }
                             />
-                            <polyline
-                              points={elbowPoints}
-                              fill="none"
-                              stroke="transparent"
-                              strokeWidth={14}
-                              strokeLinejoin="round"
-                              className="cursor-move"
-                              onPointerDown={(e) => beginDrag(e, line, "move")}
-                            />
-                            {isSelected && (
+                            {isEditMode && (
+                              <polyline
+                                points={elbowPoints}
+                                fill="none"
+                                stroke="transparent"
+                                strokeWidth={14}
+                                strokeLinejoin="round"
+                                className="cursor-move"
+                                onPointerDown={(e) => beginDrag(e, line, "move")}
+                              />
+                            )}
+                            {isEditMode && isSelected && (
                               <>
                                 <circle
                                   cx={x1}
@@ -1237,11 +1338,14 @@ const AddOrgChart = () => {
                     </svg>
 
                     {people.map((entry) => {
-                      const isSelected = String(selectedId) === String(entry.id);
+                      const isSelected =
+                        isEditMode && String(selectedId) === String(entry.id);
                       const isDropTarget =
-                        String(dropTargetId) === String(entry.id) ||
-                        String(connectDraft?.hoverId ?? "") === String(entry.id);
+                        isEditMode &&
+                        (String(dropTargetId) === String(entry.id) ||
+                          String(connectDraft?.hoverId ?? "") === String(entry.id));
                       const isBranchSource =
+                        isEditMode &&
                         branchMode &&
                         String(branchSourceId ?? "") === String(entry.id);
                       const rect = rectById.get(String(entry.id));
@@ -1251,8 +1355,12 @@ const AddOrgChart = () => {
                         <div
                           key={entry.id}
                           ref={setCardRef(entry.id)}
-                          className={`group absolute touch-none select-none ${
-                            branchMode ? "cursor-crosshair" : "cursor-move"
+                          className={`absolute touch-none select-none ${
+                            isViewMode
+                              ? "cursor-default"
+                              : branchMode
+                                ? "cursor-crosshair"
+                                : "cursor-move"
                           } ${
                             isBranchSource
                               ? "ring-4 ring-violet-500 ring-offset-2"
@@ -1261,20 +1369,22 @@ const AddOrgChart = () => {
                               : isSelected
                                 ? "ring-2 ring-sky-500 ring-offset-2"
                                 : ""
-                          }`}
+                          } ${isViewMode ? "shadow-md shadow-slate-900/5" : "group"}`}
                           style={{ left: entry.posX ?? 0, top: entry.posY ?? 0 }}
-                          onPointerDown={(e) =>
+                          onPointerDown={(e) => {
+                            if (isViewMode) return;
                             branchMode
                               ? handleBranchCard(e, entry)
-                              : beginDrag(e, entry, "move")
-                          }
+                              : beginDrag(e, entry, "move");
+                          }}
                           onDoubleClick={() => {
-                            if (!branchMode) openEdit(entry);
+                            if (isEditMode && !branchMode) openEdit(entry);
                           }}
                         >
                           <PersonCard entry={entry} />
 
-                          {!branchMode &&
+                          {isEditMode &&
+                            !branchMode &&
                             anchors &&
                             Object.entries(anchors).map(([side, anchor]) => (
                               <span
@@ -1296,25 +1406,36 @@ const AddOrgChart = () => {
                     })}
 
                     {texts.map((entry) => {
-                      const isSelected = String(selectedId) === String(entry.id);
-                      const isEditing = String(editingTextId) === String(entry.id);
+                      const isSelected =
+                        isEditMode && String(selectedId) === String(entry.id);
+                      const isEditing =
+                        isEditMode && String(editingTextId) === String(entry.id);
 
                       return (
                         <div
                           key={entry.id}
                           ref={setCardRef(entry.id)}
                           className={`absolute touch-none ${
-                            isEditing ? "cursor-text" : "cursor-move select-none"
+                            isViewMode
+                              ? "cursor-default select-none"
+                              : isEditing
+                                ? "cursor-text"
+                                : "cursor-move select-none"
                           } ${isSelected ? "ring-2 ring-sky-500 ring-offset-2" : ""}`}
                           style={{
                             left: entry.posX ?? 0,
                             top: entry.posY ?? 0,
                             width: entry.width ?? 240,
                           }}
-                          onPointerDown={(e) =>
-                            isEditing ? e.stopPropagation() : beginDrag(e, entry, "move")
-                          }
-                          onDoubleClick={() => setEditingTextId(entry.id)}
+                          onPointerDown={(e) => {
+                            if (isViewMode) return;
+                            isEditing
+                              ? e.stopPropagation()
+                              : beginDrag(e, entry, "move");
+                          }}
+                          onDoubleClick={() => {
+                            if (isEditMode) setEditingTextId(entry.id);
+                          }}
                         >
                           {isEditing ? (
                             <textarea
@@ -1335,7 +1456,8 @@ const AddOrgChart = () => {
                                 color: entry.color || "#0f172a",
                               }}
                             >
-                              {entry.textContent || "Double-click to edit"}
+                              {entry.textContent ||
+                                (isViewMode ? "" : "Double-click to edit")}
                             </p>
                           )}
 
@@ -1356,7 +1478,9 @@ const AddOrgChart = () => {
                           Empty canvas
                         </p>
                         <p className="mt-2 text-sm text-slate-500">
-                          Add personnel, text, or lines — then drag them into place.
+                          {isViewMode
+                            ? "No personnel on the chart yet. Switch to Edit to add entries."
+                            : "Add personnel, text, or lines — then drag them into place."}
                         </p>
                       </div>
                     )}
